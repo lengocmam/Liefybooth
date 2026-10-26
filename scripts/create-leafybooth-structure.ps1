@@ -1,4 +1,4 @@
-﻿\xEF\xBB\xBF<#
+﻿<#
 .SYNOPSIS
     Tạo cấu trúc thư mục dự án LeafyBooth (Expo + Firebase, iOS trước, Android sau).
 
@@ -56,7 +56,7 @@ if ($CreateExpo) {
     } else {
         Push-Location $Root
         try {
-            npx create-expo-app@latest mobile
+            npx create-expo-app@latest mobile --yes
             if ($LASTEXITCODE -ne 0) { throw "create-expo-app thất bại (mã $LASTEXITCODE)." }
         } finally {
             Pop-Location
@@ -212,7 +212,7 @@ service firebase.storage {
 
 # 6) Thêm .gitkeep vào thư mục rỗng để Git giữ lại
 Get-ChildItem -Path $Root -Recurse -Directory -Force |
-    Where-Object { $_.FullName -notmatch "node_modules" } |
+    Where-Object { $_.FullName -notmatch "node_modules|\\\.git" } |
     Where-Object { -not (Get-ChildItem -Path $_.FullName -Force) } |
     ForEach-Object { New-Item -ItemType File -Path (Join-Path $_.FullName ".gitkeep") | Out-Null }
 
@@ -227,7 +227,7 @@ if ($GitInit) {
 
 Write-Host ""
 Write-Host "Xong. Cấu trúc thư mục (không gồm node_modules):" -ForegroundColor Green
-Get-ChildItem -Path $Root -Directory -Force | ForEach-Object { Write-Host "  $($_.Name)\" }
+Get-ChildItem -Path $Root -Directory -Force | ForEach-Object { Write-Host "  $($_.Name)/" }
 
 Write-Host ""
 Write-Host "Bước tiếp theo:" -ForegroundColor Cyan

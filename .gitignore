@@ -1,0 +1,27 @@
+# Hệ điều hành và công cụ
+.DS_Store
+Thumbs.db
+*.log
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+functions/lib/
+
+# Expo prebuild: thư mục native được sinh ra khi build, không commit vào git
+mobile/ios/
+mobile/android/
+
+# Firebase
+.firebase/
+firebase/emulator-data/
+
+# Bí mật: không đưa lên Git
+.env
+.env.*
+*.p8
+*.jks
+*.keystore
+key.properties

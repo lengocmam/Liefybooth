@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Mặc định từ chối tất cả. Sẽ viết quy tắc thật ở giai đoạn tài khoản và sự kiện.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

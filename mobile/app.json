@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "LeafyBooth",
+    "slug": "leafybooth",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "leafybooth",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.leafybooth.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "LeafyBooth cần quyền truy cập camera để chụp ảnh khoảnh khắc và dải photobooth.",
+        "NSPhotoLibraryAddUsageDescription": "LeafyBooth cần quyền lưu ảnh để lưu dải photobooth vào thư viện ảnh của bạn.",
+        "NSPhotoLibraryUsageDescription": "LeafyBooth cần quyền truy cập thư viện ảnh để chọn ảnh làm nền và khung ảnh."
+      }
+    },
+    "android": {
+      "package": "com.leafybooth.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#C8F135",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "server",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#C8F135",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

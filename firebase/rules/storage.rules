@@ -1,0 +1,9 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Mặc định từ chối tất cả. Sẽ viết quy tắc thật ở giai đoạn gửi ảnh.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
