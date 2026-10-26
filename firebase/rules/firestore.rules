@@ -1,9 +1,118 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Mặc định từ chối tất cả. Sẽ viết quy tắc thật ở giai đoạn tài khoản và sự kiện.
-    match /{document=**} {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function getEvent(eventId) {
+      return get(/databases/$(database)/documents/events/$(eventId));
+    }
+
+    // 1. Users collection
+    match /users/{uid} {
+      // Bất kỳ người dùng đã đăng nhập nào cũng có thể xem hồ sơ cơ bản (để tìm kiếm bạn bè)
+      allow read: if isAuthenticated();
+      // Chỉ chính chủ mới có quyền cập nhật hồ sơ cá nhân
+      allow write: if isOwner(uid);
+    }
+
+    // 2. Usernames collection (Chỉ định danh @username duy nhất)
+    match /usernames/{username} {
+      allow read: if isAuthenticated();
+      // Client không được ghi trực tiếp, chỉ Cloud Functions quản lý
+      allow write: if false;
+    }
+
+    // 3. Friendships (Cặp bạn bè)
+    match /friendships/{pairId} {
+      // Chỉ 2 thành viên trong cặp bạn bè mới được đọc
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.members);
+      // Kết bạn, chấp nhận, từ chối và giới hạn 20 người bắt buộc qua Cloud Function
+      allow write: if false;
+    }
+
+    // 4. Moments (Khoảnh khắc 1:1 kiểu Locket)
+    match /moments/{momentId} {
+      // Chỉ người gửi hoặc những người bạn nằm trong recipientIds mới được xem
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.senderId ||
+        request.auth.uid in resource.data.recipientIds
+      );
+      // Tạo moment mới bắt buộc qua sendMoment Function để kiểm tra quan hệ bạn bè hợp lệ
+      allow create: if false;
+      // Người nhận được quyền thả reaction hoặc đánh dấu đã xem (seenBy)
+      allow update: if isAuthenticated() &&
+        request.auth.uid in resource.data.recipientIds &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'seenBy']);
+      // Chỉ người gửi mới được xóa khoảnh khắc của mình
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.senderId;
+    }
+
+    // 5. Events (Sự kiện nhóm Garden)
+    match /events/{eventId} {
+      // Chỉ thành viên trong sự kiện mới được đọc
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.memberIds);
+      // Tạo sự kiện và sinh join code qua Cloud Function createEvent
+      allow create: if false;
+      // Chủ sự kiện (Owner) được sửa thông tin, nhưng không được tự ý sửa memberIds trực tiếp
+      allow update: if isAuthenticated() &&
+        request.auth.uid == resource.data.ownerId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberIds', 'memberCount', 'joinCode']);
+      // Chỉ chủ phòng mới có quyền xóa sự kiện
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+
+      // Sub-collection: Dải ảnh trong sự kiện (Chế độ A)
+      match /strips/{stripId} {
+        allow read: if isAuthenticated() && (request.auth.uid in getEvent(eventId).data.memberIds);
+        allow create: if isAuthenticated() &&
+          (request.auth.uid in getEvent(eventId).data.memberIds) &&
+          request.resource.data.ownerId == request.auth.uid;
+        allow delete: if isAuthenticated() && (
+          request.auth.uid == resource.data.ownerId ||
+          request.auth.uid == getEvent(eventId).data.ownerId
+        );
+      }
+
+      // Sub-collection: Dải ghép co-op 4 ô (Chế độ B)
+      match /sheets/{sheetId} {
+        allow read: if isAuthenticated() && (request.auth.uid in getEvent(eventId).data.memberIds);
+        allow write: if isAuthenticated() && (request.auth.uid in getEvent(eventId).data.memberIds);
+      }
+    }
+
+    // 6. Join codes (Mã mời sự kiện)
+    match /joinCodes/{code} {
+      // Client không đọc hoặc ghi trực tiếp
       allow read, write: if false;
+    }
+
+    // 7. Báo cáo vi phạm (UGC Safety - Apple & Google compliance)
+    match /reports/{reportId} {
+      allow create: if isAuthenticated() && request.resource.data.reporterId == request.auth.uid;
+      allow read, update, delete: if false; // Chỉ admin xử lý
+    }
+
+    // 8. Custom Frames (Frame Studio)
+    match /frames/{frameId} {
+      allow read: if isAuthenticated() && (
+        resource.data.visibility == 'public' ||
+        request.auth.uid == resource.data.ownerId
+      );
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+
+    // 9. Trending leaderboard (Bảng xếp hạng xu hướng)
+    match /trending/{period} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Chỉ scheduled Cloud Function cập nhật
     }
   }
 }

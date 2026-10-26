@@ -1,9 +1,41 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Mặc định từ chối tất cả. Sẽ viết quy tắc thật ở giai đoạn gửi ảnh.
-    match /{allPaths=**} {
-      allow read, write: if false;
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png)');
+    }
+
+    function isValidFileSize(maxMegabytes) {
+      return request.resource.size <= maxMegabytes * 1024 * 1024;
+    }
+
+    // 1. Khoảnh khắc Moments
+    match /moments/{momentFile} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isValidFileSize(5);
+    }
+
+    // 2. Garden Sự kiện: Dải ảnh và ô ghép co-op
+    match /events/{eventId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isValidFileSize(5);
+    }
+
+    // 3. Ảnh đại diện người dùng
+    match /users/{uid}/avatar.jpg {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == uid && isImage() && isValidFileSize(1);
+    }
+
+    // 4. Frame Studio: Texture và sticker tùy chỉnh
+    match /frames/{frameId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isValidFileSize(3);
     }
   }
 }
