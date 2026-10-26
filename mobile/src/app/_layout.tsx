@@ -18,6 +18,27 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" options={{ animation: 'default' }} />
+        <Stack.Screen
+          name="booth/camera"
+          options={{
+            presentation: 'fullScreenModal',
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen
+          name="booth/result"
+          options={{
+            presentation: 'fullScreenModal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="booth/customize"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+          }}
+        />
       </Stack>
     </SafeAreaProvider>
   );
