@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/ui": "~58.0.22",
+    "@types/qrcode": "^1.5.6",
     "expo": "~58.0.17",
     "expo-camera": "~58.0.12",
     "expo-constants": "~58.0.13",
@@ -19,6 +20,7 @@
     "expo-symbols": "~58.0.4",
     "expo-system-ui": "~58.0.6",
     "expo-web-browser": "~58.0.6",
+    "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0",

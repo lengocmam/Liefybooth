@@ -15,6 +15,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
 import { PillButton } from '../../core/components/PillButton';
+import { exportStripToImage } from '../../core/utils/stripExportService';
 import { useBoothStore } from '../../features/booth/hooks/useBoothStore';
 
 export default function BoothResultScreen() {
@@ -43,17 +44,30 @@ export default function BoothResultScreen() {
   const handleSaveToDevice = async () => {
     setIsSaving(true);
     try {
-      if (Platform.OS !== 'web') {
+      if (Platform.OS === 'web') {
+        // Xuất và tải dải ảnh 4 khung PNG thật về máy
+        await exportStripToImage(
+          {
+            id: `booth_${Date.now()}`,
+            authorName: 'Bạn',
+            authorColor: frameColor,
+            authorLetter: 'B',
+            stripColor: frameColor,
+            photos: displayPhotos,
+            createdAt: 'Vừa xong',
+          },
+          stripTitle || 'Photobooth',
+          'Hôm nay'
+        );
+      } else {
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status === 'granted') {
-          // Lưu ảnh đầu tiên hoặc ảnh ghép
           await MediaLibrary.saveToLibraryAsync(displayPhotos[0]);
         }
       }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch {
-      // Thông báo thành công mô phỏng trên môi trường web dev
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } finally {

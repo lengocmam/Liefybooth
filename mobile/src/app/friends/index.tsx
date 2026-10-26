@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
 import { PillButton } from '../../core/components/PillButton';
+import { QRCodeView } from '../../core/components/QRCodeView';
 import { useFriendsStore, FriendUser } from '../../features/friends/hooks/useFriendsStore';
 
 export default function FriendsScreen() {
@@ -256,15 +257,13 @@ export default function FriendsScreen() {
             <Text style={styles.qrTitle}>Mã QR của bạn</Text>
             <Text style={styles.qrSubtitle}>Quét để kết bạn ngay với @ten_ban</Text>
 
-            {/* QR Pattern visual box */}
-            <View style={styles.qrBox}>
-              <View style={styles.qrCornerTL} />
-              <View style={styles.qrCornerTR} />
-              <View style={styles.qrCornerBL} />
-              <View style={styles.qrCenterAvatar}>
-                <Text style={styles.qrCenterLetter}>🌿</Text>
-              </View>
-              <Text style={styles.qrSimulatedText}>LEAFYBOOTH-FRIEND-QR</Text>
+            {/* QR Pattern thật quét được */}
+            <View style={{ marginVertical: 14 }}>
+              <QRCodeView
+                value="https://leafybooth.app/u/ten_ban"
+                size={180}
+                centerEmoji="🌿"
+              />
             </View>
 
             <View style={styles.qrLinkPill}>

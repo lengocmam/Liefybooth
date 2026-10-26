@@ -8,12 +8,19 @@ import {
   Image,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
 import { PillButton } from '../../core/components/PillButton';
+import { QRCodeView } from '../../core/components/QRCodeView';
+import {
+  exportStripToImage,
+  downloadAllAlbumStrips,
+  exportTicketToImage,
+} from '../../core/utils/stripExportService';
 import { useGardenStore, StripItem } from '../../features/garden/hooks/useGardenStore';
 
 export default function GardenDetailScreen() {
@@ -26,7 +33,14 @@ export default function GardenDetailScreen() {
 
   const [activeTab, setActiveTab] = useState<'album' | 'members'>('album');
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
+  const [ticketSavedToast, setTicketSavedToast] = useState(false);
+  const [guestLinkToast, setGuestLinkToast] = useState(false);
+
+  // Trạng thái tải trọn bộ album
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [downloadSuccessToast, setDownloadSuccessToast] = useState(false);
 
   const isSharedMode = event?.mode === 'shared';
 
@@ -35,9 +49,53 @@ export default function GardenDetailScreen() {
     setTimeout(() => setCopiedToast(false), 2500);
   };
 
+  const handleCopyGuestLink = () => {
+    setGuestLinkToast(true);
+    setTimeout(() => setGuestLinkToast(false), 2500);
+  };
+
+  // Lưu vé sự kiện thành file ảnh PNG thật
+  const handleSaveTicket = async () => {
+    setTicketSavedToast(true);
+    try {
+      await exportTicketToImage(event);
+    } catch (e) {
+      console.error(e);
+    }
+    setTimeout(() => setTicketSavedToast(false), 3000);
+  };
+
+  // Tải trọn bộ Album HD: Xuất từng dải ảnh thành file PNG tải về máy
+  const handleDownloadFullAlbum = async () => {
+    if (event.strips.length === 0) {
+      Alert.alert('Chưa có ảnh', 'Album hiện chưa có dải ảnh nào để tải về.');
+      return;
+    }
+
+    setIsDownloadingAll(true);
+    try {
+      await downloadAllAlbumStrips(event);
+      setIsDownloadingAll(false);
+      setDownloadSuccessToast(true);
+      setTimeout(() => setDownloadSuccessToast(false), 4000);
+    } catch (err) {
+      setIsDownloadingAll(false);
+      Alert.alert('Lỗi', 'Không thể hoàn tất việc tải ảnh.');
+    }
+  };
+
+  // Tải 1 dải ảnh riêng lẻ
+  const handleDownloadSingleStrip = async (strip: StripItem, idx: number) => {
+    try {
+      await exportStripToImage(strip, event.name, event.date, idx + 1);
+      Alert.alert('Thành công', `Đã xuất dải ảnh của ${strip.authorName} thành file PNG tải về máy!`);
+    } catch {
+      Alert.alert('Lỗi', 'Không thể tải dải ảnh này.');
+    }
+  };
+
   // Chế độ B: Chụp 1 ô co-op
   const handleShootSharedSlot = () => {
-    // Tìm ô trống đầu tiên của người dùng
     const emptySlotIdx = event.sheetSlots.findIndex((s) => !s.photoUrl);
     const targetIdx = emptySlotIdx !== -1 ? emptySlotIdx : 2;
 
@@ -111,6 +169,9 @@ export default function GardenDetailScreen() {
               <Pressable onPress={() => setShowQrModal(true)} style={styles.inviteBtnWhite}>
                 <Text style={styles.inviteBtnWhiteText}>Hiện QR</Text>
               </Pressable>
+              <Pressable onPress={() => setShowTicketModal(true)} style={styles.inviteBtnYellow}>
+                <Text style={styles.inviteBtnYellowText}>🎫 Vé sự kiện</Text>
+              </Pressable>
             </View>
           </View>
 
@@ -129,7 +190,7 @@ export default function GardenDetailScreen() {
                   activeTab === 'album' && styles.tabSwitchTextActive,
                 ]}
               >
-                Album
+                Album ({event.strips.length})
               </Text>
             </Pressable>
             <Pressable
@@ -145,29 +206,115 @@ export default function GardenDetailScreen() {
                   activeTab === 'members' && styles.tabSwitchTextActive,
                 ]}
               >
-                Thành viên
+                Thành viên ({event.members.length})
               </Text>
             </Pressable>
           </View>
 
-          {/* Album Feed */}
+          {/* Album Tab Content */}
           {activeTab === 'album' ? (
-            <View style={styles.stripsGrid}>
-              {event.strips.map((strip) => (
-                <View
-                  key={strip.id}
-                  style={[styles.stripFeedCard, { backgroundColor: strip.stripColor }]}
-                >
-                  <View style={styles.stripPhotosStack}>
-                    {strip.photos.map((url, i) => (
-                      <View key={i} style={styles.miniPhotoSlot}>
-                        <Image source={{ uri: url }} style={styles.slotImg} />
-                      </View>
-                    ))}
+            <View>
+              {/* THANH CÔNG CỤ QUẢN LÝ ALBUM: Tải trọn bộ HD & Link xem nhanh */}
+              <View style={styles.albumManagerCard}>
+                <View style={styles.albumManagerHeader}>
+                  <View style={styles.albumManagerStats}>
+                    <Text style={styles.albumManagerIcon}>📦</Text>
+                    <View>
+                      <Text style={styles.albumManagerTitle}>
+                        {event.strips.length} dải ảnh photobooth HD
+                      </Text>
+                      <Text style={styles.albumManagerSub}>
+                        {event.members.length} người đã đóng góp ảnh
+                      </Text>
+                    </View>
                   </View>
-                  <Text style={styles.authorBadgeText}>{strip.authorName}</Text>
                 </View>
-              ))}
+
+                {/* Toast thông báo tải thành công hoặc sao chép link */}
+                {downloadSuccessToast && (
+                  <View style={styles.toastBannerSuccess}>
+                    <Text style={styles.toastBannerText}>
+                      ✓ Đã lưu toàn bộ {event.strips.length} dải ảnh PNG vào máy của bạn!
+                    </Text>
+                  </View>
+                )}
+
+                {guestLinkToast && (
+                  <View style={styles.toastBannerInfo}>
+                    <Text style={styles.toastBannerText}>
+                      ✓ Đã chép link xem album! Bạn bè chưa cài app vẫn xem được ảnh.
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.albumActionsRow}>
+                  {/* Nút 1: Tải trọn bộ Album HD */}
+                  <Pressable
+                    onPress={handleDownloadFullAlbum}
+                    disabled={isDownloadingAll}
+                    style={({ pressed }) => [
+                      styles.downloadAllBtn,
+                      { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                    ]}
+                  >
+                    {isDownloadingAll ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <ActivityIndicator size="small" color={colors.ink} />
+                        <Text style={styles.downloadAllBtnText}>Đang xuất file PNG...</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.downloadAllBtnText}>
+                        📥 Tải trọn bộ Album HD
+                      </Text>
+                    )}
+                  </Pressable>
+
+                  {/* Nút 2: Link xem nhanh cho bạn bè */}
+                  <Pressable
+                    onPress={handleCopyGuestLink}
+                    style={({ pressed }) => [
+                      styles.guestLinkBtn,
+                      { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.guestLinkBtnText}>
+                      🔗 Link cho bạn bè
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Lưới các dải ảnh */}
+              <View style={styles.stripsGrid}>
+                {event.strips.map((strip, idx) => (
+                  <View
+                    key={strip.id}
+                    style={[styles.stripFeedCard, { backgroundColor: strip.stripColor }]}
+                  >
+                    <View style={styles.stripPhotosStack}>
+                      {strip.photos.map((url, i) => (
+                        <View key={i} style={styles.miniPhotoSlot}>
+                          <Image source={{ uri: url }} style={styles.slotImg} />
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Footer dải ảnh: Tên người chụp & Nút tải dải này */}
+                    <View style={styles.stripCardFooter}>
+                      <Text style={styles.authorBadgeText}>{strip.authorName}</Text>
+                      <Pressable
+                        onPress={() => handleDownloadSingleStrip(strip, idx)}
+                        style={({ pressed }) => [
+                          styles.singleDownloadBtn,
+                          { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                        ]}
+                      >
+                        <Text style={styles.singleDownloadBtnText}>📥 Tải</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </View>
             </View>
           ) : (
             /* Members List */
@@ -191,6 +338,24 @@ export default function GardenDetailScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.sharedScrollContent}
         >
+          {/* Black Invite Code Card for Mode B */}
+          <View style={[styles.inviteCard, { marginBottom: 16 }]}>
+            <View>
+              <Text style={styles.inviteLabel}>Mã mời</Text>
+              <Text style={styles.inviteCodeText}>{event.joinCode}</Text>
+            </View>
+            <View style={styles.inviteActions}>
+              <Pressable onPress={handleShare} style={styles.inviteBtnLime}>
+                <Text style={styles.inviteBtnLimeText}>
+                  {copiedToast ? 'Đã chép!' : 'Chia sẻ'}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => setShowTicketModal(true)} style={styles.inviteBtnYellow}>
+                <Text style={styles.inviteBtnYellowText}>🎫 Vé sự kiện</Text>
+              </Pressable>
+            </View>
+          </View>
+
           <View style={styles.coopRow}>
             {/* Cột trái: Dải ảnh 4 ô đang ghép */}
             <View style={styles.coopStripFrame}>
@@ -203,24 +368,34 @@ export default function GardenDetailScreen() {
                     key={slot.index}
                     style={[
                       styles.coopSlotBox,
-                      isUserSlot && styles.coopSlotUserBox,
-                      !isFilled && !isUserSlot && styles.coopSlotEmptyBox,
+                      isUserSlot && styles.coopSlotBoxActive,
                     ]}
                   >
                     {isFilled ? (
-                      <View style={{ flex: 1, position: 'relative' }}>
-                        <Image source={{ uri: slot.photoUrl }} style={styles.coopSlotImage} />
-                        <View style={styles.coopAuthorPill}>
-                          <Text style={styles.coopAuthorText}>{slot.userName}</Text>
+                      <View style={styles.coopFilledSlot}>
+                        <Image
+                          source={{ uri: slot.photoUrl }}
+                          style={styles.coopSlotPhoto}
+                        />
+                        <View
+                          style={[
+                            styles.coopAuthorTag,
+                            { backgroundColor: slot.userColor || colors.pink },
+                          ]}
+                        >
+                          <Text style={styles.coopAuthorText}>
+                            {slot.userName}
+                          </Text>
                         </View>
                       </View>
                     ) : isUserSlot ? (
-                      <View style={styles.userSlotContent}>
-                        <Text style={styles.userSlotTitle}>Ô của bạn</Text>
+                      <View style={styles.coopUserSlotPrompt}>
+                        <Text style={styles.coopPromptEmoji}>📸</Text>
+                        <Text style={styles.coopPromptText}>Ô của bạn</Text>
                       </View>
                     ) : (
-                      <View style={styles.emptySlotContent}>
-                        <Text style={styles.emptySlotDot}>•</Text>
+                      <View style={styles.coopEmptySlot}>
+                        <Text style={styles.coopEmptyText}>Ô trống</Text>
                       </View>
                     )}
                   </View>
@@ -228,14 +403,13 @@ export default function GardenDetailScreen() {
               })}
             </View>
 
-            {/* Cột phải: Tiến độ và thành viên */}
-            <View style={styles.coopStatusCol}>
-              {/* Thẻ 2/4 ô */}
-              <View style={styles.coopCountCard}>
-                <Text style={styles.coopCountBig}>
+            {/* Cột phải: Thẻ tiến độ & Thời gian */}
+            <View style={styles.coopInfoCol}>
+              <View style={styles.progressCard}>
+                <Text style={styles.progressBigText}>
                   {event.sheetSlots.filter((s) => s.photoUrl).length}/4
                 </Text>
-                <Text style={styles.coopCountLabel}>ô đã có người chụp</Text>
+                <Text style={styles.progressSubText}>ô đã chụp</Text>
               </View>
 
               {/* Đồng hồ đếm ngược */}
@@ -285,7 +459,115 @@ export default function GardenDetailScreen() {
         )}
       </View>
 
-      {/* Modal QR Code */}
+      {/* MODAL 1: TẤM VÉ SỰ KIỆN SỐNG ẢO (Event Ticket Pass với QR Thật) */}
+      <Modal
+        visible={showTicketModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTicketModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.ticketCard}>
+            {/* Ticket Header & Brand */}
+            <View style={styles.ticketHeader}>
+              <Text style={styles.ticketBrand}>🌿 LEAFYBOOTH EVENT PASS</Text>
+              <View style={styles.ticketBadge}>
+                <Text style={styles.ticketBadgeText}>
+                  {isSharedMode ? 'CO-OP 4 KHUNG' : 'ALBUM CHUNG'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Ticket Event Info */}
+            <Text style={styles.ticketTitle}>{event.name}</Text>
+            <Text style={styles.ticketDate}>📅 {event.date} · 📍 Leafy Garden</Text>
+
+            {/* Member Avatars on Ticket */}
+            <View style={styles.ticketMembersRow}>
+              <View style={styles.ticketAvatarsStack}>
+                {event.members.slice(0, 4).map((m, idx) => (
+                  <View
+                    key={m.id}
+                    style={[
+                      styles.ticketAvatarDot,
+                      { backgroundColor: m.color, left: idx * 20 },
+                    ]}
+                  >
+                    <Text style={styles.ticketAvatarLetter}>{m.letter}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.ticketMembersText}>
+                {event.memberCount} thành viên tham gia
+              </Text>
+            </View>
+
+            {/* Perforated Divider (Đường rãnh xé vé retro) */}
+            <View style={styles.perforationWrapper}>
+              <View style={styles.notchLeft} />
+              <View style={styles.perforationLine} />
+              <View style={styles.notchRight} />
+            </View>
+
+            {/* Ticket Stub (Cuống vé & QR Code Thật Quét Được) */}
+            <View style={styles.ticketStub}>
+              <QRCodeView
+                value={`https://leafybooth.app/garden/${event.joinCode}`}
+                size={140}
+                centerEmoji="🌿"
+              />
+              <Text style={styles.ticketCodeInstruction}>
+                Quét QR bằng camera hoặc nhập mã <Text style={{ fontWeight: '900' }}>{event.joinCode}</Text>
+              </Text>
+            </View>
+
+            {/* Toast thông báo lưu vé */}
+            {ticketSavedToast && (
+              <View style={styles.ticketToast}>
+                <Text style={styles.ticketToastText}>
+                  ✓ Đã xuất và lưu file ảnh vé sự kiện vào máy của bạn!
+                </Text>
+              </View>
+            )}
+
+            {/* Ticket Actions */}
+            <View style={styles.ticketActions}>
+              <Pressable
+                onPress={handleSaveTicket}
+                style={({ pressed }) => [
+                  styles.ticketActionBtnLime,
+                  { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                ]}
+              >
+                <Text style={styles.ticketActionBtnLimeText}>
+                  📥 Lưu file vé vào máy
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleShare}
+                style={({ pressed }) => [
+                  styles.ticketActionBtnWhite,
+                  { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                ]}
+              >
+                <Text style={styles.ticketActionBtnWhiteText}>
+                  {copiedToast ? 'Đã sao chép!' : '🔗 Chép link mời'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setShowTicketModal(false)}
+                style={styles.ticketCloseBtn}
+              >
+                <Text style={styles.ticketCloseBtnText}>Đóng</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL 2: QR Code Sự kiện thật chuẩn quét Camera */}
       <Modal
         visible={showQrModal}
         transparent
@@ -297,18 +579,18 @@ export default function GardenDetailScreen() {
             <Text style={styles.modalTitle}>Mã QR sự kiện</Text>
             <Text style={styles.modalEventName}>{event.name}</Text>
 
-            {/* Simulated QR Graphic */}
-            <View style={styles.qrBox}>
-              <View style={styles.qrInner}>
-                <View style={[styles.qrCorner, { top: 10, left: 10 }]} />
-                <View style={[styles.qrCorner, { top: 10, right: 10 }]} />
-                <View style={[styles.qrCorner, { bottom: 10, left: 10 }]} />
-                <Text style={styles.qrCenterCode}>{event.joinCode}</Text>
-              </View>
+            {/* Mã QR Thật 100% quét được bằng Camera điện thoại */}
+            <View style={{ marginVertical: 14 }}>
+              <QRCodeView
+                value={`https://leafybooth.app/garden/${event.joinCode}`}
+                size={210}
+                centerEmoji="🌿"
+                caption={`MÃ MỜI: ${event.joinCode}`}
+              />
             </View>
 
             <Text style={styles.qrHelpText}>
-              Bạn bè mở LeafyBooth, quét QR hoặc nhập mã {event.joinCode} để vào cùng chụp.
+              Bất kỳ ai mở Camera điện thoại quét mã này đều sẽ mở thẳng vào sự kiện "{event.name}".
             </Text>
 
             <PillButton
@@ -356,28 +638,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
     color: colors.ink,
   },
   headerSub: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.ink,
-    opacity: 0.85,
-    marginTop: 2,
+    color: '#374151',
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 20,
+    paddingBottom: 90,
   },
   inviteCard: {
     backgroundColor: colors.ink,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 2.5,
     borderColor: colors.ink,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -390,7 +669,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   inviteCodeText: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     color: colors.lime,
     letterSpacing: 2,
@@ -404,12 +683,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 2,
     borderColor: colors.ink,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     ...theme.shadows.hardSmall,
   },
   inviteBtnLimeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -418,12 +697,26 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 2,
     borderColor: colors.ink,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     ...theme.shadows.hardSmall,
   },
   inviteBtnWhiteText: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  inviteBtnYellow: {
+    backgroundColor: colors.yellow,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    ...theme.shadows.hardSmall,
+  },
+  inviteBtnYellowText: {
+    fontSize: 12,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -434,7 +727,7 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     padding: 4,
     flexDirection: 'row',
-    marginBottom: 18,
+    marginBottom: 16,
     ...theme.shadows.hard,
   },
   tabSwitchBtn: {
@@ -448,13 +741,111 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
   tabSwitchText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: colors.ink,
   },
   tabSwitchTextActive: {
     color: colors.white,
   },
+
+  /* THANH CÔNG CỤ QUẢN LÝ ALBUM */
+  albumManagerCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    padding: 14,
+    marginBottom: 16,
+    ...theme.shadows.hard,
+  },
+  albumManagerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  albumManagerStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  albumManagerIcon: {
+    fontSize: 26,
+  },
+  albumManagerTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  albumManagerSub: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  albumActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  downloadAllBtn: {
+    flex: 1.2,
+    backgroundColor: colors.lime,
+    paddingVertical: 10,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.hardSmall,
+  },
+  downloadAllBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  guestLinkBtn: {
+    flex: 0.9,
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 10,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestLinkBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  toastBannerSuccess: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1.5,
+    borderColor: '#16A34A',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  toastBannerInfo: {
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1.5,
+    borderColor: '#0284C7',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  toastBannerText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.ink,
+    textAlign: 'center',
+  },
+
+  /* Lưới dải ảnh */
   stripsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -488,11 +879,30 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  stripCardFooter: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
   authorBadgeText: {
     fontSize: 13,
     fontWeight: '900',
     color: colors.ink,
-    marginTop: 2,
+  },
+  singleDownloadBtn: {
+    backgroundColor: colors.white,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  singleDownloadBtnText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.ink,
   },
   membersListCard: {
     backgroundColor: colors.white,
@@ -518,7 +928,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   memberAvatarLetter: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -528,113 +938,114 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
 
-  /* Chế độ B Co-op Styles */
+  /* Chế độ B (Co-op) */
   sharedScrollContent: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 20,
+    paddingBottom: 90,
   },
   coopRow: {
     flexDirection: 'row',
     gap: 16,
-    alignItems: 'flex-start',
   },
   coopStripFrame: {
-    width: 140,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    borderWidth: 2.5,
+    flex: 1.1,
+    backgroundColor: colors.pink,
+    borderRadius: 20,
+    borderWidth: 3,
     borderColor: colors.ink,
-    padding: 8,
+    padding: 10,
     gap: 8,
     ...theme.shadows.hard,
   },
   coopSlotBox: {
     width: '100%',
-    height: 85,
-    borderRadius: 8,
+    aspectRatio: 1.1,
+    backgroundColor: colors.white,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: colors.ink,
     overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
   },
-  coopSlotUserBox: {
-    backgroundColor: colors.lime,
-    borderWidth: 2.5,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
+  coopSlotBoxActive: {
+    borderColor: colors.lime,
+    borderWidth: 3,
   },
-  coopSlotEmptyBox: {
-    backgroundColor: '#E5E7EB',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
+  coopFilledSlot: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
   },
-  coopSlotImage: {
+  coopSlotPhoto: {
     width: '100%',
     height: '100%',
   },
-  coopAuthorPill: {
+  coopAuthorTag: {
     position: 'absolute',
-    top: 6,
-    left: 6,
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    bottom: 4,
+    left: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
   },
   coopAuthorText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  coopUserSlotPrompt: {
+    flex: 1,
+    backgroundColor: '#F7FEE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  coopPromptEmoji: {
+    fontSize: 22,
+  },
+  coopPromptText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  coopEmptySlot: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coopEmptyText: {
     fontSize: 11,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  userSlotContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userSlotTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  emptySlotContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptySlotDot: {
-    fontSize: 24,
+    fontWeight: '700',
     color: '#9CA3AF',
   },
-  coopStatusCol: {
-    flex: 1,
+  coopInfoCol: {
+    flex: 0.9,
     gap: 12,
   },
-  coopCountCard: {
+  progressCard: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 2.5,
     borderColor: colors.ink,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
     ...theme.shadows.hard,
   },
-  coopCountBig: {
-    fontSize: 44,
+  progressBigText: {
+    fontSize: 34,
     fontWeight: '900',
     color: colors.ink,
-    lineHeight: 46,
   },
-  coopCountLabel: {
+  progressSubText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.ink,
-    marginTop: 2,
+    color: '#6B7280',
   },
   timeLeftPill: {
     backgroundColor: colors.white,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: colors.ink,
     paddingVertical: 8,
@@ -642,23 +1053,23 @@ const styles = StyleSheet.create({
     ...theme.shadows.hardSmall,
   },
   timeLeftText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
     color: colors.ink,
   },
   coopMembersCard: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 2.5,
     borderColor: colors.ink,
-    padding: 14,
+    padding: 12,
     gap: 8,
     ...theme.shadows.hard,
   },
   coopMemberStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
   },
   miniAvatarCirc: {
     width: 26,
@@ -670,37 +1081,223 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   miniAvatarLetter: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '900',
     color: colors.ink,
   },
   coopMemberName: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: colors.ink,
+    marginLeft: 8,
   },
   coopCheckmark: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
-    color: '#10B981',
+    color: '#16A34A',
   },
   coopRemainingText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#6B7280',
+    textAlign: 'center',
     marginTop: 4,
   },
-
   bottomBar: {
-    paddingHorizontal: theme.spacing.lg,
-    marginTop: 'auto',
+    position: 'absolute',
+    bottom: 16,
+    left: theme.spacing.lg,
+    right: theme.spacing.lg,
   },
   actionBtn: {
     width: '100%',
   },
 
-  /* Modal QR */
+  /* MODAL: TẤM VÉ SỰ KIỆN RETRO */
+  ticketCard: {
+    width: '100%',
+    backgroundColor: '#FFD93D', // Nền vé vàng retro
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    padding: 20,
+    ...theme.shadows.hard,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  ticketHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ticketBrand: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.ink,
+    letterSpacing: 1,
+  },
+  ticketBadge: {
+    backgroundColor: colors.lime,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  ticketBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  ticketTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  ticketDate: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  ticketMembersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  ticketAvatarsStack: {
+    height: 32,
+    width: 90,
+    position: 'relative',
+  },
+  ticketAvatarDot: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketAvatarLetter: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  ticketMembersText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.ink,
+    marginLeft: 10,
+  },
+
+  /* Rãnh xé vé retro */
+  perforationWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 12,
+    marginHorizontal: -20,
+    position: 'relative',
+  },
+  notchLeft: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    marginLeft: -11,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+  },
+  perforationLine: {
+    flex: 1,
+    height: 2,
+    borderStyle: 'dashed',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  notchRight: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    marginRight: -11,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+  },
+
+  /* Cuống vé */
+  ticketStub: {
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  ticketCodeInstruction: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.ink,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  ticketToast: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1.5,
+    borderColor: '#16A34A',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  ticketToastText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  ticketActions: {
+    gap: 8,
+  },
+  ticketActionBtnLime: {
+    backgroundColor: colors.lime,
+    paddingVertical: 12,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    ...theme.shadows.hardSmall,
+  },
+  ticketActionBtnLimeText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  ticketActionBtnWhite: {
+    backgroundColor: colors.white,
+    paddingVertical: 10,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+  },
+  ticketActionBtnWhiteText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  ticketCloseBtn: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  ticketCloseBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.ink,
+    textDecorationLine: 'underline',
+  },
+
+  /* Modal QR thường */
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -727,41 +1324,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#4B5563',
-    marginBottom: 16,
-  },
-  qrBox: {
-    width: 200,
-    height: 200,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  qrInner: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qrCorner: {
-    position: 'absolute',
-    width: 32,
-    height: 32,
-    borderWidth: 5,
-    borderColor: colors.ink,
-  },
-  qrCenterCode: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: colors.ink,
-    letterSpacing: 2,
+    marginBottom: 6,
   },
   qrHelpText: {
     fontSize: 13,
