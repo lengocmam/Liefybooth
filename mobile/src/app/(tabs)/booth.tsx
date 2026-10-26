@@ -42,6 +42,31 @@ export default function BoothScreen() {
           <Text style={styles.subtitle}>
             Chọn nền, chụp 4 khung. Không cần mạng.
           </Text>
+
+          {/* Quick shortcuts to Frame Studio & Trending (v1.1 Preview) */}
+          <View style={styles.shortcutsRow}>
+            <Pressable
+              onPress={() => router.push('/studio' as any)}
+              style={({ pressed }) => [
+                styles.shortcutPill,
+                { backgroundColor: '#FF4F8B', transform: [{ scale: pressed ? 0.96 : 1 }] },
+              ]}
+            >
+              <Text style={styles.shortcutEmoji}>🎨</Text>
+              <Text style={styles.shortcutText}>Tự tạo frame</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/trending' as any)}
+              style={({ pressed }) => [
+                styles.shortcutPill,
+                { backgroundColor: colors.forestGreen, transform: [{ scale: pressed ? 0.96 : 1 }] },
+              ]}
+            >
+              <Text style={styles.shortcutEmoji}>🔥</Text>
+              <Text style={styles.shortcutText}>Xu hướng</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Featured Card (Halloween) */}
@@ -253,5 +278,31 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginTop: 8,
     textAlign: 'center',
+  },
+  shortcutsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  shortcutPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: theme.borders.width,
+    borderColor: colors.ink,
+    gap: 6,
+    ...theme.shadows.hardSmall,
+  },
+  shortcutEmoji: {
+    fontSize: 16,
+  },
+  shortcutText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.white,
   },
 });
