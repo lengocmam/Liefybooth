@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -240,148 +240,163 @@ interface DraggableCanvasStickerProps {
   canvasHeight?: number;
 }
 
-function DraggableCanvasSticker({
-  sticker,
-  isSelected,
-  onSelect,
-  onRemove,
-  onRotate,
-  onDuplicate,
-  onDragStart,
-  onDragEnd,
-  canvasHeight = 700,
-}: DraggableCanvasStickerProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const isDraggingRef = useRef(false);
-  const [pos, setPos] = useState({ x: sticker.x, y: sticker.y });
-  const startPos = useRef({ x: sticker.x, y: sticker.y });
-  const currentPos = useRef({ x: sticker.x, y: sticker.y });
+const DraggableCanvasSticker = React.memo(
+  function DraggableCanvasSticker({
+    sticker,
+    isSelected,
+    onSelect,
+    onRemove,
+    onRotate,
+    onDuplicate,
+    onDragStart,
+    onDragEnd,
+    canvasHeight = 700,
+  }: DraggableCanvasStickerProps) {
+    const [isDragging, setIsDragging] = useState(false);
+    const isDraggingRef = useRef(false);
+    const [pos, setPos] = useState({ x: sticker.x, y: sticker.y });
+    const startPos = useRef({ x: sticker.x, y: sticker.y });
+    const currentPos = useRef({ x: sticker.x, y: sticker.y });
 
-  useEffect(() => {
-    setPos({ x: sticker.x, y: sticker.y });
-    currentPos.current = { x: sticker.x, y: sticker.y };
-  }, [sticker.x, sticker.y]);
+    useEffect(() => {
+      setPos({ x: sticker.x, y: sticker.y });
+      currentPos.current = { x: sticker.x, y: sticker.y };
+    }, [sticker.x, sticker.y]);
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
-        },
-        onPanResponderGrant: () => {
+    const panResponder = useMemo(
+      () =>
+        PanResponder.create({
+          onStartShouldSetPanResponder: () => false,
+          onMoveShouldSetPanResponder: (_, gestureState) => {
+            return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
+          },
+          onPanResponderTerminationRequest: () => false,
+          onPanResponderGrant: () => {
+            onSelect();
+            isDraggingRef.current = true;
+            setIsDragging(true);
+            onDragStart?.();
+            startPos.current = { ...currentPos.current };
+          },
+          onPanResponderMove: (_, gestureState) => {
+            const nextX = Math.round(startPos.current.x + gestureState.dx);
+            const nextY = Math.round(startPos.current.y + gestureState.dy);
+            // Di chuyển khắp frame (rộng ~200, cao đo từ layout)
+            const clampedX = Math.max(-15, Math.min(nextX, 175));
+            const maxY = Math.max(100, canvasHeight - 35);
+            const clampedY = Math.max(0, Math.min(nextY, maxY));
+            currentPos.current = { x: clampedX, y: clampedY };
+            setPos({ x: clampedX, y: clampedY });
+          },
+          onPanResponderRelease: (_, gestureState) => {
+            isDraggingRef.current = false;
+            setIsDragging(false);
+            const nextX = Math.round(startPos.current.x + gestureState.dx);
+            const nextY = Math.round(startPos.current.y + gestureState.dy);
+            const clampedX = Math.max(-15, Math.min(nextX, 175));
+            const maxY = Math.max(100, canvasHeight - 35);
+            const clampedY = Math.max(0, Math.min(nextY, maxY));
+            currentPos.current = { x: clampedX, y: clampedY };
+            setPos({ x: clampedX, y: clampedY });
+            onDragEnd(clampedX, clampedY);
+          },
+          onPanResponderTerminate: () => {
+            isDraggingRef.current = false;
+            setIsDragging(false);
+            onDragEnd(currentPos.current.x, currentPos.current.y);
+          },
+        }),
+      [onSelect, onDragStart, onDragEnd, canvasHeight]
+    );
+
+    const size = sticker.size || 30;
+    const rotation = sticker.rotation || 0;
+
+    return (
+      <Pressable
+        {...panResponder.panHandlers}
+        onPress={(e) => {
+          e.stopPropagation();
           onSelect();
-          isDraggingRef.current = true;
-          setIsDragging(true);
-          onDragStart?.();
-          startPos.current = { ...currentPos.current };
-        },
-        onPanResponderMove: (_, gestureState) => {
-          const nextX = Math.round(startPos.current.x + gestureState.dx);
-          const nextY = Math.round(startPos.current.y + gestureState.dy);
-          // Di chuyển khắp frame (rộng ~200, cao đo từ layout)
-          const clampedX = Math.max(-15, Math.min(nextX, 175));
-          const maxY = Math.max(100, canvasHeight - 35);
-          const clampedY = Math.max(0, Math.min(nextY, maxY));
-          currentPos.current = { x: clampedX, y: clampedY };
-          setPos({ x: clampedX, y: clampedY });
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          isDraggingRef.current = false;
-          setIsDragging(false);
-          const nextX = Math.round(startPos.current.x + gestureState.dx);
-          const nextY = Math.round(startPos.current.y + gestureState.dy);
-          const clampedX = Math.max(-15, Math.min(nextX, 175));
-          const maxY = Math.max(100, canvasHeight - 35);
-          const clampedY = Math.max(0, Math.min(nextY, maxY));
-          currentPos.current = { x: clampedX, y: clampedY };
-          setPos({ x: clampedX, y: clampedY });
-          onDragEnd(clampedX, clampedY);
-        },
-        onPanResponderTerminate: () => {
-          isDraggingRef.current = false;
-          setIsDragging(false);
-          onDragEnd(currentPos.current.x, currentPos.current.y);
-        },
-      }),
-    [onSelect, onDragStart, onDragEnd, canvasHeight]
-  );
-
-  const size = sticker.size || 30;
-  const rotation = sticker.rotation || 0;
-
-  return (
-    <Pressable
-      {...panResponder.panHandlers}
-      onPress={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
-      style={[
-        styles.canvasSticker,
-        {
-          top: pos.y,
-          left: pos.x,
-          transform: [
-            { rotate: `${rotation}deg` },
-            { scale: isDragging ? 1.25 : 1 },
-          ],
-          zIndex: isDragging ? 999 : isSelected ? 50 : 10,
-          cursor: isDragging ? 'grabbing' : 'grab',
-        } as any,
-        isSelected && styles.canvasStickerSelected,
-        isDragging && styles.canvasStickerDragging,
-      ]}
-    >
-      <Text style={[{ fontSize: size, userSelect: 'none' } as any]}>
-        {sticker.emoji}
-      </Text>
-      {isSelected && (
-        <>
-          {/* Nút Xóa (Góc trên phải) */}
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            hitSlop={12}
-            style={styles.handleDotRemove}
-          >
-            <Text style={styles.handleDotRemoveText}>✕</Text>
-          </Pressable>
-
-          {/* Nút Xoay 15° (Góc dưới phải) */}
-          {onRotate && (
+        }}
+        style={[
+          styles.canvasSticker,
+          {
+            top: pos.y,
+            left: pos.x,
+            transform: [
+              { rotate: `${rotation}deg` },
+              { scale: isDragging ? 1.25 : 1 },
+            ],
+            zIndex: isDragging ? 999 : isSelected ? 50 : 10,
+            cursor: isDragging ? 'grabbing' : 'grab',
+          } as any,
+          isSelected && styles.canvasStickerSelected,
+          isDragging && styles.canvasStickerDragging,
+        ]}
+      >
+        <Text style={[{ fontSize: size, userSelect: 'none' } as any]}>
+          {sticker.emoji}
+        </Text>
+        {isSelected && (
+          <>
+            {/* Nút Xóa (Góc trên phải) */}
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
-                onRotate();
+                onRemove();
               }}
               hitSlop={12}
-              style={styles.handleDotRotate}
+              style={styles.handleDotRemove}
             >
-              <Text style={styles.handleDotText}>⟳</Text>
+              <Text style={styles.handleDotRemoveText}>✕</Text>
             </Pressable>
-          )}
 
-          {/* Nút Nhân bản (Góc dưới trái) */}
-          {onDuplicate && (
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onDuplicate();
-              }}
-              hitSlop={12}
-              style={styles.handleDotDuplicate}
-            >
-              <Text style={styles.handleDotText}>📑</Text>
-            </Pressable>
-          )}
-        </>
-      )}
-    </Pressable>
-  );
-}
+            {/* Nút Xoay 15° (Góc dưới phải) */}
+            {onRotate && (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onRotate();
+                }}
+                hitSlop={12}
+                style={styles.handleDotRotate}
+              >
+                <Text style={styles.handleDotText}>⟳</Text>
+              </Pressable>
+            )}
+
+            {/* Nút Nhân bản (Góc dưới trái) */}
+            {onDuplicate && (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onDuplicate();
+                }}
+                hitSlop={12}
+                style={styles.handleDotDuplicate}
+              >
+                <Text style={styles.handleDotText}>📑</Text>
+              </Pressable>
+            )}
+          </>
+        )}
+      </Pressable>
+    );
+  },
+  (prev, next) => {
+    return (
+      prev.isSelected === next.isSelected &&
+      prev.sticker.id === next.sticker.id &&
+      prev.sticker.x === next.sticker.x &&
+      prev.sticker.y === next.sticker.y &&
+      prev.sticker.size === next.sticker.size &&
+      prev.sticker.rotation === next.sticker.rotation &&
+      prev.sticker.emoji === next.sticker.emoji &&
+      prev.canvasHeight === next.canvasHeight
+    );
+  }
+);
 
 interface DraggableCanvasTextProps {
   item: CustomTextItem;
@@ -395,166 +410,183 @@ interface DraggableCanvasTextProps {
   canvasHeight?: number;
 }
 
-function DraggableCanvasText({
-  item,
-  isSelected,
-  onSelect,
-  onRemove,
-  onRotate,
-  onDuplicate,
-  onDragStart,
-  onDragEnd,
-  canvasHeight = 700,
-}: DraggableCanvasTextProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const isDraggingRef = useRef(false);
-  const [pos, setPos] = useState({ x: item.x, y: item.y });
-  const startPos = useRef({ x: item.x, y: item.y });
-  const currentPos = useRef({ x: item.x, y: item.y });
+const DraggableCanvasText = React.memo(
+  function DraggableCanvasText({
+    item,
+    isSelected,
+    onSelect,
+    onRemove,
+    onRotate,
+    onDuplicate,
+    onDragStart,
+    onDragEnd,
+    canvasHeight = 700,
+  }: DraggableCanvasTextProps) {
+    const [isDragging, setIsDragging] = useState(false);
+    const isDraggingRef = useRef(false);
+    const [pos, setPos] = useState({ x: item.x, y: item.y });
+    const startPos = useRef({ x: item.x, y: item.y });
+    const currentPos = useRef({ x: item.x, y: item.y });
 
-  useEffect(() => {
-    setPos({ x: item.x, y: item.y });
-    currentPos.current = { x: item.x, y: item.y };
-  }, [item.x, item.y]);
+    useEffect(() => {
+      setPos({ x: item.x, y: item.y });
+      currentPos.current = { x: item.x, y: item.y };
+    }, [item.x, item.y]);
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
-        },
-        onPanResponderGrant: () => {
+    const panResponder = useMemo(
+      () =>
+        PanResponder.create({
+          onStartShouldSetPanResponder: () => false,
+          onMoveShouldSetPanResponder: (_, gestureState) => {
+            return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
+          },
+          onPanResponderTerminationRequest: () => false,
+          onPanResponderGrant: () => {
+            onSelect();
+            isDraggingRef.current = true;
+            setIsDragging(true);
+            onDragStart?.();
+            startPos.current = { ...currentPos.current };
+          },
+          onPanResponderMove: (_, gestureState) => {
+            const nextX = Math.round(startPos.current.x + gestureState.dx);
+            const nextY = Math.round(startPos.current.y + gestureState.dy);
+            // Di chuyển khắp frame (rộng ~200, cao đo từ layout)
+            const clampedX = Math.max(-15, Math.min(nextX, 175));
+            const maxY = Math.max(100, canvasHeight - 25);
+            const clampedY = Math.max(0, Math.min(nextY, maxY));
+            currentPos.current = { x: clampedX, y: clampedY };
+            setPos({ x: clampedX, y: clampedY });
+          },
+          onPanResponderRelease: (_, gestureState) => {
+            isDraggingRef.current = false;
+            setIsDragging(false);
+            const nextX = Math.round(startPos.current.x + gestureState.dx);
+            const nextY = Math.round(startPos.current.y + gestureState.dy);
+            const clampedX = Math.max(-15, Math.min(nextX, 175));
+            const maxY = Math.max(100, canvasHeight - 25);
+            const clampedY = Math.max(0, Math.min(nextY, maxY));
+            currentPos.current = { x: clampedX, y: clampedY };
+            setPos({ x: clampedX, y: clampedY });
+            onDragEnd(clampedX, clampedY);
+          },
+          onPanResponderTerminate: () => {
+            isDraggingRef.current = false;
+            setIsDragging(false);
+            onDragEnd(currentPos.current.x, currentPos.current.y);
+          },
+        }),
+      [onSelect, onDragStart, onDragEnd, canvasHeight]
+    );
+
+    const fontSize = item.fontSize || 12;
+    const rotation = item.rotation || 0;
+    const hasBg = item.bgColor && item.bgColor !== 'transparent';
+
+    return (
+      <Pressable
+        {...panResponder.panHandlers}
+        onPress={(e) => {
+          e.stopPropagation();
           onSelect();
-          isDraggingRef.current = true;
-          setIsDragging(true);
-          onDragStart?.();
-          startPos.current = { ...currentPos.current };
-        },
-        onPanResponderMove: (_, gestureState) => {
-          const nextX = Math.round(startPos.current.x + gestureState.dx);
-          const nextY = Math.round(startPos.current.y + gestureState.dy);
-          // Di chuyển khắp frame (rộng ~200, cao đo từ layout)
-          const clampedX = Math.max(-15, Math.min(nextX, 175));
-          const maxY = Math.max(100, canvasHeight - 25);
-          const clampedY = Math.max(0, Math.min(nextY, maxY));
-          currentPos.current = { x: clampedX, y: clampedY };
-          setPos({ x: clampedX, y: clampedY });
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          isDraggingRef.current = false;
-          setIsDragging(false);
-          const nextX = Math.round(startPos.current.x + gestureState.dx);
-          const nextY = Math.round(startPos.current.y + gestureState.dy);
-          const clampedX = Math.max(-15, Math.min(nextX, 175));
-          const maxY = Math.max(100, canvasHeight - 25);
-          const clampedY = Math.max(0, Math.min(nextY, maxY));
-          currentPos.current = { x: clampedX, y: clampedY };
-          setPos({ x: clampedX, y: clampedY });
-          onDragEnd(clampedX, clampedY);
-        },
-        onPanResponderTerminate: () => {
-          isDraggingRef.current = false;
-          setIsDragging(false);
-          onDragEnd(currentPos.current.x, currentPos.current.y);
-        },
-      }),
-    [onSelect, onDragStart, onDragEnd, canvasHeight]
-  );
-
-  const fontSize = item.fontSize || 12;
-  const rotation = item.rotation || 0;
-  const hasBg = item.bgColor && item.bgColor !== 'transparent';
-
-  return (
-    <Pressable
-      {...panResponder.panHandlers}
-      onPress={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
-      style={[
-        styles.canvasTextItem,
-        {
-          top: pos.y,
-          left: pos.x,
-          transform: [
-            { rotate: `${rotation}deg` },
-            { scale: isDragging ? 1.15 : 1 },
-          ],
-          zIndex: isDragging ? 999 : isSelected ? 50 : 15,
-          cursor: isDragging ? 'grabbing' : 'grab',
-        } as any,
-        hasBg && {
-          backgroundColor: item.bgColor,
-          paddingVertical: 3,
-          paddingHorizontal: 8,
-          borderRadius: 8,
-          borderWidth: 1.5,
-          borderColor: colors.ink,
-        },
-        isSelected && styles.canvasTextSelected,
-        isDragging && styles.canvasTextDragging,
-      ]}
-    >
-      <Text
+        }}
         style={[
-          styles.canvasTextContent,
+          styles.canvasTextItem,
           {
-            fontSize,
-            color: item.color || colors.ink,
-            userSelect: 'none',
+            top: pos.y,
+            left: pos.x,
+            transform: [
+              { rotate: `${rotation}deg` },
+              { scale: isDragging ? 1.15 : 1 },
+            ],
+            zIndex: isDragging ? 999 : isSelected ? 50 : 15,
+            cursor: isDragging ? 'grabbing' : 'grab',
           } as any,
+          hasBg && {
+            backgroundColor: item.bgColor,
+            paddingVertical: 3,
+            paddingHorizontal: 8,
+            borderRadius: 8,
+            borderWidth: 1.5,
+            borderColor: colors.ink,
+          },
+          isSelected && styles.canvasTextSelected,
+          isDragging && styles.canvasTextDragging,
         ]}
       >
-        {item.text}
-      </Text>
-      {isSelected && (
-        <>
-          {/* Nút Xóa (Góc trên phải) */}
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            hitSlop={12}
-            style={styles.handleDotRemove}
-          >
-            <Text style={styles.handleDotRemoveText}>✕</Text>
-          </Pressable>
-
-          {/* Nút Xoay 15° (Góc dưới phải) */}
-          {onRotate && (
+        <Text
+          style={[
+            styles.canvasTextContent,
+            {
+              fontSize,
+              color: item.color || colors.ink,
+              userSelect: 'none',
+            } as any,
+          ]}
+        >
+          {item.text}
+        </Text>
+        {isSelected && (
+          <>
+            {/* Nút Xóa (Góc trên phải) */}
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
-                onRotate();
+                onRemove();
               }}
               hitSlop={12}
-              style={styles.handleDotRotate}
+              style={styles.handleDotRemove}
             >
-              <Text style={styles.handleDotText}>⟳</Text>
+              <Text style={styles.handleDotRemoveText}>✕</Text>
             </Pressable>
-          )}
 
-          {/* Nút Nhân bản (Góc dưới trái) */}
-          {onDuplicate && (
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onDuplicate();
-              }}
-              hitSlop={12}
-              style={styles.handleDotDuplicate}
-            >
-              <Text style={styles.handleDotText}>📑</Text>
-            </Pressable>
-          )}
-        </>
-      )}
-    </Pressable>
-  );
-}
+            {/* Nút Xoay 15° (Góc dưới phải) */}
+            {onRotate && (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onRotate();
+                }}
+                hitSlop={12}
+                style={styles.handleDotRotate}
+              >
+                <Text style={styles.handleDotText}>⟳</Text>
+              </Pressable>
+            )}
+
+            {/* Nút Nhân bản (Góc dưới trái) */}
+            {onDuplicate && (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onDuplicate();
+                }}
+                hitSlop={12}
+                style={styles.handleDotDuplicate}
+              >
+                <Text style={styles.handleDotText}>📑</Text>
+              </Pressable>
+            )}
+          </>
+        )}
+      </Pressable>
+    );
+  },
+  (prev, next) => {
+    return (
+      prev.isSelected === next.isSelected &&
+      prev.item.id === next.item.id &&
+      prev.item.x === next.item.x &&
+      prev.item.y === next.item.y &&
+      prev.item.text === next.item.text &&
+      prev.item.fontSize === next.item.fontSize &&
+      prev.item.rotation === next.item.rotation &&
+      prev.item.color === next.item.color &&
+      prev.item.bgColor === next.item.bgColor &&
+      prev.canvasHeight === next.canvasHeight
+    );
+  }
+);
 
 export default function FrameStudioScreen() {
   const insets = useSafeAreaInsets();
@@ -872,6 +904,32 @@ export default function FrameStudioScreen() {
   const selectedSticker = stickers.find((s) => s.id === selectedStickerId);
   const selectedText = textItems.find((t) => t.id === selectedTextId);
 
+  const handleCanvasSelectSticker = useCallback((id: string) => {
+    setSelectedStickerId(id);
+  }, [setSelectedStickerId]);
+
+  const handleCanvasRemoveSticker = useCallback((id: string) => {
+    removeSticker(id);
+  }, [removeSticker]);
+
+  const handleCanvasStickerDragEnd = useCallback((id: string, x: number, y: number) => {
+    setIsDraggingAny(false);
+    setStickerPosition(id, x, y);
+  }, [setStickerPosition]);
+
+  const handleCanvasSelectText = useCallback((id: string) => {
+    setSelectedTextId(id);
+  }, [setSelectedTextId]);
+
+  const handleCanvasRemoveText = useCallback((id: string) => {
+    removeTextItem(id);
+  }, [removeTextItem]);
+
+  const handleCanvasTextDragEnd = useCallback((id: string, x: number, y: number) => {
+    setIsDraggingAny(false);
+    setTextItemPosition(id, x, y);
+  }, [setTextItemPosition]);
+
   const handlePublish = () => {
     if (!frameName.trim()) {
       Alert.alert('Chưa đặt tên', 'Vui lòng nhập tên cho frame của bạn.');
@@ -1142,15 +1200,12 @@ export default function FrameStudioScreen() {
               key={stk.id}
               sticker={stk}
               isSelected={stk.id === selectedStickerId}
-              onSelect={() => setSelectedStickerId(stk.id)}
-              onRemove={() => removeSticker(stk.id)}
+              onSelect={() => handleCanvasSelectSticker(stk.id)}
+              onRemove={() => handleCanvasRemoveSticker(stk.id)}
               onRotate={() => rotateSelectedSticker(15)}
               onDuplicate={duplicateSelectedSticker}
               onDragStart={() => setIsDraggingAny(true)}
-              onDragEnd={(x, y) => {
-                setIsDraggingAny(false);
-                setStickerPosition(stk.id, x, y);
-              }}
+              onDragEnd={(x, y) => handleCanvasStickerDragEnd(stk.id, x, y)}
               canvasHeight={canvasHeight}
             />
           );
@@ -1181,15 +1236,12 @@ export default function FrameStudioScreen() {
               key={item.id}
               item={item}
               isSelected={item.id === selectedTextId}
-              onSelect={() => setSelectedTextId(item.id)}
-              onRemove={() => removeTextItem(item.id)}
+              onSelect={() => handleCanvasSelectText(item.id)}
+              onRemove={() => handleCanvasRemoveText(item.id)}
               onRotate={() => rotateSelectedTextItem(15)}
               onDuplicate={duplicateSelectedTextItem}
               onDragStart={() => setIsDraggingAny(true)}
-              onDragEnd={(x, y) => {
-                setIsDraggingAny(false);
-                setTextItemPosition(item.id, x, y);
-              }}
+              onDragEnd={(x, y) => handleCanvasTextDragEnd(item.id, x, y)}
               canvasHeight={canvasHeight}
             />
           );
@@ -1681,6 +1733,7 @@ export default function FrameStudioScreen() {
                 <View style={styles.contextActionsRow}>
                   {/* Nhỏ hơn */}
                   <Pressable
+                    hitSlop={8}
                     onPress={() => {
                       if (selectedSticker) resizeSelectedSticker(-4);
                       else if (selectedText) resizeSelectedTextItem(-2);
@@ -1695,6 +1748,7 @@ export default function FrameStudioScreen() {
 
                   {/* Lớn hơn */}
                   <Pressable
+                    hitSlop={8}
                     onPress={() => {
                       if (selectedSticker) resizeSelectedSticker(4);
                       else if (selectedText) resizeSelectedTextItem(2);
@@ -1709,6 +1763,7 @@ export default function FrameStudioScreen() {
 
                   {/* Xoay trái */}
                   <Pressable
+                    hitSlop={8}
                     onPress={() => {
                       if (selectedSticker) rotateSelectedSticker(-15);
                       else if (selectedText) rotateSelectedTextItem(-15);
@@ -1723,6 +1778,7 @@ export default function FrameStudioScreen() {
 
                   {/* Xoay phải */}
                   <Pressable
+                    hitSlop={8}
                     onPress={() => {
                       if (selectedSticker) rotateSelectedSticker(15);
                       else if (selectedText) rotateSelectedTextItem(15);
@@ -1737,6 +1793,7 @@ export default function FrameStudioScreen() {
 
                   {/* Nhân bản */}
                   <Pressable
+                    hitSlop={8}
                     onPress={() => {
                       if (selectedSticker) duplicateSelectedSticker();
                       else if (selectedText) duplicateSelectedTextItem();
@@ -1751,6 +1808,7 @@ export default function FrameStudioScreen() {
 
                   {/* Xóa */}
                   <Pressable
+                    hitSlop={8}
                     onPress={() => {
                       if (selectedSticker) removeSticker(selectedSticker.id);
                       else if (selectedText) removeTextItem(selectedText.id);
@@ -1766,6 +1824,7 @@ export default function FrameStudioScreen() {
 
                   {/* Xong */}
                   <Pressable
+                    hitSlop={8}
                     onPress={() => {
                       setSelectedStickerId(null);
                       setSelectedTextId(null);
