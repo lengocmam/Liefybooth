@@ -33,12 +33,16 @@ import {
   SealStampType,
   WashiTapeStyle,
   GradientTheme,
+  TemplateCategory,
+  StudioPresetItem,
+  STUDIO_PRESETS,
 } from '../../features/studio/hooks/useStudioStore';
 import { exportStudioFrameToImage } from '../../core/utils/stripExportService';
 import { playShutterSound } from '../../features/booth/services/soundService';
 
 type ActiveSheet =
   | 'none'
+  | 'template'
   | 'layout'
   | 'signature'
   | 'border_style'
@@ -216,176 +220,7 @@ const PREMADE_QUOTES = [
   '🍕 Vui hết nấc',
 ];
 
-interface StudioPresetItem {
-  id: string;
-  name: string;
-  icon: string;
-  previewColor: string;
-  backgroundColor: string;
-  borderColor: string;
-  pattern: FramePattern;
-  stickers: CustomSticker[];
-  textItems: CustomTextItem[];
-}
-
-const STUDIO_PRESETS: StudioPresetItem[] = [
-  {
-    id: 'preset-pastel',
-    name: '🌸 Hồng Pastel',
-    icon: '🌸',
-    previewColor: '#FF8FC7',
-    backgroundColor: '#FF8FC7',
-    borderColor: colors.ink,
-    pattern: 'dots',
-    stickers: [
-      { id: 'stk-p1', emoji: '🌸', x: 12, y: 35, size: 28, rotation: 0 },
-      { id: 'stk-p2', emoji: '🎀', x: 128, y: 145, size: 28, rotation: 12 },
-      { id: 'stk-p3', emoji: '💖', x: 16, y: 440, size: 26, rotation: -10 },
-    ],
-    textItems: [
-      {
-        id: 'txt-p1',
-        text: 'Cute Besties 💖',
-        x: 18,
-        y: 505,
-        fontSize: 12,
-        rotation: 0,
-        color: '#111111',
-        bgColor: '#FFFFFF',
-      },
-    ],
-  },
-  {
-    id: 'preset-autumn',
-    name: '🍂 Thu Hà Nội',
-    icon: '🍂',
-    previewColor: '#FF9F43',
-    backgroundColor: '#FF9F43',
-    borderColor: colors.ink,
-    pattern: 'solid',
-    stickers: [
-      { id: 'stk-a1', emoji: '🍂', x: 14, y: 35, size: 28, rotation: -15 },
-      { id: 'stk-a2', emoji: '🍁', x: 126, y: 150, size: 28, rotation: 20 },
-      { id: 'stk-a3', emoji: '☕', x: 18, y: 440, size: 26, rotation: 0 },
-    ],
-    textItems: [
-      {
-        id: 'txt-a1',
-        text: 'Autumn Vibes 🍂',
-        x: 18,
-        y: 505,
-        fontSize: 12,
-        rotation: 0,
-        color: '#111111',
-        bgColor: '#FFFFFF',
-      },
-    ],
-  },
-  {
-    id: 'preset-retro',
-    name: '🖤 Y2K Retro',
-    icon: '🖤',
-    previewColor: '#111111',
-    backgroundColor: '#111111',
-    borderColor: colors.white,
-    pattern: 'dots',
-    stickers: [
-      { id: 'stk-r1', emoji: '✨', x: 18, y: 35, size: 28, rotation: 0 },
-      { id: 'stk-r2', emoji: '⭐', x: 126, y: 150, size: 28, rotation: 15 },
-      { id: 'stk-r3', emoji: '💿', x: 18, y: 440, size: 28, rotation: -12 },
-    ],
-    textItems: [
-      {
-        id: 'txt-r1',
-        text: 'Retro Film 2026 📸',
-        x: 12,
-        y: 505,
-        fontSize: 12,
-        rotation: 0,
-        color: '#111111',
-        bgColor: '#FFE600',
-      },
-    ],
-  },
-  {
-    id: 'preset-party',
-    name: '🎂 Sinh Nhật',
-    icon: '🎂',
-    previewColor: '#FFE600',
-    backgroundColor: '#FFE600',
-    borderColor: colors.ink,
-    pattern: 'stripes',
-    stickers: [
-      { id: 'stk-b1', emoji: '🎂', x: 16, y: 35, size: 28, rotation: 0 },
-      { id: 'stk-b2', emoji: '🎉', x: 126, y: 150, size: 28, rotation: 15 },
-      { id: 'stk-b3', emoji: '🎈', x: 18, y: 440, size: 28, rotation: -10 },
-    ],
-    textItems: [
-      {
-        id: 'txt-b1',
-        text: 'Happy Birthday 🎂',
-        x: 14,
-        y: 505,
-        fontSize: 12,
-        rotation: 0,
-        color: '#111111',
-        bgColor: '#FFFFFF',
-      },
-    ],
-  },
-  {
-    id: 'preset-leafy',
-    name: '🌿 Leafy Garden',
-    icon: '🌿',
-    previewColor: '#C8F135',
-    backgroundColor: '#C8F135',
-    borderColor: colors.ink,
-    pattern: 'solid',
-    stickers: [
-      { id: 'stk-l1', emoji: '🌿', x: 16, y: 35, size: 28, rotation: 0 },
-      { id: 'stk-l2', emoji: '🌻', x: 126, y: 150, size: 28, rotation: 10 },
-      { id: 'stk-l3', emoji: '🍃', x: 18, y: 440, size: 26, rotation: -15 },
-    ],
-    textItems: [
-      {
-        id: 'txt-l1',
-        text: 'Plant a moment 🌿',
-        x: 14,
-        y: 505,
-        fontSize: 12,
-        rotation: 0,
-        color: '#C8F135',
-        bgColor: '#111111',
-      },
-    ],
-  },
-  {
-    id: 'preset-cyber',
-    name: '💙 Cyber Blue',
-    icon: '⚡',
-    previewColor: '#3D5AFE',
-    backgroundColor: '#3D5AFE',
-    borderColor: colors.lime,
-    pattern: 'stripes',
-    stickers: [
-      { id: 'stk-c1', emoji: '⚡', x: 18, y: 35, size: 28, rotation: 0 },
-      { id: 'stk-c2', emoji: '💫', x: 126, y: 150, size: 28, rotation: 15 },
-      { id: 'stk-c3', emoji: '💎', x: 18, y: 440, size: 28, rotation: -10 },
-    ],
-    textItems: [
-      {
-        id: 'txt-c1',
-        text: 'Forever Young ✨',
-        x: 18,
-        y: 505,
-        fontSize: 12,
-        rotation: 0,
-        color: '#3D5AFE',
-        bgColor: '#FFFFFF',
-      },
-    ],
-  },
-];
+// STUDIO_PRESETS and StudioPresetItem imported from useStudioStore
 
 const SAMPLE_TEXTURES = [
   'https://picsum.photos/seed/texture_leaves/400/800',
@@ -417,6 +252,7 @@ function DraggableCanvasSticker({
   canvasHeight = 700,
 }: DraggableCanvasStickerProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const [pos, setPos] = useState({ x: sticker.x, y: sticker.y });
   const startPos = useRef({ x: sticker.x, y: sticker.y });
   const currentPos = useRef({ x: sticker.x, y: sticker.y });
@@ -429,21 +265,13 @@ function DraggableCanvasSticker({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: (evt) => {
-          // Bỏ qua nếu chạm vào các nút điều khiển trực tiếp trên sticker
-          const text =
-            (evt?.nativeEvent as any)?.target?.innerText ||
-            (evt?.nativeEvent as any)?.target?.textContent;
-          if (text === '✕' || text === '⟳' || text === '📑') {
-            return false;
-          }
-          return true;
-        },
+        onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
-          return Math.abs(gestureState.dx) > 1 || Math.abs(gestureState.dy) > 1;
+          return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
         },
         onPanResponderGrant: () => {
           onSelect();
+          isDraggingRef.current = true;
           setIsDragging(true);
           onDragStart?.();
           startPos.current = { ...currentPos.current };
@@ -459,6 +287,7 @@ function DraggableCanvasSticker({
           setPos({ x: clampedX, y: clampedY });
         },
         onPanResponderRelease: (_, gestureState) => {
+          isDraggingRef.current = false;
           setIsDragging(false);
           const nextX = Math.round(startPos.current.x + gestureState.dx);
           const nextY = Math.round(startPos.current.y + gestureState.dy);
@@ -470,6 +299,7 @@ function DraggableCanvasSticker({
           onDragEnd(clampedX, clampedY);
         },
         onPanResponderTerminate: () => {
+          isDraggingRef.current = false;
           setIsDragging(false);
           onDragEnd(currentPos.current.x, currentPos.current.y);
         },
@@ -481,8 +311,12 @@ function DraggableCanvasSticker({
   const rotation = sticker.rotation || 0;
 
   return (
-    <View
+    <Pressable
       {...panResponder.panHandlers}
+      onPress={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
       style={[
         styles.canvasSticker,
         {
@@ -510,7 +344,7 @@ function DraggableCanvasSticker({
               e.stopPropagation();
               onRemove();
             }}
-            hitSlop={8}
+            hitSlop={12}
             style={styles.handleDotRemove}
           >
             <Text style={styles.handleDotRemoveText}>✕</Text>
@@ -523,7 +357,7 @@ function DraggableCanvasSticker({
                 e.stopPropagation();
                 onRotate();
               }}
-              hitSlop={8}
+              hitSlop={12}
               style={styles.handleDotRotate}
             >
               <Text style={styles.handleDotText}>⟳</Text>
@@ -537,7 +371,7 @@ function DraggableCanvasSticker({
                 e.stopPropagation();
                 onDuplicate();
               }}
-              hitSlop={8}
+              hitSlop={12}
               style={styles.handleDotDuplicate}
             >
               <Text style={styles.handleDotText}>📑</Text>
@@ -545,7 +379,7 @@ function DraggableCanvasSticker({
           )}
         </>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -573,6 +407,7 @@ function DraggableCanvasText({
   canvasHeight = 700,
 }: DraggableCanvasTextProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const [pos, setPos] = useState({ x: item.x, y: item.y });
   const startPos = useRef({ x: item.x, y: item.y });
   const currentPos = useRef({ x: item.x, y: item.y });
@@ -585,21 +420,13 @@ function DraggableCanvasText({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: (evt) => {
-          // Bỏ qua nếu chạm vào các nút điều khiển trực tiếp trên chữ
-          const text =
-            (evt?.nativeEvent as any)?.target?.innerText ||
-            (evt?.nativeEvent as any)?.target?.textContent;
-          if (text === '✕' || text === '⟳' || text === '📑') {
-            return false;
-          }
-          return true;
-        },
+        onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
-          return Math.abs(gestureState.dx) > 1 || Math.abs(gestureState.dy) > 1;
+          return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
         },
         onPanResponderGrant: () => {
           onSelect();
+          isDraggingRef.current = true;
           setIsDragging(true);
           onDragStart?.();
           startPos.current = { ...currentPos.current };
@@ -615,6 +442,7 @@ function DraggableCanvasText({
           setPos({ x: clampedX, y: clampedY });
         },
         onPanResponderRelease: (_, gestureState) => {
+          isDraggingRef.current = false;
           setIsDragging(false);
           const nextX = Math.round(startPos.current.x + gestureState.dx);
           const nextY = Math.round(startPos.current.y + gestureState.dy);
@@ -626,6 +454,7 @@ function DraggableCanvasText({
           onDragEnd(clampedX, clampedY);
         },
         onPanResponderTerminate: () => {
+          isDraggingRef.current = false;
           setIsDragging(false);
           onDragEnd(currentPos.current.x, currentPos.current.y);
         },
@@ -638,8 +467,12 @@ function DraggableCanvasText({
   const hasBg = item.bgColor && item.bgColor !== 'transparent';
 
   return (
-    <View
+    <Pressable
       {...panResponder.panHandlers}
+      onPress={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
       style={[
         styles.canvasTextItem,
         {
@@ -684,7 +517,7 @@ function DraggableCanvasText({
               e.stopPropagation();
               onRemove();
             }}
-            hitSlop={8}
+            hitSlop={12}
             style={styles.handleDotRemove}
           >
             <Text style={styles.handleDotRemoveText}>✕</Text>
@@ -697,7 +530,7 @@ function DraggableCanvasText({
                 e.stopPropagation();
                 onRotate();
               }}
-              hitSlop={8}
+              hitSlop={12}
               style={styles.handleDotRotate}
             >
               <Text style={styles.handleDotText}>⟳</Text>
@@ -711,7 +544,7 @@ function DraggableCanvasText({
                 e.stopPropagation();
                 onDuplicate();
               }}
-              hitSlop={8}
+              hitSlop={12}
               style={styles.handleDotDuplicate}
             >
               <Text style={styles.handleDotText}>📑</Text>
@@ -719,7 +552,7 @@ function DraggableCanvasText({
           )}
         </>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -805,7 +638,12 @@ export default function FrameStudioScreen() {
     setWashiTapeStyle,
     gradientTheme,
     setGradientTheme,
+    createNewBlankFrame,
+    saveCurrentFrame,
   } = useStudioStore();
+
+  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory>('all');
+  const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>('none');
@@ -829,6 +667,28 @@ export default function FrameStudioScreen() {
   const [likesCount, setLikesCount] = useState(1428);
   const [isEditingCaption, setIsEditingCaption] = useState(false);
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const sheetAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (activeSheet !== 'none' && activeSheet !== 'filter') {
+      Animated.spring(sheetAnim, {
+        toValue: 1,
+        friction: 9,
+        tension: 65,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [activeSheet]);
+
+  const closeActiveSheet = () => {
+    Animated.timing(sheetAnim, {
+      toValue: 0,
+      duration: 160,
+      useNativeDriver: true,
+    }).start(() => {
+      setActiveSheet('none');
+    });
+  };
 
   const triggerFlash = () => {
     flashAnim.setValue(1);
@@ -975,19 +835,37 @@ export default function FrameStudioScreen() {
 
   // Chọn sticker từ thư viện
   const handleSelectSticker = (emoji: string) => {
+    if (stickers.length >= 24) {
+      Alert.alert(
+        'Giới hạn sticker 🌿',
+        'Dải ảnh đã đạt tối đa 24 sticker. Bạn có thể xóa bớt các sticker cũ để thêm sticker mới nhé!'
+      );
+      return;
+    }
     setLastSelectedEmoji(emoji);
     addSticker(emoji);
   };
 
-  // Chạm tự do vào vị trí bất kỳ trên dải ảnh để đặt sticker hoặc chữ ngay tại đó
+  // Chạm vào canvas: Bỏ chọn đối tượng hoặc đóng drawer
   const handleCanvasPress = (event: GestureResponderEvent) => {
-    const { locationX, locationY } = event.nativeEvent;
+    // 1. Nếu đang chọn sticker hoặc text: chạm vào canvas trống để bỏ chọn
+    if (selectedStickerId || selectedTextId) {
+      setSelectedStickerId(null);
+      setSelectedTextId(null);
+      return;
+    }
+    // 2. Nếu đang gõ text trong sheet và chạm vào canvas: đặt text tại vị trí chạm
     if (activeSheet === 'text' && newTextInput.trim().length > 0) {
+      const { locationX, locationY } = event.nativeEvent;
       addTextItemAt(newTextInput.trim(), locationX, locationY, textColor, newTextBgColor);
       setNewTextInput('');
-      setActiveSheet('none');
-    } else {
-      addStickerAt(lastSelectedEmoji, locationX, locationY);
+      closeActiveSheet();
+      return;
+    }
+    // 3. Nếu đang mở sheet: chạm canvas đóng sheet
+    if (activeSheet !== 'none') {
+      closeActiveSheet();
+      return;
     }
   };
 
@@ -1560,16 +1438,77 @@ export default function FrameStudioScreen() {
               <Text style={styles.studioTitleEditIcon}>✏️</Text>
             </Pressable>
 
-            {/* Right: Next / Showcase CTA Button */}
+            {/* Center-Right: Quick Template Picker & New Blank Frame */}
             <Pressable
-              onPress={() => setViewMode('instagram')}
+              onPress={() => setActiveSheet('template')}
               style={({ pressed }) => [
-                styles.studioCtaBtn,
+                styles.studioHeaderTemplateBtn,
                 { transform: [{ scale: pressed ? 0.95 : 1 }] },
               ]}
             >
-              <Text style={styles.studioCtaBtnText}>Tiếp tục ➔</Text>
+              <Text style={styles.studioHeaderTemplateText}>🪄 Mẫu</Text>
             </Pressable>
+
+            <Pressable
+              onPress={() => {
+                Alert.alert(
+                  'Tạo khung mới? 🌿',
+                  'Làm mới dải ảnh về khung trắng tinh để bạn tự do sáng tạo từ đầu.',
+                  [
+                    { text: 'Hủy', style: 'cancel' },
+                    {
+                      text: 'Tạo mới 🎨',
+                      onPress: () => {
+                        createNewBlankFrame();
+                        setAppliedTemplateId(null);
+                      },
+                    },
+                  ]
+                );
+              }}
+              style={({ pressed }) => [
+                styles.studioHeaderNewBtn,
+                { transform: [{ scale: pressed ? 0.95 : 1 }] },
+              ]}
+            >
+              <Text style={styles.studioHeaderNewBtnText}>➕ Mới</Text>
+            </Pressable>
+
+            {/* Right: Actions Row (Chụp ngay + Tiếp tục) */}
+            <View style={styles.studioHeaderRightRow}>
+              <Pressable
+                onPress={() => {
+                  saveCurrentFrame();
+                  Alert.alert(
+                    'Đã lưu khung ảnh! 🌿',
+                    'Khung "' + (frameName || 'Khung của tôi') + '" đã sẵn sàng trong thư viện. Chuyển sang Booth để chụp ngay nhé?',
+                    [
+                      { text: 'Ở lại chỉnh tiếp', style: 'cancel' },
+                      {
+                        text: 'Chụp ngay 📸',
+                        onPress: () => router.push('/(tabs)/booth' as any),
+                      },
+                    ]
+                  );
+                }}
+                style={({ pressed }) => [
+                  styles.studioBoothBtn,
+                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                ]}
+              >
+                <Text style={styles.studioBoothBtnText}>📸 Chụp</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setViewMode('instagram')}
+                style={({ pressed }) => [
+                  styles.studioCtaBtn,
+                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                ]}
+              >
+                <Text style={styles.studioCtaBtnText}>Tiếp tục ➔</Text>
+              </Pressable>
+            </View>
           </View>
 
           {/* MAIN CANVAS: TACTILE CRAFT TABLE */}
@@ -1586,6 +1525,43 @@ export default function FrameStudioScreen() {
 
               {/* Quick action chips under canvas */}
               <View style={styles.canvasQuickBar}>
+                <Pressable
+                  onPress={() => setActiveSheet('template')}
+                  style={({ pressed }) => [
+                    styles.canvasActionPill,
+                    styles.canvasActionPillTemplate,
+                    { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                  ]}
+                >
+                  <Text style={styles.canvasActionPillText}>🪄 Chọn Mẫu Khung</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    Alert.alert(
+                      'Tạo khung mới? 🌿',
+                      'Làm mới dải ảnh về khung trắng tinh để bạn tự do sáng tạo từ đầu.',
+                      [
+                        { text: 'Hủy', style: 'cancel' },
+                        {
+                          text: 'Tạo mới 🎨',
+                          onPress: () => {
+                            createNewBlankFrame();
+                            setAppliedTemplateId(null);
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  style={({ pressed }) => [
+                    styles.canvasActionPill,
+                    styles.canvasActionPillNew,
+                    { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                  ]}
+                >
+                  <Text style={styles.canvasActionPillText}>➕ Khung mới</Text>
+                </Pressable>
+
                 <Pressable
                   onPress={startPhotoboothSequence}
                   disabled={isShootingSequence}
@@ -1636,97 +1612,9 @@ export default function FrameStudioScreen() {
               </View>
             </ScrollView>
 
-            {/* THANH ĐIỀU KHIỂN NỔI KHI CHỌN STICKER HOẶC CHỮ */}
-            {(selectedSticker || selectedText) && (
-              <View style={styles.floatingItemToolbar}>
-                <View style={styles.floatingItemLeft}>
-                  <Text style={styles.floatingItemEmoji}>
-                    {selectedSticker ? selectedSticker.emoji : '✍️'}
-                  </Text>
-                  <Text style={styles.floatingItemTitle} numberOfLines={1}>
-                    {selectedSticker ? 'Sticker' : selectedText?.text}
-                  </Text>
-                </View>
+            </View>
 
-                <View style={styles.floatingItemActions}>
-                  {/* Cỡ: - / + */}
-                  <Pressable
-                    onPress={() => {
-                      if (selectedSticker) resizeSelectedSticker(-4);
-                      else if (selectedText) resizeSelectedTextItem(-2);
-                    }}
-                    style={styles.floatingMiniBtn}
-                  >
-                    <Text style={styles.floatingMiniBtnText}>−</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      if (selectedSticker) resizeSelectedSticker(4);
-                      else if (selectedText) resizeSelectedTextItem(2);
-                    }}
-                    style={styles.floatingMiniBtn}
-                  >
-                    <Text style={styles.floatingMiniBtnText}>+</Text>
-                  </Pressable>
-
-                  {/* Xoay: ⟲ / ⟳ */}
-                  <Pressable
-                    onPress={() => {
-                      if (selectedSticker) rotateSelectedSticker(-15);
-                      else if (selectedText) rotateSelectedTextItem(-15);
-                    }}
-                    style={styles.floatingMiniBtn}
-                  >
-                    <Text style={styles.floatingMiniBtnText}>⟲</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      if (selectedSticker) rotateSelectedSticker(15);
-                      else if (selectedText) rotateSelectedTextItem(15);
-                    }}
-                    style={styles.floatingMiniBtn}
-                  >
-                    <Text style={styles.floatingMiniBtnText}>⟳</Text>
-                  </Pressable>
-
-                  {/* Nhân bản */}
-                  <Pressable
-                    onPress={() => {
-                      if (selectedSticker) duplicateSelectedSticker();
-                      else if (selectedText) duplicateSelectedTextItem();
-                    }}
-                    style={styles.floatingMiniBtn}
-                  >
-                    <Text style={styles.floatingMiniBtnText}>📑</Text>
-                  </Pressable>
-
-                  {/* Xóa */}
-                  <Pressable
-                    onPress={() => {
-                      if (selectedSticker) removeSticker(selectedSticker.id);
-                      else if (selectedText) removeTextItem(selectedText.id);
-                    }}
-                    style={[styles.floatingMiniBtn, { backgroundColor: '#FEE2E2', borderColor: '#DC2626' }]}
-                  >
-                    <Text style={[styles.floatingMiniBtnText, { color: '#DC2626' }]}>🗑️</Text>
-                  </Pressable>
-
-                  {/* Xong */}
-                  <Pressable
-                    onPress={() => {
-                      setSelectedStickerId(null);
-                      setSelectedTextId(null);
-                    }}
-                    style={[styles.floatingMiniBtn, { backgroundColor: colors.lime, borderColor: colors.ink }]}
-                  >
-                    <Text style={[styles.floatingMiniBtnText, { color: colors.ink }]}>✓</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* DOCK CÔNG CỤ NỔI HOẶC THANH BỘ LỌC HÀN QUỐC */}
+          {/* DOCK CÔNG CỤ NỔI HOẶC THANH ĐIỀU KHIỂN NGỮ CẢNH ĐÁY HOẶC BỘ LỌC HÀN QUỐC */}
           {activeSheet === 'filter' ? (
             /* BĂNG CHUYỀN BỘ LỌC TONE HÀN QUỐC POLAROID */
             <View style={styles.filterStripContainer}>
@@ -1775,8 +1663,126 @@ export default function FrameStudioScreen() {
                 })}
               </ScrollView>
             </View>
+          ) : (selectedSticker || selectedText) ? (
+            /* THANH NGỮ CẢNH ĐÁY: TÙY CHỈNH STICKER / CHỮ ĐANG CHỌN (KHÔNG CHE CANVAS) */
+            <View style={styles.studioDockWrapper}>
+              <View style={styles.contextualBottomBar}>
+                {/* Thông tin đối tượng đang chọn */}
+                <View style={styles.contextItemBadge}>
+                  <Text style={styles.contextItemEmoji}>
+                    {selectedSticker ? selectedSticker.emoji : '✍️'}
+                  </Text>
+                  <Text style={styles.contextItemTitle} numberOfLines={1}>
+                    {selectedSticker ? 'Sticker' : selectedText?.text}
+                  </Text>
+                </View>
+
+                {/* Các nút tùy chỉnh */}
+                <View style={styles.contextActionsRow}>
+                  {/* Nhỏ hơn */}
+                  <Pressable
+                    onPress={() => {
+                      if (selectedSticker) resizeSelectedSticker(-4);
+                      else if (selectedText) resizeSelectedTextItem(-2);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>−</Text>
+                  </Pressable>
+
+                  {/* Lớn hơn */}
+                  <Pressable
+                    onPress={() => {
+                      if (selectedSticker) resizeSelectedSticker(4);
+                      else if (selectedText) resizeSelectedTextItem(2);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>+</Text>
+                  </Pressable>
+
+                  {/* Xoay trái */}
+                  <Pressable
+                    onPress={() => {
+                      if (selectedSticker) rotateSelectedSticker(-15);
+                      else if (selectedText) rotateSelectedTextItem(-15);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>⟲</Text>
+                  </Pressable>
+
+                  {/* Xoay phải */}
+                  <Pressable
+                    onPress={() => {
+                      if (selectedSticker) rotateSelectedSticker(15);
+                      else if (selectedText) rotateSelectedTextItem(15);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>⟳</Text>
+                  </Pressable>
+
+                  {/* Nhân bản */}
+                  <Pressable
+                    onPress={() => {
+                      if (selectedSticker) duplicateSelectedSticker();
+                      else if (selectedText) duplicateSelectedTextItem();
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>📑</Text>
+                  </Pressable>
+
+                  {/* Xóa */}
+                  <Pressable
+                    onPress={() => {
+                      if (selectedSticker) removeSticker(selectedSticker.id);
+                      else if (selectedText) removeTextItem(selectedText.id);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      styles.contextDeleteBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={[styles.contextMiniBtnText, { color: '#DC2626' }]}>🗑️</Text>
+                  </Pressable>
+
+                  {/* Xong */}
+                  <Pressable
+                    onPress={() => {
+                      setSelectedStickerId(null);
+                      setSelectedTextId(null);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      styles.contextDoneBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={[styles.contextMiniBtnText, { color: colors.ink }]}>✓</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
           ) : (
-            /* FLOATING STUDIO DOCK: 7 CÔNG CỤ SÁNG TẠO ĐỘC BẢN */
+            /* FLOATING STUDIO DOCK: 8 CÔNG CỤ SÁNG TẠO ĐỘC BẢN */
             <View style={styles.studioDockWrapper}>
               <ScrollView
                 horizontal
@@ -1784,6 +1790,7 @@ export default function FrameStudioScreen() {
                 contentContainerStyle={styles.studioDockScroll}
               >
                 {[
+                  { id: 'template', label: 'Mẫu khung', icon: '🪄' },
                   { id: 'layout', label: 'Bố cục', icon: '📐' },
                   { id: 'color', label: 'Phối màu', icon: '🎨' },
                   { id: 'sticker', label: 'Sticker', icon: '✨' },
@@ -1826,16 +1833,43 @@ export default function FrameStudioScreen() {
             <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
               {/* Nền mờ phía sau */}
               <Pressable
-                onPress={() => setActiveSheet('none')}
-                style={styles.sheetBackdrop}
-              />
+                onPress={closeActiveSheet}
+                style={StyleSheet.absoluteFill}
+              >
+                <Animated.View
+                  style={[
+                    styles.sheetBackdrop,
+                    {
+                      opacity: sheetAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 1],
+                      }),
+                    },
+                  ]}
+                />
+              </Pressable>
 
               {/* Ngăn kéo Sticker Pop màu trắng bo góc */}
-              <View style={styles.leafySheetDrawer}>
+              <Animated.View
+                style={[
+                  styles.leafySheetDrawer,
+                  {
+                    transform: [
+                      {
+                        translateY: sheetAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [380, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
                 <View style={styles.leafySheetHandle} />
 
                 <View style={styles.leafySheetHeader}>
                   <Text style={styles.leafySheetTitle}>
+                    {activeSheet === 'template' && '🪄 Kho 16+ Mẫu Khung Có Sẵn'}
                     {activeSheet === 'text' && '✍️ Thêm Chữ Lên Dải Ảnh'}
                     {activeSheet === 'sticker' && '✨ Sticker & Con Dấu Niêm Phong'}
                     {activeSheet === 'color' && '🎨 Phối Màu Nền & Họa Tiết'}
@@ -1844,7 +1878,7 @@ export default function FrameStudioScreen() {
                     {activeSheet === 'layout' && '📐 Chọn Bố Cục Dải Ảnh'}
                   </Text>
                   <Pressable
-                    onPress={() => setActiveSheet('none')}
+                    onPress={closeActiveSheet}
                     style={styles.leafySheetCloseBtn}
                   >
                     <Text style={styles.leafySheetCloseText}>✕</Text>
@@ -1855,6 +1889,141 @@ export default function FrameStudioScreen() {
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.sheetScrollBody}
                 >
+                  {/* TAB 0: KHO MẪU KHUNG CÓ SẴN (TEMPLATE GALLERY) */}
+                  {activeSheet === 'template' && (
+                    <View>
+                      {/* Nút hành động nhanh: Làm mới về khung trắng */}
+                      <View style={styles.templateQuickActionRow}>
+                        <Pressable
+                          onPress={() => {
+                            createNewBlankFrame();
+                            setAppliedTemplateId(null);
+                            Alert.alert('Khung Trắng 🌿', 'Đã chuyển về khung trắng sạch sẽ để bạn tự do sáng tạo!');
+                          }}
+                          style={({ pressed }) => [
+                            styles.templateBlankBtn,
+                            { transform: [{ scale: pressed ? 0.98 : 1 }] },
+                          ]}
+                        >
+                          <Text style={styles.templateBlankIcon}>➕</Text>
+                          <Text style={styles.templateBlankText}>Bắt đầu từ khung trắng (Làm lại)</Text>
+                        </Pressable>
+                      </View>
+
+                      {/* Phân loại thể loại mẫu */}
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.templateCategoryScroll}
+                      >
+                        {[
+                          { id: 'all', label: 'Tất cả (16)' },
+                          { id: 'life4cuts', label: '🌸 Life4Cuts (4)' },
+                          { id: 'vintage', label: '☕ Vintage (3)' },
+                          { id: 'party', label: '🎂 Sinh nhật (3)' },
+                          { id: 'y2k', label: '⚡ Y2K Cyber (3)' },
+                          { id: 'besties', label: '💌 Besties (3)' },
+                        ].map((cat) => {
+                          const isCatActive = selectedTemplateCategory === cat.id;
+                          return (
+                            <Pressable
+                              key={cat.id}
+                              onPress={() => setSelectedTemplateCategory(cat.id as TemplateCategory)}
+                              style={[
+                                styles.templateCatChip,
+                                isCatActive && styles.templateCatChipActive,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.templateCatChipText,
+                                  isCatActive && styles.templateCatChipTextActive,
+                                ]}
+                              >
+                                {cat.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+
+                      {/* Lưới các mẫu khung */}
+                      <View style={styles.templateCardsGrid}>
+                        {STUDIO_PRESETS.filter((p) =>
+                          selectedTemplateCategory === 'all' ? true : p.category === selectedTemplateCategory
+                        ).map((preset) => {
+                          const isCurrentApplied =
+                            appliedTemplateId === preset.id || frameName === preset.name;
+                          return (
+                            <Pressable
+                              key={preset.id}
+                              onPress={() => {
+                                applyPreset(preset);
+                                setAppliedTemplateId(preset.id);
+                                playShutterSound();
+                              }}
+                              style={({ pressed }) => [
+                                styles.templatePresetCard,
+                                isCurrentApplied && styles.templatePresetCardActive,
+                                { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                              ]}
+                            >
+                              {/* Mini preview banner */}
+                              <View
+                                style={[
+                                  styles.templateCardPreview,
+                                  { backgroundColor: preset.previewColor },
+                                ]}
+                              >
+                                <View style={styles.templateCardIconBadge}>
+                                  <Text style={{ fontSize: 18 }}>{preset.icon}</Text>
+                                </View>
+                                <View style={styles.templateCardCategoryBadge}>
+                                  <Text style={styles.templateCardCategoryBadgeText}>
+                                    {preset.badge}
+                                  </Text>
+                                </View>
+                                <View style={styles.templateCardStickersMiniRow}>
+                                  {preset.stickers.slice(0, 3).map((stk, sIdx) => (
+                                    <Text key={sIdx} style={{ fontSize: 12 }}>
+                                      {stk.emoji}
+                                    </Text>
+                                  ))}
+                                </View>
+                              </View>
+
+                              {/* Info area */}
+                              <View style={styles.templateCardInfo}>
+                                <Text style={styles.templateCardTitle} numberOfLines={1}>
+                                  {preset.name}
+                                </Text>
+                                <Text style={styles.templateCardDesc} numberOfLines={2}>
+                                  {preset.desc}
+                                </Text>
+
+                                <View
+                                  style={[
+                                    styles.templateApplyPill,
+                                    isCurrentApplied && styles.templateApplyPillActive,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.templateApplyText,
+                                      isCurrentApplied && styles.templateApplyTextActive,
+                                    ]}
+                                  >
+                                    {isCurrentApplied ? '✓ Đang chọn' : 'Áp dụng ➔'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
                   {/* TAB 1: THÊM CHỮ */}
                   {activeSheet === 'text' && (
                     <View>
@@ -1940,7 +2109,7 @@ export default function FrameStudioScreen() {
                           if (newTextInput.trim()) {
                             addTextItem(newTextInput.trim(), textColor, newTextBgColor);
                             setNewTextInput('');
-                            setActiveSheet('none');
+                            closeActiveSheet();
                           } else {
                             Alert.alert('Chưa nhập chữ', 'Vui lòng gõ nội dung chữ bạn muốn thêm.');
                           }
@@ -2293,7 +2462,7 @@ export default function FrameStudioScreen() {
                     </View>
                   )}
                 </ScrollView>
-              </View>
+              </Animated.View>
             </View>
           )}
 
@@ -4576,10 +4745,12 @@ const styles = StyleSheet.create({
   },
   canvasQuickBar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     marginTop: 12,
+    paddingHorizontal: 12,
   },
   canvasQuickChip: {
     flexDirection: 'row',
@@ -4994,12 +5165,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 22,
     borderWidth: 2,
     borderColor: colors.ink,
-    maxWidth: 180,
+    maxWidth: 130,
     ...theme.shadows.hardSmall,
   },
   studioTitleIcon: {
@@ -5044,6 +5215,9 @@ const styles = StyleSheet.create({
   },
   canvasActionPillCamera: {
     backgroundColor: colors.lime,
+  },
+  canvasActionPillNew: {
+    backgroundColor: '#A7F3D0',
   },
   canvasActionPillModel: {
     backgroundColor: '#E0F2FE',
@@ -5496,5 +5670,271 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
+  },
+  // --- TEMPLATE GALLERY STYLES ---
+  studioHeaderTemplateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF08A',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    ...theme.shadows.hardSmall,
+  },
+  studioHeaderTemplateText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  studioHeaderNewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#A7F3D0',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    ...theme.shadows.hardSmall,
+  },
+  studioHeaderNewBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  studioHeaderRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  studioBoothBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    ...theme.shadows.hardSmall,
+  },
+  studioBoothBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  canvasActionPillTemplate: {
+    backgroundColor: '#FEF08A',
+  },
+  templateQuickActionRow: {
+    marginBottom: 12,
+  },
+  templateBlankBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderStyle: 'dashed',
+  },
+  templateBlankIcon: {
+    fontSize: 14,
+  },
+  templateBlankText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  templateCategoryScroll: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 12,
+  },
+  templateCatChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+  },
+  templateCatChipActive: {
+    backgroundColor: colors.lime,
+    borderColor: colors.ink,
+    borderWidth: 2,
+    ...theme.shadows.hardSmall,
+  },
+  templateCatChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#4B5563',
+  },
+  templateCatChipTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  templateCardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingBottom: 20,
+  },
+  templatePresetCard: {
+    width: '48%',
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    overflow: 'hidden',
+    ...theme.shadows.hardSmall,
+  },
+  templatePresetCardActive: {
+    borderColor: colors.cobalt,
+    borderWidth: 2.5,
+    ...theme.shadows.hard,
+  },
+  templateCardPreview: {
+    height: 72,
+    padding: 8,
+    position: 'relative',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.ink,
+  },
+  templateCardIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  templateCardCategoryBadge: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.ink,
+  },
+  templateCardCategoryBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  templateCardStickersMiniRow: {
+    flexDirection: 'row',
+    gap: 3,
+    alignSelf: 'flex-end',
+  },
+  templateCardInfo: {
+    padding: 10,
+  },
+  templateCardTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+    marginBottom: 2,
+  },
+  templateCardDesc: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontWeight: '600',
+    lineHeight: 14,
+    marginBottom: 8,
+    height: 28,
+  },
+  templateApplyPill: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+  },
+  templateApplyPillActive: {
+    backgroundColor: colors.lime,
+  },
+  templateApplyText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  templateApplyTextActive: {
+    color: colors.ink,
+  },
+  // Contextual Bottom Bar (Thay thế Dock khi chọn Sticker/Chữ)
+  contextualBottomBar: {
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    ...theme.shadows.hard,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  contextItemBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    maxWidth: 105,
+  },
+  contextItemEmoji: {
+    fontSize: 16,
+  },
+  contextItemTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  contextActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  contextMiniBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contextMiniBtnText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  contextDeleteBtn: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#DC2626',
+  },
+  contextDoneBtn: {
+    backgroundColor: colors.lime,
+    borderColor: colors.ink,
   },
 });

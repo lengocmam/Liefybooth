@@ -31,6 +31,46 @@ export type SealStampType = 'none' | 'leafy_certified' | 'special_edition' | 'be
 export type WashiTapeStyle = 'none' | 'gingham' | 'vintage_tape' | 'caution' | 'hologram' | 'strawberry';
 export type GradientTheme = 'none' | 'sunset' | 'ocean' | 'cyber' | 'kraft' | 'gingham';
 
+export type TemplateCategory = 'all' | 'life4cuts' | 'vintage' | 'party' | 'y2k' | 'besties';
+
+export interface StudioPresetItem {
+  id: string;
+  name: string;
+  category: 'life4cuts' | 'vintage' | 'party' | 'y2k' | 'besties';
+  icon: string;
+  badge: string;
+  desc: string;
+  previewColor: string;
+  backgroundColor: string;
+  borderColor: string;
+  pattern: FramePattern;
+  frameLayout: FrameLayoutType;
+  frameEdgeStyle: FrameEdgeStyle;
+  sealStamp: SealStampType;
+  washiTapeStyle?: WashiTapeStyle;
+  gradientTheme?: GradientTheme;
+  stickers: CustomSticker[];
+  textItems: CustomTextItem[];
+  customText: string;
+  textColor: string;
+  locationTag?: string;
+  photoFilter?: PhotoFilter;
+}
+
+export interface SavedCustomFrame {
+  id: string;
+  name: string;
+  createdAt: number;
+  previewColor: string;
+  frameLayout: FrameLayoutType;
+  backgroundColor: string;
+  borderColor: string;
+  pattern: FramePattern;
+  frameEdgeStyle: FrameEdgeStyle;
+  sealStamp: SealStampType;
+  stickersCount: number;
+}
+
 export const DEFAULT_SLOT_PHOTOS = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
   'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
@@ -133,13 +173,10 @@ interface StudioState {
   duplicateSelectedTextItem: () => void;
   clearAllCanvasItems: () => void;
   clearAllStickers: () => void;
-  applyPreset: (preset: {
-    backgroundColor: string;
-    borderColor: string;
-    pattern: FramePattern;
-    stickers: CustomSticker[];
-    textItems: CustomTextItem[];
-  }) => void;
+  applyPreset: (preset: StudioPresetItem) => void;
+  createNewBlankFrame: () => void;
+  savedCustomFrames: SavedCustomFrame[];
+  saveCurrentFrame: () => SavedCustomFrame;
   setCustomText: (text: string) => void;
   setTextPosition: (pos: TextPosition) => void;
   setTextStyleType: (type: TextStyleType) => void;
@@ -151,6 +188,578 @@ interface StudioState {
   // Trending items
   trendingFrames: TrendingFrameItem[];
 }
+
+
+export const STUDIO_PRESETS: StudioPresetItem[] = [
+  // --- 1. LIFE4CUTS HÀN QUỐC ---
+  {
+    id: 'preset-sakura-dream',
+    name: 'Sakura Dream 🌸',
+    category: 'life4cuts',
+    icon: '🌸',
+    badge: 'Life4Cuts',
+    desc: 'Hồng phấn hoa đào Life4Cuts Hongdae mơ màng',
+    previewColor: '#FF8FC7',
+    backgroundColor: '#FF8FC7',
+    borderColor: colors.ink,
+    pattern: 'dots',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'leafy_certified',
+    stickers: [
+      { id: 'stk-s1', emoji: '🌸', x: 14, y: 35, size: 28, rotation: 0 },
+      { id: 'stk-s2', emoji: '🐰', x: 126, y: 155, size: 28, rotation: 12 },
+      { id: 'stk-s3', emoji: '💖', x: 18, y: 440, size: 26, rotation: -10 },
+    ],
+    textItems: [
+      {
+        id: 'txt-s1',
+        text: 'Sakura Vibes 🌸',
+        x: 18,
+        y: 505,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Sakura Vibes 🌸',
+    textColor: colors.ink,
+    locationTag: '📍 Hongdae, Seoul',
+    photoFilter: 'pastel',
+  },
+  {
+    id: 'preset-pink-idol',
+    name: 'Pink Idol Star 👑',
+    category: 'life4cuts',
+    icon: '👑',
+    badge: 'K-Pop',
+    desc: 'Viền Neon phát sáng & vương miện Idol',
+    previewColor: '#FF4F8B',
+    backgroundColor: '#FF4F8B',
+    borderColor: colors.ink,
+    pattern: 'stars',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'neon_glow',
+    sealStamp: 'special_edition',
+    stickers: [
+      { id: 'stk-pi1', emoji: '👑', x: 16, y: 36, size: 28, rotation: -8 },
+      { id: 'stk-pi2', emoji: '✨', x: 128, y: 150, size: 28, rotation: 15 },
+      { id: 'stk-pi3', emoji: '⭐', x: 18, y: 442, size: 26, rotation: 10 },
+    ],
+    textItems: [
+      {
+        id: 'txt-pi1',
+        text: 'Shine Like An Idol ✨',
+        x: 14,
+        y: 505,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FEF08A',
+      },
+    ],
+    customText: 'Shine Like An Idol ✨',
+    textColor: colors.ink,
+    locationTag: '📍 Gangnam, Seoul',
+    photoFilter: 'pastel',
+  },
+  {
+    id: 'preset-cute-ribbon',
+    name: 'Cute Ribbon 🎀',
+    category: 'life4cuts',
+    icon: '🎀',
+    badge: 'Lưới 2x2',
+    desc: 'Lưới vuông 4 ô dán nơ & dâu tây xinh xắn',
+    previewColor: '#FEF08A',
+    backgroundColor: '#FEF08A',
+    borderColor: colors.ink,
+    pattern: 'dots',
+    frameLayout: 'grid_4',
+    frameEdgeStyle: 'washi_corners',
+    sealStamp: 'leafy_certified',
+    stickers: [
+      { id: 'stk-cr1', emoji: '🎀', x: 14, y: 35, size: 30, rotation: 10 },
+      { id: 'stk-cr2', emoji: '🍓', x: 126, y: 140, size: 28, rotation: -12 },
+    ],
+    textItems: [
+      {
+        id: 'txt-cr1',
+        text: 'Super Cute Besties 🎀',
+        x: 14,
+        y: 375,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Super Cute Besties 🎀',
+    textColor: colors.ink,
+    photoFilter: 'pastel',
+  },
+  {
+    id: 'preset-daily-seoul',
+    name: 'Daily Seoul 🏙️',
+    category: 'life4cuts',
+    icon: '🏙️',
+    badge: 'Cinematic',
+    desc: '3 ô góc rộng điện ảnh tối giản thanh lịch',
+    previewColor: '#FFFBEB',
+    backgroundColor: '#FFFBEB',
+    borderColor: colors.ink,
+    pattern: 'solid',
+    frameLayout: 'strip_3',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'none',
+    stickers: [
+      { id: 'stk-ds1', emoji: '☕', x: 16, y: 35, size: 26, rotation: 0 },
+      { id: 'stk-ds2', emoji: '🌿', x: 128, y: 140, size: 26, rotation: 15 },
+    ],
+    textItems: [
+      {
+        id: 'txt-ds1',
+        text: 'Seoul Daily Moment 🎬',
+        x: 12,
+        y: 475,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Seoul Daily Moment 🎬',
+    textColor: colors.ink,
+    locationTag: '📍 Seoul, Korea',
+    photoFilter: 'none',
+  },
+
+  // --- 2. VINTAGE FILM 90S ---
+  {
+    id: 'preset-film-35mm',
+    name: 'Cuộn Phim 35mm 🎞️',
+    category: 'vintage',
+    icon: '🎞️',
+    badge: 'Film 35mm',
+    desc: 'Răng cưa đục lỗ cuộn phim nhựa 90s',
+    previewColor: '#374151',
+    backgroundColor: '#374151',
+    borderColor: colors.white,
+    pattern: 'solid',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'film_perforated',
+    sealStamp: 'special_edition',
+    stickers: [
+      { id: 'stk-f1', emoji: '💿', x: 14, y: 35, size: 28, rotation: 0 },
+      { id: 'stk-f2', emoji: '✨', x: 128, y: 150, size: 26, rotation: 15 },
+    ],
+    textItems: [
+      {
+        id: 'txt-f1',
+        text: 'Film Roll No.35 🎞️',
+        x: 16,
+        y: 505,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FEF08A',
+      },
+    ],
+    customText: 'Film Roll No.35 🎞️',
+    textColor: colors.white,
+    photoFilter: 'vintage',
+  },
+  {
+    id: 'preset-stamp-90s',
+    name: 'Tem Thư 90s 📮',
+    category: 'vintage',
+    icon: '📮',
+    badge: 'Tem Thư',
+    desc: 'Viền răng cưa tem bưu ảnh & thiệp ghi nhớ',
+    previewColor: '#F4E8C1',
+    backgroundColor: '#F4E8C1',
+    borderColor: colors.ink,
+    pattern: 'solid',
+    frameLayout: 'duo_note',
+    frameEdgeStyle: 'stamp_scallop',
+    sealStamp: 'vintage_post',
+    gradientTheme: 'kraft',
+    stickers: [
+      { id: 'stk-st1', emoji: '🍂', x: 16, y: 35, size: 28, rotation: -12 },
+      { id: 'stk-st2', emoji: '📮', x: 128, y: 140, size: 26, rotation: 10 },
+    ],
+    textItems: [
+      {
+        id: 'txt-st1',
+        text: 'Gửi bạn thân mến ✉️',
+        x: 14,
+        y: 390,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Gửi bạn thân mến ✉️',
+    textColor: colors.ink,
+    locationTag: '📍 Bưu điện Hà Nội',
+    photoFilter: 'vintage',
+  },
+  {
+    id: 'preset-polaroid-cafe',
+    name: 'Polaroid Cafe ☕',
+    category: 'vintage',
+    icon: '☕',
+    badge: 'Polaroid',
+    desc: 'Khung đơn Polaroid nâu caramel ấm cúng',
+    previewColor: '#D97706',
+    backgroundColor: '#D97706',
+    borderColor: colors.ink,
+    pattern: 'solid',
+    frameLayout: 'polaroid_1',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'none',
+    stickers: [
+      { id: 'stk-pc1', emoji: '🥐', x: 16, y: 35, size: 28, rotation: 12 },
+      { id: 'stk-pc2', emoji: '☕', x: 126, y: 180, size: 28, rotation: -8 },
+    ],
+    textItems: [
+      {
+        id: 'txt-pc1',
+        text: 'Coffee & Chill ☕',
+        x: 18,
+        y: 310,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Coffee & Chill ☕',
+    textColor: colors.ink,
+    photoFilter: 'vintage',
+  },
+
+  // --- 3. SINH NHẬT & PARTY ---
+  {
+    id: 'preset-happy-birthday',
+    name: 'Happy Birthday 🎂',
+    category: 'party',
+    icon: '🎂',
+    badge: 'Sinh Nhật',
+    desc: 'Vàng chanh rực rỡ bóng bay & bánh kem',
+    previewColor: '#FFE600',
+    backgroundColor: '#FFE600',
+    borderColor: colors.ink,
+    pattern: 'stripes',
+    frameLayout: 'grid_4',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'special_edition',
+    stickers: [
+      { id: 'stk-hb1', emoji: '🎂', x: 16, y: 35, size: 28, rotation: 0 },
+      { id: 'stk-hb2', emoji: '🎉', x: 126, y: 140, size: 28, rotation: 15 },
+      { id: 'stk-hb3', emoji: '🎈', x: 18, y: 340, size: 28, rotation: -10 },
+    ],
+    textItems: [
+      {
+        id: 'txt-hb1',
+        text: 'Happy Birthday to You 🎂',
+        x: 12,
+        y: 375,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Happy Birthday to You 🎂',
+    textColor: colors.ink,
+    photoFilter: 'warm',
+  },
+  {
+    id: 'preset-confetti-night',
+    name: 'Confetti Night 🥂',
+    category: 'party',
+    icon: '🥂',
+    badge: 'Party',
+    desc: 'Tím mộng mơ pháo hoa & ly mừng tiệc',
+    previewColor: '#C084FC',
+    backgroundColor: '#C084FC',
+    borderColor: colors.ink,
+    pattern: 'stars',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'special_edition',
+    stickers: [
+      { id: 'stk-cn1', emoji: '🥂', x: 16, y: 35, size: 28, rotation: -10 },
+      { id: 'stk-cn2', emoji: '✨', x: 128, y: 150, size: 28, rotation: 12 },
+      { id: 'stk-cn3', emoji: '🎁', x: 18, y: 440, size: 28, rotation: 8 },
+    ],
+    textItems: [
+      {
+        id: 'txt-cn1',
+        text: 'Cheers to Tonight 🥂',
+        x: 16,
+        y: 505,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Cheers to Tonight 🥂',
+    textColor: colors.ink,
+    photoFilter: 'pastel',
+  },
+  {
+    id: 'preset-sweet-candy',
+    name: 'Sweet Candy 🍓',
+    category: 'party',
+    icon: '🍓',
+    badge: 'Ngọt Ngào',
+    desc: 'Cam tươi ngọt lịm dâu tây & bánh ngọt',
+    previewColor: '#FF7A3D',
+    backgroundColor: '#FF7A3D',
+    borderColor: colors.ink,
+    pattern: 'dots',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'leafy_certified',
+    stickers: [
+      { id: 'stk-sc1', emoji: '🍓', x: 14, y: 35, size: 28, rotation: -10 },
+      { id: 'stk-sc2', emoji: '🍰', x: 128, y: 150, size: 28, rotation: 12 },
+      { id: 'stk-sc3', emoji: '🍒', x: 18, y: 440, size: 28, rotation: 0 },
+    ],
+    textItems: [
+      {
+        id: 'txt-sc1',
+        text: 'Sweet Like Candy 🍓',
+        x: 16,
+        y: 505,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FEF08A',
+      },
+    ],
+    customText: 'Sweet Like Candy 🍓',
+    textColor: colors.ink,
+    photoFilter: 'warm',
+  },
+
+  // --- 4. Y2K & CYBER STREET ---
+  {
+    id: 'preset-cyber-2026',
+    name: 'Cyber 2026 ⚡',
+    category: 'y2k',
+    icon: '⚡',
+    badge: 'Cyber',
+    desc: 'Cobalt phát sáng Neon & sticker tia chớp',
+    previewColor: '#3D5AFE',
+    backgroundColor: '#3D5AFE',
+    borderColor: colors.lime,
+    pattern: 'stripes',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'neon_glow',
+    sealStamp: 'special_edition',
+    gradientTheme: 'cyber',
+    stickers: [
+      { id: 'stk-cy1', emoji: '⚡', x: 16, y: 35, size: 28, rotation: 12 },
+      { id: 'stk-cy2', emoji: '🤖', x: 126, y: 150, size: 28, rotation: -10 },
+      { id: 'stk-cy3', emoji: '👾', x: 18, y: 440, size: 28, rotation: 0 },
+    ],
+    textItems: [
+      {
+        id: 'txt-cy1',
+        text: 'Cyberpunk 2026 ⚡',
+        x: 16,
+        y: 505,
+        fontSize: 12,
+        rotation: 0,
+        color: '#C8F135',
+        bgColor: '#111111',
+      },
+    ],
+    customText: 'Cyberpunk 2026 ⚡',
+    textColor: colors.lime,
+    photoFilter: 'cool',
+  },
+  {
+    id: 'preset-silver-chrome',
+    name: 'Silver Chrome 💿',
+    category: 'y2k',
+    icon: '💿',
+    badge: 'Y2K',
+    desc: 'Bạc kim loại đốm lửa & đĩa CD Y2K',
+    previewColor: '#CBD5E1',
+    backgroundColor: '#CBD5E1',
+    borderColor: colors.ink,
+    pattern: 'dots',
+    frameLayout: 'grid_4',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'none',
+    stickers: [
+      { id: 'stk-sv1', emoji: '🔥', x: 14, y: 35, size: 28, rotation: 15 },
+      { id: 'stk-sv2', emoji: '💿', x: 126, y: 140, size: 28, rotation: -15 },
+    ],
+    textItems: [
+      {
+        id: 'txt-sv1',
+        text: 'Y2K Silver Club 💿',
+        x: 16,
+        y: 375,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Y2K Silver Club 💿',
+    textColor: colors.ink,
+    photoFilter: 'cool',
+  },
+  {
+    id: 'preset-matrix-lime',
+    name: 'Matrix Lime 🌊',
+    category: 'y2k',
+    icon: '🌊',
+    badge: 'Cinematic',
+    desc: 'Xanh chanh Lime 3 ô điện ảnh cá tính',
+    previewColor: '#C8F135',
+    backgroundColor: '#C8F135',
+    borderColor: colors.ink,
+    pattern: 'solid',
+    frameLayout: 'strip_3',
+    frameEdgeStyle: 'film_perforated',
+    sealStamp: 'leafy_certified',
+    stickers: [
+      { id: 'stk-ml1', emoji: '💎', x: 14, y: 35, size: 28, rotation: 0 },
+      { id: 'stk-ml2', emoji: '👑', x: 128, y: 140, size: 28, rotation: 12 },
+    ],
+    textItems: [
+      {
+        id: 'txt-ml1',
+        text: 'Matrix Lime Vibe 🌊',
+        x: 14,
+        y: 475,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Matrix Lime Vibe 🌊',
+    textColor: colors.ink,
+    photoFilter: 'bw',
+  },
+
+  // --- 5. TÌNH BẠN & BESTIES ---
+  {
+    id: 'preset-forever-besties',
+    name: 'Forever Besties ❤️',
+    category: 'besties',
+    icon: '❤️',
+    badge: 'Dấu Sáp',
+    desc: 'Thiệp kỷ niệm niêm phong con dấu sáp đỏ',
+    previewColor: '#FDA4AF',
+    backgroundColor: '#FDA4AF',
+    borderColor: colors.ink,
+    pattern: 'solid',
+    frameLayout: 'duo_note',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'love_wax',
+    stickers: [
+      { id: 'stk-fb1', emoji: '💖', x: 14, y: 35, size: 28, rotation: -10 },
+      { id: 'stk-fb2', emoji: '🧸', x: 128, y: 140, size: 28, rotation: 12 },
+    ],
+    textItems: [
+      {
+        id: 'txt-fb1',
+        text: 'Forever Best Friends 💖',
+        x: 12,
+        y: 390,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Forever Best Friends 💖',
+    textColor: colors.ink,
+    photoFilter: 'pastel',
+  },
+  {
+    id: 'preset-washi-memory',
+    name: 'Washi Memory 🍀',
+    category: 'besties',
+    icon: '🍀',
+    badge: 'Washi',
+    desc: 'Băng dính Washi 4 góc xanh bạc hà tươi mát',
+    previewColor: '#7EE8B8',
+    backgroundColor: '#7EE8B8',
+    borderColor: colors.ink,
+    pattern: 'dots',
+    frameLayout: 'grid_4',
+    frameEdgeStyle: 'washi_corners',
+    sealStamp: 'besties',
+    stickers: [
+      { id: 'stk-wm1', emoji: '🍀', x: 14, y: 35, size: 28, rotation: 10 },
+      { id: 'stk-wm2', emoji: '🦋', x: 126, y: 140, size: 28, rotation: -12 },
+    ],
+    textItems: [
+      {
+        id: 'txt-wm1',
+        text: 'Lucky to Have You 🍀',
+        x: 16,
+        y: 375,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFFFFF',
+      },
+    ],
+    customText: 'Lucky to Have You 🍀',
+    textColor: colors.ink,
+    photoFilter: 'none',
+  },
+  {
+    id: 'preset-sunset-date',
+    name: 'Sunset Date 🌅',
+    category: 'besties',
+    icon: '🌅',
+    badge: 'Hoàng Hôn',
+    desc: 'Gradient hoàng hôn ấm áp & lá thu bay',
+    previewColor: '#FB923C',
+    backgroundColor: '#FB923C',
+    borderColor: colors.ink,
+    pattern: 'solid',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'besties',
+    gradientTheme: 'sunset',
+    stickers: [
+      { id: 'stk-sd1', emoji: '🍂', x: 14, y: 35, size: 28, rotation: -15 },
+      { id: 'stk-sd2', emoji: '⭐', x: 128, y: 150, size: 28, rotation: 15 },
+      { id: 'stk-sd3', emoji: '🍁', x: 18, y: 440, size: 28, rotation: 0 },
+    ],
+    textItems: [
+      {
+        id: 'txt-sd1',
+        text: 'Sunset With You 🌅',
+        x: 16,
+        y: 505,
+        fontSize: 12,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FEF08A',
+      },
+    ],
+    customText: 'Sunset With You 🌅',
+    textColor: colors.ink,
+    locationTag: '📍 Hoàn Kiếm, Hà Nội',
+    photoFilter: 'warm',
+  },
+];
 
 const INITIAL_TRENDING: TrendingFrameItem[] = [
   {
@@ -240,31 +849,23 @@ const INITIAL_TRENDING: TrendingFrameItem[] = [
   },
 ];
 
+let _uniqueStudioCounter = 0;
+export const generateStickerId = () =>
+  `stk_${Date.now()}_${++_uniqueStudioCounter}_${Math.random().toString(36).substring(2, 7)}`;
+export const generateTextId = () =>
+  `txt_${Date.now()}_${++_uniqueStudioCounter}_${Math.random().toString(36).substring(2, 7)}`;
+
 export const useStudioStore = create<StudioState>((set, get) => ({
-  frameName: 'Mùa lá rơi',
+  frameName: 'Khung của tôi',
   backgroundColor: colors.pink,
   pattern: 'solid',
   uploadedImage: null,
-  imageOpacity: 0.85,
-  stickers: [
-    { id: 'stk-1', emoji: '🍂', x: 20, y: 40, size: 30, rotation: -12 },
-    { id: 'stk-2', emoji: '✨', x: 140, y: 130, size: 28, rotation: 15 },
-  ],
-  selectedStickerId: 'stk-1',
-  textItems: [
-    {
-      id: 'txt-1',
-      text: 'Autumn Memories 🍂',
-      x: 18,
-      y: 635,
-      fontSize: 12,
-      rotation: 0,
-      color: colors.ink,
-      bgColor: '#FFFFFF',
-    },
-  ],
+  imageOpacity: 1,
+  stickers: [],
+  selectedStickerId: null,
+  textItems: [],
   selectedTextId: null,
-  customText: 'Autumn Memories 🍂',
+  customText: '',
   textPosition: 'bottom',
   textStyleType: 'badge',
   textColor: colors.ink,
@@ -272,16 +873,16 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   isPublic: true,
   slotPhotos: [...DEFAULT_SLOT_PHOTOS],
   photoFilter: 'none',
-  postCaption: 'Một ngày thật xinh cùng dải ảnh Leafy 📸✨ Cảm ơn bạn vì đã luôn ở bên tui!',
-  postHashtags: ['#leafybooth', '#photobooth', '#besties', '#y2k'],
+  postCaption: 'Dải ảnh xinh từ Leafy Studio 🌿✨',
+  postHashtags: ['#leafybooth', '#photobooth', '#cute'],
   frameLayout: 'strip_4',
   frameEdgeStyle: 'classic',
-  creatorName: 'Mai Anh',
-  serialNumber: '#LB-902',
-  showTimestamp: true,
-  timestampText: "'26 10 26",
-  locationTag: '📍 Hanoi, Vietnam',
-  sealStamp: 'leafy_certified',
+  creatorName: '',
+  serialNumber: '#LB-101',
+  showTimestamp: false,
+  timestampText: '',
+  locationTag: '',
+  sealStamp: 'none',
   washiTapeStyle: 'none',
   gradientTheme: 'none',
 
@@ -292,25 +893,28 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   setImageOpacity: (opacity) => set({ imageOpacity: opacity }),
 
   addSticker: (emoji) => {
-    const newId = `stk_${Date.now()}`;
+    if (get().stickers.length >= 24) return;
+    const newId = generateStickerId();
+    const count = get().stickers.length;
     const nextStickers = [
       ...get().stickers,
       {
         id: newId,
         emoji,
-        x: 20 + ((get().stickers.length * 25) % 130),
-        y: 40 + ((get().stickers.length * 45) % 320),
+        x: 18 + ((count * 26) % 120),
+        y: 40 + ((count * 48) % 360),
         size: 32,
         rotation: 0,
       },
     ];
-    set({ stickers: nextStickers, selectedStickerId: newId });
+    set({ stickers: nextStickers, selectedStickerId: newId, selectedTextId: null });
   },
 
   addStickerAt: (emoji, x, y) => {
-    const newId = `stk_${Date.now()}`;
-    const clampedX = Math.max(10, Math.min(x - 16, 170));
-    const clampedY = Math.max(10, Math.min(y - 16, 400));
+    if (get().stickers.length >= 24) return;
+    const newId = generateStickerId();
+    const clampedX = Math.max(-15, Math.min(x - 16, 175));
+    const clampedY = Math.max(0, Math.min(y - 16, 500));
     set((state) => ({
       stickers: [
         ...state.stickers,
@@ -324,6 +928,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         },
       ],
       selectedStickerId: newId,
+      selectedTextId: null,
     }));
   },
 
@@ -393,7 +998,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     if (!id) return;
     const item = get().stickers.find((s) => s.id === id);
     if (!item) return;
-    const newId = `stk_${Date.now()}`;
+    if (get().stickers.length >= 24) return;
+    const newId = generateStickerId();
     const newSticker: CustomSticker = {
       ...item,
       id: newId,
@@ -409,14 +1015,16 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
   addTextItem: (text, color = colors.ink, bgColor = '#FFFFFF') => {
     if (!text.trim()) return;
-    const newId = `txt_${Date.now()}`;
+    if (get().textItems.length >= 12) return;
+    const newId = generateTextId();
+    const count = get().textItems.length;
     const nextTexts = [
       ...get().textItems,
       {
         id: newId,
         text: text.trim(),
-        x: 15 + ((get().textItems.length * 15) % 60),
-        y: 60 + ((get().textItems.length * 90) % 520),
+        x: 15 + ((count * 15) % 60),
+        y: 60 + ((count * 90) % 520),
         fontSize: 13,
         rotation: 0,
         color,
@@ -428,7 +1036,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
   addTextItemAt: (text, x, y, color = colors.ink, bgColor = '#FFFFFF') => {
     if (!text.trim()) return;
-    const newId = `txt_${Date.now()}`;
+    if (get().textItems.length >= 12) return;
+    const newId = generateTextId();
     const clampedX = Math.max(-15, Math.min(x - 30, 175));
     const clampedY = Math.max(0, Math.min(y - 10, 670));
     set((state) => ({
@@ -524,7 +1133,8 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     if (!id) return;
     const item = get().textItems.find((t) => t.id === id);
     if (!item) return;
-    const newId = `txt_${Date.now()}`;
+    if (get().textItems.length >= 12) return;
+    const newId = generateTextId();
     const newText: CustomTextItem = {
       ...item,
       id: newId,
@@ -544,16 +1154,76 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   clearAllStickers: () =>
     set({ stickers: [], selectedStickerId: null }),
 
-  applyPreset: (preset) =>
+  savedCustomFrames: [],
+
+  saveCurrentFrame: () => {
+    const s = get();
+    const newFrame: SavedCustomFrame = {
+      id: 'frame_' + Date.now(),
+      name: s.frameName || 'Khung của tôi',
+      createdAt: Date.now(),
+      previewColor: s.backgroundColor,
+      frameLayout: s.frameLayout,
+      backgroundColor: s.backgroundColor,
+      borderColor: s.borderColor,
+      pattern: s.pattern,
+      frameEdgeStyle: s.frameEdgeStyle,
+      sealStamp: s.sealStamp,
+      stickersCount: s.stickers.length + s.textItems.length,
+    };
+    set((state) => ({
+      savedCustomFrames: [newFrame, ...state.savedCustomFrames],
+    }));
+    return newFrame;
+  },
+
+  createNewBlankFrame: () => {
     set({
+      frameName: 'Khung mới 🌿',
+      backgroundColor: colors.pink,
+      borderColor: colors.ink,
+      pattern: 'solid',
+      frameLayout: 'strip_4',
+      frameEdgeStyle: 'classic',
+      sealStamp: 'none',
+      washiTapeStyle: 'none',
+      gradientTheme: 'none',
+      stickers: [],
+      textItems: [],
+      customText: '',
+      photoFilter: 'none',
+      selectedStickerId: null,
+      selectedTextId: null,
+    });
+  },
+
+  applyPreset: (preset) => {
+    set({
+      frameName: preset.name,
       backgroundColor: preset.backgroundColor,
       borderColor: preset.borderColor,
       pattern: preset.pattern,
-      stickers: preset.stickers,
-      textItems: preset.textItems,
+      frameLayout: preset.frameLayout,
+      frameEdgeStyle: preset.frameEdgeStyle,
+      sealStamp: preset.sealStamp,
+      washiTapeStyle: preset.washiTapeStyle || 'none',
+      gradientTheme: preset.gradientTheme || 'none',
+      stickers: preset.stickers.map((stk) => ({
+        ...stk,
+        id: generateStickerId(),
+      })),
+      textItems: preset.textItems.map((txt) => ({
+        ...txt,
+        id: generateTextId(),
+      })),
+      customText: preset.customText || '',
+      textColor: preset.textColor || colors.ink,
+      locationTag: preset.locationTag || get().locationTag,
+      photoFilter: preset.photoFilter || 'none',
       selectedStickerId: null,
       selectedTextId: null,
-    }),
+    });
+  },
 
   setCustomText: (text) => set({ customText: text }),
   setTextPosition: (pos) => set({ textPosition: pos }),
@@ -598,13 +1268,15 @@ export const useStudioStore = create<StudioState>((set, get) => ({
 
   resetStudio: () =>
     set({
-      frameName: 'Frame của tôi',
+      frameName: 'Khung của tôi',
       backgroundColor: colors.pink,
       pattern: 'solid',
       uploadedImage: null,
-      imageOpacity: 0.85,
+      imageOpacity: 1,
       stickers: [],
       selectedStickerId: null,
+      textItems: [],
+      selectedTextId: null,
       customText: '',
       textPosition: 'bottom',
       textStyleType: 'badge',
@@ -613,16 +1285,16 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       isPublic: true,
       slotPhotos: [...DEFAULT_SLOT_PHOTOS],
       photoFilter: 'none',
-      postCaption: 'Một ngày thật xinh cùng dải ảnh Leafy 📸✨ Cảm ơn bạn vì đã luôn ở bên tui!',
-      postHashtags: ['#leafybooth', '#photobooth', '#besties', '#y2k'],
+      postCaption: 'Dải ảnh xinh từ Leafy Studio 🌿✨',
+      postHashtags: ['#leafybooth', '#photobooth', '#cute'],
       frameLayout: 'strip_4',
       frameEdgeStyle: 'classic',
-      creatorName: 'Mai Anh',
+      creatorName: '',
       serialNumber: `#LB-${Math.floor(100 + Math.random() * 900)}`,
-      showTimestamp: true,
-      timestampText: "'26 10 26",
-      locationTag: '📍 Hanoi, Vietnam',
-      sealStamp: 'leafy_certified',
+      showTimestamp: false,
+      timestampText: '',
+      locationTag: '',
+      sealStamp: 'none',
       washiTapeStyle: 'none',
       gradientTheme: 'none',
     }),
