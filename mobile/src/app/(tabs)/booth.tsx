@@ -51,7 +51,7 @@ export default function BoothScreen() {
               onPress={() => router.push('/(tabs)/studio' as any)}
               style={({ pressed }) => [
                 styles.shortcutPill,
-                { backgroundColor: '#FF4F8B', transform: [{ scale: pressed ? 0.96 : 1 }] },
+                { backgroundColor: colors.white, transform: [{ scale: pressed ? 0.96 : 1 }] },
               ]}
             >
               <Text style={styles.shortcutEmoji}>🎨</Text>
@@ -62,7 +62,7 @@ export default function BoothScreen() {
               onPress={() => router.push('/widget-guide' as any)}
               style={({ pressed }) => [
                 styles.shortcutPill,
-                { backgroundColor: colors.yellow, transform: [{ scale: pressed ? 0.96 : 1 }] },
+                { backgroundColor: colors.white, transform: [{ scale: pressed ? 0.96 : 1 }] },
               ]}
             >
               <Text style={styles.shortcutEmoji}>📱</Text>
@@ -209,7 +209,7 @@ export default function BoothScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.orange,
+    backgroundColor: '#FAF9F6', // Nền giấy kem studio ấm áp, tinh tế, không lòe loẹt
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.xl,
@@ -226,12 +226,11 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.ink,
+    color: '#4B5563',
     marginTop: 4,
-    opacity: 0.9,
   },
   featuredCard: {
-    backgroundColor: colors.yellow,
+    backgroundColor: '#FFFFFF',
     borderRadius: theme.borders.radius.card,
     borderWidth: theme.borders.width,
     borderColor: colors.ink,
@@ -239,7 +238,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 24,
     ...theme.shadows.hard,
   },
   featuredLeft: {
@@ -247,7 +246,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   nearDatePill: {
-    backgroundColor: colors.pink,
+    backgroundColor: '#FFE600',
     borderWidth: 2,
     borderColor: colors.ink,
     borderRadius: 20,
@@ -316,7 +315,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   diyFrameBanner: {
-    backgroundColor: colors.pink,
+    backgroundColor: '#FFFFFF',
     borderRadius: theme.borders.radius.card,
     borderWidth: theme.borders.width,
     borderColor: colors.ink,
@@ -331,7 +330,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.white,
+    backgroundColor: '#FFE600',
     borderWidth: 2,
     borderColor: colors.ink,
     alignItems: 'center',
@@ -339,7 +338,7 @@ const styles = StyleSheet.create({
     ...theme.shadows.hardSmall,
   },
   diyBannerBadge: {
-    backgroundColor: colors.yellow,
+    backgroundColor: '#FF4F8B',
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: colors.ink,
@@ -351,7 +350,7 @@ const styles = StyleSheet.create({
   diyBannerBadgeText: {
     fontSize: 9,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
   },
   diyBannerTitle: {
     fontSize: 16,
@@ -361,7 +360,7 @@ const styles = StyleSheet.create({
   diyBannerDesc: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#374151',
+    color: '#4B5563',
     marginTop: 2,
     lineHeight: 15,
   },
@@ -441,6 +440,6 @@ const styles = StyleSheet.create({
   shortcutText: {
     fontSize: 13,
     fontWeight: '900',
-    color: colors.white,
+    color: colors.ink,
   },
 });

@@ -274,7 +274,7 @@ export default function BoothResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.lime,
+    backgroundColor: '#F8F9FA', // Tone studio trắng kem êm dịu, không lòe loẹt
     paddingHorizontal: theme.spacing.lg,
   },
   headerRow: {
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   toastText: {
     fontSize: 14,
     fontWeight: '800',
-    color: colors.lime,
+    color: '#FFE600',
   },
   actionSection: {
     width: '100%',
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   studioCtaButton: {
-    backgroundColor: colors.yellow,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 2.5,
     borderColor: colors.ink,
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.white,
+    backgroundColor: '#FFE600',
     borderWidth: 1.5,
     borderColor: colors.ink,
     alignItems: 'center',

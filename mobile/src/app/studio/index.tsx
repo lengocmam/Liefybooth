@@ -1643,7 +1643,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
         {
           paddingTop: Math.max(insets.top, 8),
           paddingBottom: Math.max(insets.bottom, 10),
-          backgroundColor: '#FF4F8B',
+          backgroundColor: '#F3F4F6',
         },
       ]}
     >
@@ -3308,7 +3308,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FF4F8B',
+    backgroundColor: '#F3F4F6',
   },
   header: {
     flexDirection: 'row',
@@ -5550,7 +5550,7 @@ const styles = StyleSheet.create({
   },
   igStudioMainContainer: {
     flex: 1,
-    backgroundColor: '#FF4F8B',
+    backgroundColor: '#F8F9FA',
   },
   igTopBar: {
     flexDirection: 'row',
@@ -5558,26 +5558,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#FF4F8B',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 2,
+    borderBottomColor: colors.ink,
   },
   igTopIconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
     justifyContent: 'center',
     alignItems: 'center',
   },
   igTopIconText: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.ink,
   },
   igTitlePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 18,
@@ -5589,7 +5595,7 @@ const styles = StyleSheet.create({
   igTitlePillText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.ink,
   },
   igTitlePillEdit: {
     fontSize: 10,
@@ -5603,17 +5609,19 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
     justifyContent: 'center',
     alignItems: 'center',
   },
   igTopToolBtnActive: {
-    backgroundColor: colors.lime,
+    backgroundColor: '#FFE600',
   },
   igTopToolText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.ink,
   },
   igTopToolIcon: {
     fontSize: 15,
@@ -5662,7 +5670,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FF4F8B',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 2,
     borderTopColor: colors.ink,
   },
@@ -6026,7 +6034,7 @@ const styles = StyleSheet.create({
   // --- LEAFYBOOTH SIGNATURE STUDIO STYLES (STICKER POP) ---
   leafyStudioContainer: {
     flex: 1,
-    backgroundColor: '#FF4F8B',
+    backgroundColor: '#F3F4F6',
   },
   studioHeader: {
     flexDirection: 'row',
@@ -6034,7 +6042,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FF4F8B',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 2,
+    borderBottomColor: colors.ink,
   },
   studioHeaderBtn: {
     paddingVertical: 8,
@@ -6372,7 +6382,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FF4F8B',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 2.5,
     borderBottomColor: colors.ink,
   },

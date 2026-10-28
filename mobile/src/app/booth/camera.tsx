@@ -39,6 +39,7 @@ export default function BoothCameraScreen() {
   const [currentShotIndex, setCurrentShotIndex] = useState(0); // 0, 1, 2, 3
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isShooting, setIsShooting] = useState(false);
+  const [shootingMode, setShootingMode] = useState<'instant' | 'timer'>('instant');
   const flashAnim = useRef(new Animated.Value(0)).current;
 
   // Yêu cầu quyền camera khi mở
@@ -86,6 +87,28 @@ export default function BoothCameraScreen() {
     return photoUri;
   };
 
+  // Chụp tức thời 1-chạm không cần chờ đếm ngược
+  const handleInstantShot = async () => {
+    if (isShooting) return;
+    const currentCount = capturedPhotos.length;
+    if (currentCount >= 4) return;
+
+    setIsShooting(true);
+    setCurrentShotIndex(currentCount);
+
+    const uri = await takeSinglePhoto(currentCount);
+    setIsShooting(false);
+
+    if (currentCount + 1 >= 4) {
+      const allShots = [...capturedPhotos, uri];
+      useStudioStore.getState().setSlotPhotos(allShots);
+      router.replace('/booth/result' as any);
+    } else {
+      setCurrentShotIndex(currentCount + 1);
+    }
+  };
+
+  // Chế độ tự động đếm ngược 3s theo chuỗi
   const startPhotoboothSequence = async () => {
     if (isShooting) return;
     setIsShooting(true);
@@ -124,6 +147,14 @@ export default function BoothCameraScreen() {
     router.replace('/booth/result' as any);
   };
 
+  const handleShutterPress = () => {
+    if (shootingMode === 'instant') {
+      handleInstantShot();
+    } else {
+      startPhotoboothSequence();
+    }
+  };
+
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 20) }]}>
       {/* Top Bar */}
@@ -141,21 +172,34 @@ export default function BoothCameraScreen() {
 
         {/* Nền đang chọn Pill */}
         <View style={[styles.backdropPill, activeCustomFrame && { backgroundColor: colors.yellow }]}>
-          <Text style={styles.backdropPillText}>
+          <Text style={styles.backdropPillText} numberOfLines={1}>
             {activeCustomFrame ? `🎨 ${activeCustomFrame.name}` : `Nền ${selectedBackdrop.name}`}
           </Text>
         </View>
 
-        {/* Nút bật/tắt âm thanh */}
-        <Pressable
-          onPress={toggleSound}
-          style={({ pressed }) => [
-            styles.circleButton,
-            { transform: [{ scale: pressed ? 0.95 : 1 }] },
-          ]}
-        >
-          <Text style={styles.circleButtonText}>{soundEnabled ? '🔊' : '🔇'}</Text>
-        </Pressable>
+        {/* Cụm nút phụ: Lật gương + Bật/Tắt âm thanh */}
+        <View style={styles.topActionGroup}>
+          <Pressable
+            onPress={toggleMirror}
+            style={({ pressed }) => [
+              styles.circleButtonSmall,
+              isMirrored && styles.circleButtonSmallActive,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+          >
+            <Text style={{ fontSize: 16 }}>🪞</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={toggleSound}
+            style={({ pressed }) => [
+              styles.circleButtonSmall,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+          >
+            <Text style={{ fontSize: 16 }}>{soundEnabled ? '🔊' : '🔇'}</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Camera Viewfinder */}
@@ -240,47 +284,89 @@ export default function BoothCameraScreen() {
       </View>
 
       {/* Bottom Controls */}
-      <View style={styles.controlsRow}>
-        <Pressable
-          onPress={startPhotoboothSequence}
-          disabled={isShooting}
-          style={({ pressed }) => [
-            styles.controlPill,
-            styles.countPill,
-            {
-              transform: [{ translateY: pressed ? 2 : 0 }],
-              opacity: isShooting ? 0.7 : 1,
-            },
-          ]}
-        >
-          <Text style={styles.countPillText}>
-            {isShooting ? 'Đang chụp...' : 'Đếm 3s'}
-          </Text>
-        </Pressable>
+      <View style={styles.controlsSection}>
+        {/* Chuyển chế độ: Tức thời vs Đếm 3s */}
+        <View style={styles.modeSwitchRow}>
+          <Pressable
+            onPress={() => setShootingMode('instant')}
+            disabled={isShooting}
+            style={[
+              styles.modeChip,
+              shootingMode === 'instant' && styles.modeChipActive,
+            ]}
+          >
+            <Text style={[styles.modeChipText, shootingMode === 'instant' && styles.modeChipTextActive]}>
+              ⚡ Chụp tức thời
+            </Text>
+          </Pressable>
 
-        <Pressable
-          onPress={toggleMirror}
-          disabled={isShooting}
-          style={({ pressed }) => [
-            styles.controlPill,
-            styles.whitePill,
-            { transform: [{ translateY: pressed ? 2 : 0 }] },
-          ]}
-        >
-          <Text style={styles.whitePillText}>Lật gương</Text>
-        </Pressable>
+          <Pressable
+            onPress={() => setShootingMode('timer')}
+            disabled={isShooting}
+            style={[
+              styles.modeChip,
+              shootingMode === 'timer' && styles.modeChipActive,
+            ]}
+          >
+            <Text style={[styles.modeChipText, shootingMode === 'timer' && styles.modeChipTextActive]}>
+              ⏱️ Tự động 3s
+            </Text>
+          </Pressable>
+        </View>
 
-        <Pressable
-          onPress={toggleCameraFacing}
-          disabled={isShooting}
-          style={({ pressed }) => [
-            styles.controlPill,
-            styles.whitePill,
-            { transform: [{ translateY: pressed ? 2 : 0 }] },
-          ]}
-        >
-          <Text style={styles.whitePillText}>Đổi camera</Text>
-        </Pressable>
+        {/* Shutter Area */}
+        <View style={styles.shutterRow}>
+          {/* Nút reset (bên trái) */}
+          <Pressable
+            onPress={() => {
+              resetPhotos();
+              setCurrentShotIndex(0);
+            }}
+            disabled={isShooting || capturedPhotos.length === 0}
+            style={({ pressed }) => [
+              styles.sideCircleBtn,
+              capturedPhotos.length === 0 && { opacity: 0.3 },
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+          >
+            <Text style={{ fontSize: 20 }}>↺</Text>
+          </Pressable>
+
+          {/* NÚT CHỤP CHÍNH TO TRÒN (BIG INSTANT SHUTTER BUTTON) */}
+          <Pressable
+            onPress={handleShutterPress}
+            disabled={isShooting}
+            style={({ pressed }) => [
+              styles.bigShutterOuter,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            ]}
+          >
+            <View style={styles.bigShutterInner}>
+              <Text style={styles.bigShutterEmoji}>
+                {isShooting ? '⏳' : shootingMode === 'instant' ? '📸' : '⏱️'}
+              </Text>
+              <Text style={styles.bigShutterLabel}>
+                {isShooting
+                  ? 'Đang chụp...'
+                  : shootingMode === 'instant'
+                  ? `Chụp ảnh ${capturedPhotos.length + 1}/4`
+                  : 'Bắt đầu đếm'}
+              </Text>
+            </View>
+          </Pressable>
+
+          {/* Nút xoay đổi camera trước/sau (bên phải - icon tròn sạch sẽ) */}
+          <Pressable
+            onPress={toggleCameraFacing}
+            disabled={isShooting}
+            style={({ pressed }) => [
+              styles.sideCircleBtn,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+          >
+            <Text style={{ fontSize: 22 }}>🔄</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -289,7 +375,7 @@ export default function BoothCameraScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B3D2E', // Màu xanh rừng đậm đặc trưng của Booth
+    backgroundColor: '#111317', // Tối giản matte dark studio, không còn lòe loẹt
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg,
   },
@@ -315,8 +401,8 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   backdropPill: {
-    backgroundColor: colors.lime,
-    borderWidth: 2.5,
+    backgroundColor: colors.white,
+    borderWidth: 2,
     borderColor: colors.ink,
     borderRadius: 20,
     paddingHorizontal: 16,
@@ -324,7 +410,7 @@ const styles = StyleSheet.create({
     ...theme.shadows.hardSmall,
   },
   backdropPillText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: colors.ink,
   },
@@ -339,10 +425,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 26,
     borderWidth: 3,
-    borderColor: colors.lime,
+    borderColor: '#FFFFFF',
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#111111',
+    backgroundColor: '#000000',
     ...theme.shadows.hard,
   },
   cameraView: {
@@ -350,7 +436,7 @@ const styles = StyleSheet.create({
   },
   simulatedCamera: {
     flex: 1,
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E2024',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -361,7 +447,7 @@ const styles = StyleSheet.create({
   simulatedText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.lime,
+    color: '#E5E7EB',
   },
   flashOverlay: {
     ...StyleSheet.absoluteFill,
@@ -378,7 +464,7 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     borderRadius: 65,
-    backgroundColor: colors.lime,
+    backgroundColor: '#FFE600',
     borderWidth: 3.5,
     borderColor: colors.ink,
     alignItems: 'center',
@@ -408,7 +494,7 @@ const styles = StyleSheet.create({
   holdStillText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.lime,
+    color: '#E5E7EB',
   },
   slotsRow: {
     flexDirection: 'row',
@@ -418,17 +504,17 @@ const styles = StyleSheet.create({
   slotBox: {
     flex: 1,
     aspectRatio: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1C1F26',
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#334155',
+    borderColor: '#2E3542',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   slotBoxActive: {
-    borderColor: colors.lime,
-    backgroundColor: '#14532D',
+    borderColor: '#FFE600',
+    backgroundColor: '#272B35',
   },
   slotImage: {
     width: '100%',
@@ -437,45 +523,110 @@ const styles = StyleSheet.create({
   slotActiveText: {
     fontSize: 20,
     fontWeight: '900',
-    color: colors.lime,
+    color: '#FFE600',
   },
   slotPlaceholderText: {
     fontSize: 14,
     fontWeight: '800',
     color: '#64748B',
   },
-  controlsRow: {
+  topActionGroup: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  circleButtonSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.hardSmall,
+  },
+  circleButtonSmallActive: {
+    backgroundColor: colors.yellow,
+  },
+  controlsSection: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modeSwitchRow: {
+    flexDirection: 'row',
+    backgroundColor: '#1C1F26',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#2E3542',
+    padding: 3,
+    gap: 4,
+  },
+  modeChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  modeChipActive: {
+    backgroundColor: '#FFE600',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  modeChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#9CA3AF',
+  },
+  modeChipTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  shutterRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    paddingHorizontal: 6,
   },
-  controlPill: {
+  sideCircleBtn: {
+    width: 48,
     height: 48,
     borderRadius: 24,
+    backgroundColor: colors.white,
     borderWidth: 2.5,
     borderColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
     ...theme.shadows.hardSmall,
   },
-  countPill: {
-    flex: 1.2,
-    backgroundColor: colors.lime,
-  },
-  countPillText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.ink,
-  },
-  whitePill: {
+  bigShutterOuter: {
     flex: 1,
-    backgroundColor: colors.white,
+    marginHorizontal: 12,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.yellow,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    padding: 3,
+    ...theme.shadows.hard,
   },
-  whitePillText: {
-    fontSize: 14,
-    fontWeight: '800',
+  bigShutterInner: {
+    flex: 1,
+    borderRadius: 28,
+    backgroundColor: colors.yellow,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  bigShutterEmoji: {
+    fontSize: 24,
+  },
+  bigShutterLabel: {
+    fontSize: 15,
+    fontWeight: '900',
     color: colors.ink,
+    letterSpacing: -0.2,
   },
 });

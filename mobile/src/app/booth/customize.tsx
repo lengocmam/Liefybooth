@@ -253,7 +253,7 @@ export default function BoothCustomizeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.yellow,
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   studioBanner: {
-    backgroundColor: colors.pink,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 2.5,
     borderColor: colors.ink,
@@ -477,8 +477,8 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.white,
-    borderWidth: 1.5,
+    backgroundColor: '#FFE600',
+    borderWidth: 2,
     borderColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
