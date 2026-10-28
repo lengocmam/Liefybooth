@@ -442,6 +442,30 @@ export async function exportStudioFrameToImage(options: {
         grad.addColorStop(0.5, '#818CF8');
         grad.addColorStop(1, '#1E1B4B');
         ctx.fillStyle = grad;
+      } else if (options.gradientTheme === 'cherry') {
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#FFE4E6');
+        grad.addColorStop(0.5, '#FDA4AF');
+        grad.addColorStop(1, '#FB7185');
+        ctx.fillStyle = grad;
+      } else if (options.gradientTheme === 'lavender') {
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#F3E8FF');
+        grad.addColorStop(0.5, '#D8B4FE');
+        grad.addColorStop(1, '#A855F7');
+        ctx.fillStyle = grad;
+      } else if (options.gradientTheme === 'matcha') {
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#DCFCE7');
+        grad.addColorStop(0.5, '#86EFAC');
+        grad.addColorStop(1, '#22C55E');
+        ctx.fillStyle = grad;
+      } else if (options.gradientTheme === 'midnight') {
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#312E81');
+        grad.addColorStop(0.5, '#1E1B4B');
+        grad.addColorStop(1, '#0F172A');
+        ctx.fillStyle = grad;
       } else if (options.gradientTheme === 'kraft') {
         ctx.fillStyle = '#F4E8C1';
       } else {
@@ -809,6 +833,39 @@ export async function exportStudioFrameToImage(options: {
         ctx.rotate(-0.4);
         ctx.fillRect(-45, -12, 90, 24);
         ctx.strokeRect(-45, -12, 90, 24);
+        ctx.restore();
+      } else if (options.frameEdgeStyle === 'stamp_scallop') {
+        // Răng cưa tem bưu chính cổ điển
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#111111';
+        ctx.lineWidth = 1.5;
+        for (let py = 16; py < canvas.height - 16; py += 24) {
+          ctx.beginPath();
+          ctx.arc(5, py, 6, -Math.PI / 2, Math.PI / 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(canvas.width - 5, py, 6, Math.PI / 2, -Math.PI / 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+        for (let px = 16; px < canvas.width - 16; px += 24) {
+          ctx.beginPath();
+          ctx.arc(px, 5, 6, 0, Math.PI);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(px, canvas.height - 5, 6, Math.PI, 0);
+          ctx.fill();
+          ctx.stroke();
+        }
+      } else if (options.frameEdgeStyle === 'neon_glow') {
+        ctx.save();
+        ctx.shadowColor = '#C8F135';
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = '#C8F135';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
         ctx.restore();
       }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,57 @@ import {
   ScrollView,
   Pressable,
   Image,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '../core/theme/colors';
 import { theme } from '../core/theme/theme';
 import { PillButton } from '../core/components/PillButton';
+import { useMomentsStore } from '../features/moments/hooks/useMomentsStore';
+import { playShutterSound } from '../features/booth/services/soundService';
 
 export default function WidgetGuideScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { moments } = useMomentsStore();
+  const [widgetTab, setWidgetTab] = useState<'booth' | 'square' | 'medium'>('booth');
+  const [demoIndex, setDemoIndex] = useState(0);
+  const widgetAnim = useRef(new Animated.Value(1)).current;
+
+  const currentMoment = moments[demoIndex % Math.max(1, moments.length)] || {
+    senderName: 'An',
+    caption: 'Dải ảnh Photobooth 4 ô ✨',
+    photoUrl: 'https://picsum.photos/seed/moment_demo/500/500',
+    timeAgo: '2m',
+    stripPhotos: [
+      'https://picsum.photos/seed/cut1/300/300',
+      'https://picsum.photos/seed/cut2/300/300',
+      'https://picsum.photos/seed/cut3/300/300',
+      'https://picsum.photos/seed/cut4/300/300',
+    ],
+    frameColor: '#FF8FC7',
+    frameName: 'Pink Pastel 4-Cut',
+  };
+
+  const handleSwitchTab = (tab: 'booth' | 'square' | 'medium') => {
+    if (tab === widgetTab) return;
+    playShutterSound();
+    Animated.sequence([
+      Animated.timing(widgetAnim, { toValue: 0.88, duration: 80, useNativeDriver: true }),
+      Animated.spring(widgetAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+    ]).start();
+    setWidgetTab(tab);
+  };
+
+  const handleCycleDemo = () => {
+    playShutterSound();
+    Animated.sequence([
+      Animated.timing(widgetAnim, { toValue: 0.9, duration: 80, useNativeDriver: true }),
+      Animated.spring(widgetAnim, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }),
+    ]).start();
+    setDemoIndex((prev) => (prev + 1) % Math.max(1, moments.length));
+  };
 
   return (
     <View
@@ -43,6 +84,46 @@ export default function WidgetGuideScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Widget Size / Mode Selector */}
+        <View style={styles.tabSelector}>
+          <Pressable
+            onPress={() => handleSwitchTab('booth')}
+            style={({ pressed }) => [
+              styles.tabPill,
+              widgetTab === 'booth' && styles.tabPillActive,
+              { transform: [{ scale: pressed ? 0.96 : 1 }] },
+            ]}
+          >
+            <Text style={[styles.tabPillText, widgetTab === 'booth' && styles.tabPillTextActive]}>
+              🎞️ Photobooth 4 Ô
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleSwitchTab('square')}
+            style={({ pressed }) => [
+              styles.tabPill,
+              widgetTab === 'square' && styles.tabPillActive,
+              { transform: [{ scale: pressed ? 0.96 : 1 }] },
+            ]}
+          >
+            <Text style={[styles.tabPillText, widgetTab === 'square' && styles.tabPillTextActive]}>
+              🖼️ Vuông Locket
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleSwitchTab('medium')}
+            style={({ pressed }) => [
+              styles.tabPill,
+              widgetTab === 'medium' && styles.tabPillActive,
+              { transform: [{ scale: pressed ? 0.96 : 1 }] },
+            ]}
+          >
+            <Text style={[styles.tabPillText, widgetTab === 'medium' && styles.tabPillTextActive]}>
+              📱 Ngang Đôi
+            </Text>
+          </Pressable>
+        </View>
+
         {/* iOS Home Screen Simulation */}
         <View style={styles.phoneMockup}>
           {/* Status bar mock */}
@@ -53,73 +134,130 @@ export default function WidgetGuideScreen() {
             </View>
           </View>
 
-          {/* Widgets Container */}
-          <View style={styles.widgetsGrid}>
-            {/* Small Widget (Chi · Mưa rồi) */}
-            <View style={styles.smallWidget}>
-              <View style={styles.widgetHeaderRow}>
-                <Text style={styles.widgetAppName}>🌿 LeafyBooth</Text>
-                <Text style={styles.widgetTime}>5m</Text>
-              </View>
+          <Animated.View
+            style={{
+              transform: [{ scale: widgetAnim }],
+              opacity: widgetAnim.interpolate({
+                inputRange: [0.85, 1],
+                outputRange: [0.85, 1],
+              }),
+            }}
+          >
+            {widgetTab === 'booth' ? (
+              /* Photobooth 4 Ô Widget Mockup */
+              <View style={styles.boothWidgetCard}>
+                <View style={styles.widgetHeaderRow}>
+                  <Text style={styles.widgetAppName}>🌿 LeafyBooth · Photobooth 4 Ô</Text>
+                  <Text style={styles.widgetTime}>{currentMoment.timeAgo || 'Vừa xong'}</Text>
+                </View>
 
-              <View style={styles.widgetPhotoFrame}>
-                <Image
-                  source={{ uri: 'https://picsum.photos/seed/widget_chi/200/200' }}
-                  style={styles.widgetImg}
-                />
-                <View style={styles.widgetCaptionOverlay}>
-                  <Text style={styles.widgetAuthor}>Chi</Text>
-                  <Text style={styles.widgetCaption}>Mưa rồi 🌧️</Text>
+                <View
+                  style={[
+                    styles.boothWidgetFrame,
+                    { backgroundColor: currentMoment.frameColor || '#FF8FC7' },
+                  ]}
+                >
+                  <View style={styles.boothWidgetGrid}>
+                    {(currentMoment.stripPhotos || [
+                      'https://picsum.photos/seed/cut1/200/200',
+                      'https://picsum.photos/seed/cut2/200/200',
+                      'https://picsum.photos/seed/cut3/200/200',
+                      'https://picsum.photos/seed/cut4/200/200',
+                    ]).slice(0, 4).map((pUrl, pIdx) => (
+                      <View key={pIdx} style={styles.boothWidgetPhotoBox}>
+                        <Image source={{ uri: pUrl }} style={styles.boothWidgetImg} resizeMode="cover" />
+                      </View>
+                    ))}
+                  </View>
+
+                  <View style={styles.boothWidgetFooter}>
+                    <Text style={styles.boothWidgetAuthor}>{currentMoment.senderName}: </Text>
+                    <Text style={styles.boothWidgetCaption} numberOfLines={1}>{currentMoment.caption}</Text>
+                  </View>
                 </View>
               </View>
-            </View>
+            ) : widgetTab === 'square' ? (
+              /* Small Widget (Vuông Locket 1:1) */
+              <View style={styles.widgetsGrid}>
+                <View style={styles.smallWidget}>
+                  <View style={styles.widgetHeaderRow}>
+                    <Text style={styles.widgetAppName}>🌿 LeafyBooth</Text>
+                    <Text style={styles.widgetTime}>{currentMoment.timeAgo || 'Vừa xong'}</Text>
+                  </View>
 
-            {/* Simulated App Icons 2x2 next to small widget */}
-            <View style={styles.appIconsColumn}>
-              <View style={styles.appIconRow}>
-                <View style={[styles.appIconBox, { backgroundColor: '#FFD93D' }]}>
-                  <Text style={styles.appIconEmoji}>🖼️</Text>
+                  <View style={styles.widgetPhotoFrame}>
+                    <Image
+                      source={{ uri: currentMoment.photoUrl }}
+                      style={styles.widgetImg}
+                    />
+                    <View style={styles.widgetCaptionOverlay}>
+                      <Text style={styles.widgetAuthor}>{currentMoment.senderName}</Text>
+                      <Text style={styles.widgetCaption}>{currentMoment.caption}</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={[styles.appIconBox, { backgroundColor: '#FF8FC7' }]}>
-                  <Text style={styles.appIconEmoji}>📅</Text>
+
+                {/* Simulated App Icons 2x2 next to small widget */}
+                <View style={styles.appIconsColumn}>
+                  <View style={styles.appIconRow}>
+                    <View style={[styles.appIconBox, { backgroundColor: '#FFD93D' }]}>
+                      <Text style={styles.appIconEmoji}>🖼️</Text>
+                    </View>
+                    <View style={[styles.appIconBox, { backgroundColor: '#FF8FC7' }]}>
+                      <Text style={styles.appIconEmoji}>📅</Text>
+                    </View>
+                  </View>
+                  <View style={styles.appIconRow}>
+                    <View style={[styles.appIconBox, { backgroundColor: '#7EE8B8' }]}>
+                      <Text style={styles.appIconEmoji}>📝</Text>
+                    </View>
+                    <View style={[styles.appIconBox, { backgroundColor: '#6EC6FF' }]}>
+                      <Text style={styles.appIconEmoji}>🌤️</Text>
+                    </View>
+                  </View>
                 </View>
               </View>
-              <View style={styles.appIconRow}>
-                <View style={[styles.appIconBox, { backgroundColor: '#7EE8B8' }]}>
-                  <Text style={styles.appIconEmoji}>📝</Text>
+            ) : (
+              /* Medium Widget (Ngang Đôi) */
+              <View style={styles.mediumWidget}>
+                <View style={styles.widgetHeaderRow}>
+                  <Text style={styles.widgetAppName}>🌿 LeafyBooth</Text>
+                  <Text style={styles.widgetBadge}>Khoảnh khắc bạn bè</Text>
                 </View>
-                <View style={[styles.appIconBox, { backgroundColor: '#6EC6FF' }]}>
-                  <Text style={styles.appIconEmoji}>🌤️</Text>
+
+                <View style={styles.mediumWidgetContent}>
+                  <View style={styles.mediumMomentItem}>
+                    <Image
+                      source={{ uri: moments[0]?.photoUrl || 'https://picsum.photos/seed/binh_coffee/200/200' }}
+                      style={styles.mediumPhoto}
+                    />
+                    <Text style={styles.mediumAuthor}>{moments[0]?.senderName || 'An'}: {moments[0]?.caption || 'Cà phê sáng ☕'}</Text>
+                  </View>
+
+                  <View style={styles.mediumMomentItem}>
+                    <Image
+                      source={{ uri: moments[1]?.photoUrl || 'https://picsum.photos/seed/an_moment/200/200' }}
+                      style={styles.mediumPhoto}
+                    />
+                    <Text style={styles.mediumAuthor}>{moments[1]?.senderName || 'Chi'}: {moments[1]?.caption || 'Mưa rồi 🌧️'}</Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          </View>
+            )}
+          </Animated.View>
+        </View>
 
-          {/* Medium Widget (Bình & An · Khoảnh khắc gần đây) */}
-          <View style={styles.mediumWidget}>
-            <View style={styles.widgetHeaderRow}>
-              <Text style={styles.widgetAppName}>🌿 LeafyBooth</Text>
-              <Text style={styles.widgetBadge}>2 khoảnh khắc mới</Text>
-            </View>
-
-            <View style={styles.mediumWidgetContent}>
-              <View style={styles.mediumMomentItem}>
-                <Image
-                  source={{ uri: 'https://picsum.photos/seed/binh_coffee/200/200' }}
-                  style={styles.mediumPhoto}
-                />
-                <Text style={styles.mediumAuthor}>Bình: Cà phê sáng ☕</Text>
-              </View>
-
-              <View style={styles.mediumMomentItem}>
-                <Image
-                  source={{ uri: 'https://picsum.photos/seed/an_moment/200/200' }}
-                  style={styles.mediumPhoto}
-                />
-                <Text style={styles.mediumAuthor}>An: Trưa nay ăn gì 🍜</Text>
-              </View>
-            </View>
-          </View>
+        {/* Nút trải nghiệm thử đổi ảnh ngay trên Widget */}
+        <View style={styles.demoControlRow}>
+          <Pressable
+            onPress={handleCycleDemo}
+            style={({ pressed }) => [
+              styles.demoCycleBtn,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            ]}
+          >
+            <Text style={styles.demoCycleBtnText}>🔄 Thử đổi ảnh bạn bè trên Widget</Text>
+          </Pressable>
         </View>
 
         {/* 4-Step Setup Guide Card */}
@@ -224,6 +362,87 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  tabSelector: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  tabPill: {
+    flex: 1,
+    paddingVertical: 8,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.hardSmall,
+  },
+  tabPillActive: {
+    backgroundColor: colors.yellow,
+    borderColor: colors.ink,
+  },
+  tabPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#4B5563',
+  },
+  tabPillTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  boothWidgetCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    padding: 12,
+    marginBottom: 8,
+  },
+  boothWidgetFrame: {
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    padding: 8,
+    alignItems: 'center',
+  },
+  boothWidgetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  boothWidgetPhotoBox: {
+    width: '47%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+  },
+  boothWidgetImg: {
+    width: '100%',
+    height: '100%',
+  },
+  boothWidgetFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  boothWidgetAuthor: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  boothWidgetCaption: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#374151',
+    flex: 1,
   },
   phoneMockup: {
     backgroundColor: '#0F172A',
@@ -419,5 +638,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4B5563',
     lineHeight: 17,
+  },
+  demoControlRow: {
+    marginTop: 12,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  demoCycleBtn: {
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    ...theme.shadows.hardSmall,
+  },
+  demoCycleBtnText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.ink,
   },
 });

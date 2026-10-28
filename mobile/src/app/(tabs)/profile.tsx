@@ -9,6 +9,7 @@ import {
   Switch,
   TextInput,
   Alert,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,17 +17,22 @@ import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
 import { PillButton } from '../../core/components/PillButton';
 import { useFriendsStore } from '../../features/friends/hooks/useFriendsStore';
+import { useMomentsStore, TEST_ACCOUNTS, UserAccount } from '../../features/moments/hooks/useMomentsStore';
+import { STUDIO_PRESETS } from '../../features/studio/hooks/useStudioStore';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { friends, requests, blockedUsers, unblockUser } = useFriendsStore();
+  const { moments, currentUser, switchAccount } = useMomentsStore();
+  const latestMoment = moments[0];
 
   // Modals
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAccountSwitchModal, setShowAccountSwitchModal] = useState(false);
 
   // Settings State
   const [mirrorCamera, setMirrorCamera] = useState(true);
@@ -72,15 +78,26 @@ export default function ProfileScreen() {
         {/* User Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarLetter}>T</Text>
+            <View style={[styles.avatarCircle, { backgroundColor: currentUser.avatarColor }]}>
+              <Text style={styles.avatarLetter}>{currentUser.avatarLetter}</Text>
             </View>
             <View style={styles.editBadge}>
               <Text style={styles.editBadgeText}>✏️</Text>
             </View>
           </View>
-          <Text style={styles.displayName}>Tên của bạn</Text>
-          <Text style={styles.username}>@ten_ban</Text>
+          <Text style={styles.displayName}>{currentUser.name}</Text>
+          <Text style={styles.username}>@{currentUser.username}</Text>
+
+          {/* Nút đổi tài khoản kiểm thử */}
+          <Pressable
+            onPress={() => setShowAccountSwitchModal(true)}
+            style={({ pressed }) => [
+              styles.switchAccountBtn,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            ]}
+          >
+            <Text style={styles.switchAccountBtnText}>🔄 Đổi tài khoản ({currentUser.name})</Text>
+          </Pressable>
         </View>
 
         {/* Stats Row */}
@@ -102,28 +119,55 @@ export default function ProfileScreen() {
           </View>
 
           <Pressable
-            onPress={() => router.push('/(tabs)/garden' as any)}
+            onPress={() => router.push('/studio' as any)}
             style={({ pressed }) => [
               styles.statCard,
               { transform: [{ scale: pressed ? 0.97 : 1 }] },
             ]}
           >
-            <Text style={styles.statNumber}>3</Text>
-            <Text style={styles.statLabel}>Garden</Text>
+            <Text style={styles.statNumber}>{STUDIO_PRESETS.length}</Text>
+            <Text style={styles.statLabel}>Khung mẫu</Text>
           </Pressable>
         </View>
 
-        {/* Widget Banner Promo */}
+        {/* Widget Live Card Promo */}
         <View style={styles.widgetBanner}>
           <View style={styles.widgetBannerHeader}>
             <Text style={styles.widgetBannerIcon}>📱</Text>
             <Text style={styles.widgetBannerTitle}>
-              Ảnh bạn bè ngay trên{'\n'}màn hình chính
+              Widget Màn Hình Chính{'\n'}(Đang hoạt động 🟢)
             </Text>
           </View>
           <Text style={styles.widgetBannerDesc}>
-            Cài đặt tiện ích Widget iOS để nhận ngay khoảnh khắc mới nhất của bạn bè mỗi khi mở màn hình.
+            Khoảnh khắc mới nhất từ {latestMoment ? latestMoment.senderName : 'bạn bè'} đang hiển thị trên Widget màn hình chính của bạn.
           </Text>
+
+          {/* Mini live widget simulation inside profile */}
+          {latestMoment && (
+            <Pressable
+              onPress={() => {
+                useMomentsStore.getState().setViewMode('pick');
+                router.push('/(tabs)/moments' as any);
+              }}
+              style={({ pressed }) => [
+                styles.profileWidgetCard,
+                { transform: [{ scale: pressed ? 0.97 : 1 }] },
+              ]}
+            >
+              <View style={styles.profileWidgetInner}>
+                <Image
+                  source={{ uri: latestMoment.photoUrl }}
+                  style={styles.profileWidgetImg}
+                />
+                <View style={styles.profileWidgetInfo}>
+                  <Text style={styles.profileWidgetAuthor}>{latestMoment.senderName} · {latestMoment.timeAgo}</Text>
+                  <Text style={styles.profileWidgetCaption} numberOfLines={1}>{latestMoment.caption}</Text>
+                  <Text style={styles.profileWidgetActionHint}>Chạm để xem trên Locket 💛 →</Text>
+                </View>
+              </View>
+            </Pressable>
+          )}
+
           <Pressable
             onPress={() => router.push('/widget-guide' as any)}
             style={({ pressed }) => [
@@ -131,7 +175,7 @@ export default function ProfileScreen() {
               { transform: [{ scale: pressed ? 0.96 : 1 }] },
             ]}
           >
-            <Text style={styles.widgetButtonText}>Xem hướng dẫn widget →</Text>
+            <Text style={styles.widgetButtonText}>Xem hướng dẫn cài đặt widget →</Text>
           </Pressable>
         </View>
 
@@ -280,8 +324,8 @@ export default function ProfileScreen() {
 
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingName}>Lời mời và sự kiện</Text>
-                <Text style={styles.settingDesc}>Báo khi có lời mời kết bạn hoặc Garden</Text>
+                <Text style={styles.settingName}>Lời mời và thông báo</Text>
+                <Text style={styles.settingDesc}>Báo khi có lời mời kết bạn hoặc ảnh mới từ Widget</Text>
               </View>
               <Switch
                 value={notifyInvites}
@@ -398,7 +442,7 @@ export default function ProfileScreen() {
           <View style={styles.deleteModalContent}>
             <Text style={styles.deleteModalTitle}>⚠️ Xóa tài khoản vĩnh viễn</Text>
             <Text style={styles.deleteModalDesc}>
-              Hành động này <Text style={{ fontWeight: '800', color: '#EF4444' }}>KHÔNG THỂ HOÀN TÁC</Text>. Toàn bộ ảnh khoảnh khắc, dải photobooth, sự kiện Garden và danh sách bạn bè của bạn sẽ bị xóa vĩnh viễn khỏi máy chủ.
+              Hành động này <Text style={{ fontWeight: '800', color: '#EF4444' }}>KHÔNG THỂ HOÀN TÁC</Text>. Toàn bộ ảnh khoảnh khắc, dải photobooth và danh sách bạn bè của bạn sẽ bị xóa vĩnh viễn khỏi máy chủ.
             </Text>
             <Text style={styles.deleteModalInstruction}>
               Nhập chữ <Text style={{ fontWeight: '800' }}>XOA</Text> vào ô dưới đây để xác nhận:
@@ -433,6 +477,85 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* MODAL CHUYỂN TÀI KHOẢN (MULTI-ACCOUNT TESTER SWITCHER) */}
+      <Modal
+        visible={showAccountSwitchModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAccountSwitchModal(false)}
+      >
+        <Pressable
+          onPress={() => setShowAccountSwitchModal(false)}
+          style={styles.accountModalBackdrop}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={styles.accountModalCard}
+          >
+            <View style={styles.accountModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.accountModalTitle}>👥 Chuyển tài khoản</Text>
+                <Text style={styles.accountModalSubtitle}>
+                  Chọn tài khoản để trải nghiệm gửi nhận ảnh đa chiều
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setShowAccountSwitchModal(false)}
+                style={styles.accountModalCloseBtn}
+              >
+                <Text style={styles.accountModalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, paddingVertical: 8 }}
+            >
+              {TEST_ACCOUNTS.map((acc) => {
+                const isSelected = acc.id === currentUser.id;
+                const momentCount = moments.filter((m) => m.senderId === acc.id).length;
+                return (
+                  <Pressable
+                    key={acc.id}
+                    onPress={() => {
+                      switchAccount(acc.id);
+                      setShowAccountSwitchModal(false);
+                      Alert.alert('Chuyển tài khoản 🔄', `Đã chuyển sang tài khoản: ${acc.name}!`);
+                    }}
+                    style={({ pressed }) => [
+                      styles.accountItemRow,
+                      isSelected && styles.accountItemRowActive,
+                      { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                    ]}
+                  >
+                    <View style={[styles.accountItemAvatar, { backgroundColor: acc.avatarColor }]}>
+                      <Text style={styles.accountItemLetter}>{acc.avatarLetter}</Text>
+                    </View>
+
+                    <View style={styles.accountItemInfo}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.accountItemName}>{acc.name}</Text>
+                        {isSelected && (
+                          <View style={styles.accountActiveBadge}>
+                            <Text style={styles.accountActiveBadgeText}>Đang dùng</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.accountItemRole}>{acc.roleDescription}</Text>
+                      <Text style={styles.accountItemMeta}>@{acc.username} · {momentCount} ảnh đã chia sẻ</Text>
+                    </View>
+
+                    <View style={styles.accountItemAction}>
+                      <Text style={{ fontSize: 18 }}>{isSelected ? '✓' : '➔'}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -579,6 +702,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     ...theme.shadows.hard,
+  },
+  profileWidgetCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    padding: 10,
+    marginBottom: 14,
+    ...theme.shadows.hardSmall,
+  },
+  profileWidgetInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  profileWidgetImg: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  profileWidgetInfo: {
+    flex: 1,
+  },
+  profileWidgetAuthor: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  profileWidgetCaption: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  profileWidgetActionHint: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#D97706',
+    marginTop: 4,
   },
   widgetButtonText: {
     fontSize: 14,
@@ -842,5 +1006,141 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: colors.white,
+  },
+
+  // Account Switcher Button in Profile
+  switchAccountBtn: {
+    marginTop: 12,
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    ...theme.shadows.hardSmall,
+  },
+  switchAccountBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+
+  // Account Modal
+  accountModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(26,26,26,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  accountModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: '80%',
+    backgroundColor: colors.white,
+    borderRadius: 22,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    padding: 18,
+    ...theme.shadows.hard,
+  },
+  accountModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: '#F3F4F6',
+    paddingBottom: 10,
+  },
+  accountModalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  accountModalSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  accountModalCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountModalCloseText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  accountItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    padding: 12,
+    gap: 12,
+  },
+  accountItemRowActive: {
+    borderColor: colors.ink,
+    backgroundColor: '#FEF9C3',
+    ...theme.shadows.hardSmall,
+  },
+  accountItemAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountItemLetter: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  accountItemInfo: {
+    flex: 1,
+  },
+  accountItemName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  accountActiveBadge: {
+    backgroundColor: colors.ink,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  accountActiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  accountItemRole: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4B5563',
+    marginTop: 1,
+  },
+  accountItemMeta: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  accountItemAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
   },
 });

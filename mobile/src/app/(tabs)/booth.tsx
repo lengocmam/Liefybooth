@@ -43,10 +43,10 @@ export default function BoothScreen() {
             Chọn nền, chụp 4 khung. Không cần mạng.
           </Text>
 
-          {/* Quick shortcuts to Frame Studio & Trending (v1.1 Preview) */}
+          {/* Quick shortcuts to Frame Studio & Widget Guide */}
           <View style={styles.shortcutsRow}>
             <Pressable
-              onPress={() => router.push('/studio' as any)}
+              onPress={() => router.push('/(tabs)/studio' as any)}
               style={({ pressed }) => [
                 styles.shortcutPill,
                 { backgroundColor: '#FF4F8B', transform: [{ scale: pressed ? 0.96 : 1 }] },
@@ -57,14 +57,14 @@ export default function BoothScreen() {
             </Pressable>
 
             <Pressable
-              onPress={() => router.push('/trending' as any)}
+              onPress={() => router.push('/widget-guide' as any)}
               style={({ pressed }) => [
                 styles.shortcutPill,
-                { backgroundColor: colors.forestGreen, transform: [{ scale: pressed ? 0.96 : 1 }] },
+                { backgroundColor: colors.yellow, transform: [{ scale: pressed ? 0.96 : 1 }] },
               ]}
             >
-              <Text style={styles.shortcutEmoji}>🔥</Text>
-              <Text style={styles.shortcutText}>Xu hướng</Text>
+              <Text style={styles.shortcutEmoji}>📱</Text>
+              <Text style={styles.shortcutText}>Widget Locket</Text>
             </Pressable>
           </View>
         </View>

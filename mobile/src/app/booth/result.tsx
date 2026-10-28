@@ -17,12 +17,16 @@ import { theme } from '../../core/theme/theme';
 import { PillButton } from '../../core/components/PillButton';
 import { exportStripToImage } from '../../core/utils/stripExportService';
 import { useBoothStore } from '../../features/booth/hooks/useBoothStore';
+import { useMomentsStore } from '../../features/moments/hooks/useMomentsStore';
+import { playShutterSound } from '../../features/booth/services/soundService';
 
 export default function BoothResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const { sendMoment } = useMomentsStore();
+  const [isSendingToLocket, setIsSendingToLocket] = useState(false);
 
   const {
     capturedPhotos,
@@ -86,6 +90,35 @@ export default function BoothResultScreen() {
 
   const handleClose = () => {
     router.replace('/(tabs)/booth');
+  };
+
+  const handleSendToLocket = () => {
+    setIsSendingToLocket(true);
+    playShutterSound();
+    sendMoment(displayPhotos[0], stripTitle || 'Photobooth 4 ô tụi mình vừa chụp ✨', {
+      stripPhotos: displayPhotos,
+      frameColor: frameColor || colors.pink,
+      frameName: stripTitle || 'Photobooth Strip',
+    });
+    setIsSendingToLocket(false);
+
+    Alert.alert(
+      'Đã gửi lên Widget bạn bè! 💛🎉',
+      'Dải ảnh 4 ô vừa chụp đã xuất hiện ngay trên màn hình chính của bạn thân!',
+      [
+        {
+          text: 'Xem trên Locket Feed 💛',
+          onPress: () => {
+            useMomentsStore.getState().setViewMode('pick');
+            router.replace('/(tabs)/moments' as any);
+          },
+        },
+        {
+          text: 'Xong',
+          onPress: handleClose,
+        },
+      ]
+    );
   };
 
   const getFilterStyle = () => {
@@ -186,8 +219,8 @@ export default function BoothResultScreen() {
             style={styles.halfButton}
           />
           <PillButton
-            title="Gửi bạn bè"
-            onPress={() => router.push('/(tabs)/moments')}
+            title={isSendingToLocket ? 'Đang gửi...' : '💛 Gửi Widget'}
+            onPress={handleSendToLocket}
             variant="secondary"
             style={styles.halfButton}
           />

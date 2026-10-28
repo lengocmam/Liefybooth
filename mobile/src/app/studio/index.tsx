@@ -39,6 +39,7 @@ import {
 } from '../../features/studio/hooks/useStudioStore';
 import { exportStudioFrameToImage } from '../../core/utils/stripExportService';
 import { playShutterSound } from '../../features/booth/services/soundService';
+import { useMomentsStore } from '../../features/moments/hooks/useMomentsStore';
 
 type ActiveSheet =
   | 'none'
@@ -86,6 +87,10 @@ const GRADIENT_THEME_OPTIONS: { id: GradientTheme; name: string; preview: string
   { id: 'ocean', name: 'Biển xanh', preview: '#6EE7B7' },
   { id: 'cyber', name: 'Cyber Neon', preview: '#818CF8' },
   { id: 'kraft', name: 'Giấy Vintage', preview: '#F4E8C1' },
+  { id: 'cherry', name: 'Sakura Hồng', preview: '#FDA4AF' },
+  { id: 'lavender', name: 'Tím Oải Hương', preview: '#D8B4FE' },
+  { id: 'matcha', name: 'Xanh Matcha', preview: '#86EFAC' },
+  { id: 'midnight', name: 'Đêm Huyền Bí', preview: '#1E1B4B' },
 ];
 
 const LOCATION_SUGGESTIONS = [
@@ -177,6 +182,11 @@ const PALETTE_COLORS = [
   { id: 'forest', color: colors.forestGreen, name: 'Xanh rừng' },
   { id: 'white', color: colors.white, name: 'Trắng' },
   { id: 'ink', color: colors.ink, name: 'Đen' },
+  { id: 'lavender', color: '#C084FC', name: 'Tím pastel' },
+  { id: 'cream', color: '#FFFBEB', name: 'Kem vintage' },
+  { id: 'coral', color: '#FB7185', name: 'San hô' },
+  { id: 'gold', color: '#FBBF24', name: 'Ánh vàng' },
+  { id: 'silver', color: '#CBD5E1', name: 'Bạc Y2K' },
 ];
 
 const STICKER_CATEGORIES = [
@@ -258,6 +268,16 @@ const DraggableCanvasSticker = React.memo(
     const startPos = useRef({ x: sticker.x, y: sticker.y });
     const currentPos = useRef({ x: sticker.x, y: sticker.y });
 
+    // Luôn giữ tham chiếu hàm callback mới nhất mà không hủy PanResponder giữa chừng
+    const onSelectRef = useRef(onSelect);
+    onSelectRef.current = onSelect;
+    const onDragStartRef = useRef(onDragStart);
+    onDragStartRef.current = onDragStart;
+    const onDragEndRef = useRef(onDragEnd);
+    onDragEndRef.current = onDragEnd;
+    const canvasHeightRef = useRef(canvasHeight);
+    canvasHeightRef.current = canvasHeight;
+
     useEffect(() => {
       setPos({ x: sticker.x, y: sticker.y });
       currentPos.current = { x: sticker.x, y: sticker.y };
@@ -266,59 +286,67 @@ const DraggableCanvasSticker = React.memo(
     const panResponder = useMemo(
       () =>
         PanResponder.create({
-          onStartShouldSetPanResponder: () => false,
+          onStartShouldSetPanResponder: () => true,
+          onStartShouldSetPanResponderCapture: () => false,
           onMoveShouldSetPanResponder: (_, gestureState) => {
-            return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
+            return Math.abs(gestureState.dx) > 1 || Math.abs(gestureState.dy) > 1;
           },
+          onMoveShouldSetPanResponderCapture: () => false,
           onPanResponderTerminationRequest: () => false,
           onPanResponderGrant: () => {
-            onSelect();
-            isDraggingRef.current = true;
-            setIsDragging(true);
-            onDragStart?.();
+            onSelectRef.current();
+            isDraggingRef.current = false;
+            onDragStartRef.current?.();
             startPos.current = { ...currentPos.current };
           },
           onPanResponderMove: (_, gestureState) => {
-            const nextX = Math.round(startPos.current.x + gestureState.dx);
-            const nextY = Math.round(startPos.current.y + gestureState.dy);
-            // Di chuyển khắp frame (rộng ~200, cao đo từ layout)
-            const clampedX = Math.max(-15, Math.min(nextX, 175));
-            const maxY = Math.max(100, canvasHeight - 35);
-            const clampedY = Math.max(0, Math.min(nextY, maxY));
-            currentPos.current = { x: clampedX, y: clampedY };
-            setPos({ x: clampedX, y: clampedY });
+            if (!isDraggingRef.current && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2)) {
+              isDraggingRef.current = true;
+              setIsDragging(true);
+            }
+            if (isDraggingRef.current) {
+              const nextX = Math.round(startPos.current.x + gestureState.dx);
+              const nextY = Math.round(startPos.current.y + gestureState.dy);
+              const clampedX = Math.max(-15, Math.min(nextX, 175));
+              const maxY = Math.max(100, canvasHeightRef.current - 35);
+              const clampedY = Math.max(0, Math.min(nextY, maxY));
+              currentPos.current = { x: clampedX, y: clampedY };
+              setPos({ x: clampedX, y: clampedY });
+            }
           },
           onPanResponderRelease: (_, gestureState) => {
-            isDraggingRef.current = false;
-            setIsDragging(false);
-            const nextX = Math.round(startPos.current.x + gestureState.dx);
-            const nextY = Math.round(startPos.current.y + gestureState.dy);
-            const clampedX = Math.max(-15, Math.min(nextX, 175));
-            const maxY = Math.max(100, canvasHeight - 35);
-            const clampedY = Math.max(0, Math.min(nextY, maxY));
-            currentPos.current = { x: clampedX, y: clampedY };
-            setPos({ x: clampedX, y: clampedY });
-            onDragEnd(clampedX, clampedY);
+            if (isDraggingRef.current) {
+              isDraggingRef.current = false;
+              setIsDragging(false);
+              const nextX = Math.round(startPos.current.x + gestureState.dx);
+              const nextY = Math.round(startPos.current.y + gestureState.dy);
+              const clampedX = Math.max(-15, Math.min(nextX, 175));
+              const maxY = Math.max(100, canvasHeightRef.current - 35);
+              const clampedY = Math.max(0, Math.min(nextY, maxY));
+              currentPos.current = { x: clampedX, y: clampedY };
+              setPos({ x: clampedX, y: clampedY });
+              onDragEndRef.current(clampedX, clampedY);
+            } else {
+              onSelectRef.current();
+            }
           },
           onPanResponderTerminate: () => {
-            isDraggingRef.current = false;
-            setIsDragging(false);
-            onDragEnd(currentPos.current.x, currentPos.current.y);
+            if (isDraggingRef.current) {
+              isDraggingRef.current = false;
+              setIsDragging(false);
+              onDragEndRef.current(currentPos.current.x, currentPos.current.y);
+            }
           },
         }),
-      [onSelect, onDragStart, onDragEnd, canvasHeight]
+      []
     );
 
     const size = sticker.size || 30;
     const rotation = sticker.rotation || 0;
 
     return (
-      <Pressable
+      <View
         {...panResponder.panHandlers}
-        onPress={(e) => {
-          e.stopPropagation();
-          onSelect();
-        }}
         style={[
           styles.canvasSticker,
           {
@@ -330,12 +358,22 @@ const DraggableCanvasSticker = React.memo(
             ],
             zIndex: isDragging ? 999 : isSelected ? 50 : 10,
             cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            touchAction: 'none',
           } as any,
           isSelected && styles.canvasStickerSelected,
           isDragging && styles.canvasStickerDragging,
         ]}
       >
-        <Text style={[{ fontSize: size, userSelect: 'none' } as any]}>
+        <Text
+          style={[
+            {
+              fontSize: size,
+              userSelect: 'none',
+              pointerEvents: 'none',
+            } as any,
+          ]}
+        >
           {sticker.emoji}
         </Text>
         {isSelected && (
@@ -381,7 +419,7 @@ const DraggableCanvasSticker = React.memo(
             )}
           </>
         )}
-      </Pressable>
+      </View>
     );
   },
   (prev, next) => {
@@ -428,6 +466,16 @@ const DraggableCanvasText = React.memo(
     const startPos = useRef({ x: item.x, y: item.y });
     const currentPos = useRef({ x: item.x, y: item.y });
 
+    // Luôn giữ tham chiếu hàm callback mới nhất mà không hủy PanResponder giữa chừng
+    const onSelectRef = useRef(onSelect);
+    onSelectRef.current = onSelect;
+    const onDragStartRef = useRef(onDragStart);
+    onDragStartRef.current = onDragStart;
+    const onDragEndRef = useRef(onDragEnd);
+    onDragEndRef.current = onDragEnd;
+    const canvasHeightRef = useRef(canvasHeight);
+    canvasHeightRef.current = canvasHeight;
+
     useEffect(() => {
       setPos({ x: item.x, y: item.y });
       currentPos.current = { x: item.x, y: item.y };
@@ -436,47 +484,59 @@ const DraggableCanvasText = React.memo(
     const panResponder = useMemo(
       () =>
         PanResponder.create({
-          onStartShouldSetPanResponder: () => false,
+          onStartShouldSetPanResponder: () => true,
+          onStartShouldSetPanResponderCapture: () => false,
           onMoveShouldSetPanResponder: (_, gestureState) => {
-            return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
+            return Math.abs(gestureState.dx) > 1 || Math.abs(gestureState.dy) > 1;
           },
+          onMoveShouldSetPanResponderCapture: () => false,
           onPanResponderTerminationRequest: () => false,
           onPanResponderGrant: () => {
-            onSelect();
-            isDraggingRef.current = true;
-            setIsDragging(true);
-            onDragStart?.();
+            onSelectRef.current();
+            isDraggingRef.current = false;
+            onDragStartRef.current?.();
             startPos.current = { ...currentPos.current };
           },
           onPanResponderMove: (_, gestureState) => {
-            const nextX = Math.round(startPos.current.x + gestureState.dx);
-            const nextY = Math.round(startPos.current.y + gestureState.dy);
-            // Di chuyển khắp frame (rộng ~200, cao đo từ layout)
-            const clampedX = Math.max(-15, Math.min(nextX, 175));
-            const maxY = Math.max(100, canvasHeight - 25);
-            const clampedY = Math.max(0, Math.min(nextY, maxY));
-            currentPos.current = { x: clampedX, y: clampedY };
-            setPos({ x: clampedX, y: clampedY });
+            if (!isDraggingRef.current && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2)) {
+              isDraggingRef.current = true;
+              setIsDragging(true);
+            }
+            if (isDraggingRef.current) {
+              const nextX = Math.round(startPos.current.x + gestureState.dx);
+              const nextY = Math.round(startPos.current.y + gestureState.dy);
+              const clampedX = Math.max(-15, Math.min(nextX, 175));
+              const maxY = Math.max(100, canvasHeightRef.current - 25);
+              const clampedY = Math.max(0, Math.min(nextY, maxY));
+              currentPos.current = { x: clampedX, y: clampedY };
+              setPos({ x: clampedX, y: clampedY });
+            }
           },
           onPanResponderRelease: (_, gestureState) => {
-            isDraggingRef.current = false;
-            setIsDragging(false);
-            const nextX = Math.round(startPos.current.x + gestureState.dx);
-            const nextY = Math.round(startPos.current.y + gestureState.dy);
-            const clampedX = Math.max(-15, Math.min(nextX, 175));
-            const maxY = Math.max(100, canvasHeight - 25);
-            const clampedY = Math.max(0, Math.min(nextY, maxY));
-            currentPos.current = { x: clampedX, y: clampedY };
-            setPos({ x: clampedX, y: clampedY });
-            onDragEnd(clampedX, clampedY);
+            if (isDraggingRef.current) {
+              isDraggingRef.current = false;
+              setIsDragging(false);
+              const nextX = Math.round(startPos.current.x + gestureState.dx);
+              const nextY = Math.round(startPos.current.y + gestureState.dy);
+              const clampedX = Math.max(-15, Math.min(nextX, 175));
+              const maxY = Math.max(100, canvasHeightRef.current - 25);
+              const clampedY = Math.max(0, Math.min(nextY, maxY));
+              currentPos.current = { x: clampedX, y: clampedY };
+              setPos({ x: clampedX, y: clampedY });
+              onDragEndRef.current(clampedX, clampedY);
+            } else {
+              onSelectRef.current();
+            }
           },
           onPanResponderTerminate: () => {
-            isDraggingRef.current = false;
-            setIsDragging(false);
-            onDragEnd(currentPos.current.x, currentPos.current.y);
+            if (isDraggingRef.current) {
+              isDraggingRef.current = false;
+              setIsDragging(false);
+              onDragEndRef.current(currentPos.current.x, currentPos.current.y);
+            }
           },
         }),
-      [onSelect, onDragStart, onDragEnd, canvasHeight]
+      []
     );
 
     const fontSize = item.fontSize || 12;
@@ -484,12 +544,8 @@ const DraggableCanvasText = React.memo(
     const hasBg = item.bgColor && item.bgColor !== 'transparent';
 
     return (
-      <Pressable
+      <View
         {...panResponder.panHandlers}
-        onPress={(e) => {
-          e.stopPropagation();
-          onSelect();
-        }}
         style={[
           styles.canvasTextItem,
           {
@@ -501,6 +557,8 @@ const DraggableCanvasText = React.memo(
             ],
             zIndex: isDragging ? 999 : isSelected ? 50 : 15,
             cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            touchAction: 'none',
           } as any,
           hasBg && {
             backgroundColor: item.bgColor,
@@ -521,6 +579,7 @@ const DraggableCanvasText = React.memo(
               fontSize,
               color: item.color || colors.ink,
               userSelect: 'none',
+              pointerEvents: 'none',
             } as any,
           ]}
         >
@@ -569,7 +628,7 @@ const DraggableCanvasText = React.memo(
             )}
           </>
         )}
-      </Pressable>
+      </View>
     );
   },
   (prev, next) => {
@@ -588,9 +647,48 @@ const DraggableCanvasText = React.memo(
   }
 );
 
-export default function FrameStudioScreen() {
+export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean } = {}) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  const { friends, currentUser, sendMoment } = useMomentsStore();
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
+  const [isSendAllFriends, setIsSendAllFriends] = useState(true);
+  const [isSendingToLocket, setIsSendingToLocket] = useState(false);
+
+  const LOCKET_QUICK_TAGS = useMemo(
+    () => [
+      'Photobooth hôm nay 🎞️',
+      'Khung tự thiết kế 🎨',
+      'Xinh xỉu luôn 💖',
+      'Check widget nè 📱',
+      'Nhớ bạn quá 🥺',
+      'Đi chơi cùng nhau ✨',
+    ],
+    []
+  );
+
+  const toggleLocketFriend = (friendId: string) => {
+    if (isSendAllFriends) {
+      setIsSendAllFriends(false);
+      setSelectedRecipientIds([friendId]);
+    } else if (selectedRecipientIds.includes(friendId)) {
+      const next = selectedRecipientIds.filter((id) => id !== friendId);
+      if (next.length === 0) {
+        setIsSendAllFriends(true);
+        setSelectedRecipientIds([]);
+      } else {
+        setSelectedRecipientIds(next);
+      }
+    } else {
+      setSelectedRecipientIds([...selectedRecipientIds, friendId]);
+    }
+  };
+
+  const handleSelectAllFriends = () => {
+    setIsSendAllFriends(true);
+    setSelectedRecipientIds([]);
+  };
 
   const {
     frameName,
@@ -685,6 +783,7 @@ export default function FrameStudioScreen() {
   const [lastSelectedEmoji, setLastSelectedEmoji] = useState('✨');
   const [newTextInput, setNewTextInput] = useState('');
   const [newTextBgColor, setNewTextBgColor] = useState('#FFFFFF');
+  const [textTab, setTextTab] = useState<'free' | 'banner'>('free');
   const [canvasHeight, setCanvasHeight] = useState(700);
   const [isExporting, setIsExporting] = useState(false);
   const [isDraggingAny, setIsDraggingAny] = useState(false);
@@ -876,6 +975,7 @@ export default function FrameStudioScreen() {
     }
     setLastSelectedEmoji(emoji);
     addSticker(emoji);
+    closeActiveSheet();
   };
 
   // Chạm vào canvas: Bỏ chọn đối tượng hoặc đóng drawer
@@ -932,27 +1032,47 @@ export default function FrameStudioScreen() {
 
   const handlePublish = () => {
     if (!frameName.trim()) {
-      Alert.alert('Chưa đặt tên', 'Vui lòng nhập tên cho frame của bạn.');
-      return;
+      setFrameName('Khung ảnh của tôi');
     }
     setShowShareModal(true);
   };
 
-  const handleConfirmPublish = () => {
+  const handleConfirmSendToLocket = () => {
+    setIsSendingToLocket(true);
+    playShutterSound();
+
+    const targetPhoto = slotPhotos[0] || 'https://picsum.photos/seed/photobooth_frame/500/500';
+    const chosenRecipients = isSendAllFriends
+      ? friends
+      : friends.filter((f) => selectedRecipientIds.includes(f.id));
+    const recipientNames = isSendAllFriends
+      ? 'tất cả bạn bè'
+      : chosenRecipients.map((f) => f.name).join(', ') || 'bạn bè';
+
+    sendMoment(targetPhoto, postCaption.trim() || `Dải ảnh "${frameName || 'Photobooth'}" ✨`, {
+      stripPhotos: slotPhotos.map((p, idx) => p || `https://picsum.photos/seed/slot_${idx}/400/400`),
+      frameColor: effectiveBgColor,
+      frameName: frameName || 'Photobooth Strip',
+      recipientIds: isSendAllFriends ? [] : selectedRecipientIds,
+    });
+
     setShowShareModal(false);
+    setIsSendingToLocket(false);
+
     Alert.alert(
-      'Xuất bản thành công! 🎉',
-      isPublic
-        ? `Bài đăng dải ảnh "${frameName}" đã được tải lên và sẵn sàng xuất hiện trên Bảng tin Xu hướng!\n\n"${postCaption}"`
-        : `Dải ảnh "${frameName}" đã được lưu vào bộ sưu tập cá nhân của bạn.`,
+      'Đã gửi lên Widget! 💛🎉',
+      `Dải ảnh "${frameName || 'Photobooth'}" đã được ghim thành công lên Widget màn hình chính của ${recipientNames}.\n\nBạn bè có thể thấy ngay trên màn hình và thả reaction emoji!`,
       [
         {
-          text: 'Xem trên Xu hướng',
-          onPress: () => router.push('/trending' as any),
+          text: 'Xem Locket Feed 💛',
+          onPress: () => {
+            useMomentsStore.getState().setViewMode('pick');
+            router.push('/(tabs)/moments' as any);
+          },
         },
         {
-          text: 'Xong',
-          onPress: () => router.back(),
+          text: 'Ở lại Studio 🎨',
+          style: 'cancel',
         },
       ]
     );
@@ -967,6 +1087,14 @@ export default function FrameStudioScreen() {
       ? '#818CF8'
       : gradientTheme === 'kraft'
       ? '#F4E8C1'
+      : gradientTheme === 'cherry'
+      ? '#FDA4AF'
+      : gradientTheme === 'lavender'
+      ? '#D8B4FE'
+      : gradientTheme === 'matcha'
+      ? '#86EFAC'
+      : gradientTheme === 'midnight'
+      ? '#1E1B4B'
       : backgroundColor;
 
   const renderSinglePhotoSlot = (slot: number, isInteractive: boolean, customSlotStyle?: any) => {
@@ -1040,6 +1168,7 @@ export default function FrameStudioScreen() {
         frameLayout === 'grid_4' && styles.stripCanvasGrid,
         frameLayout === 'polaroid_1' && styles.stripCanvasPolaroid,
         frameEdgeStyle === 'neon_glow' && styles.stripCanvasNeon,
+        frameEdgeStyle === 'stamp_scallop' && styles.stripCanvasStamp,
         !isInteractive && styles.stripCanvasStatic,
       ]}
     >
@@ -1192,6 +1321,22 @@ export default function FrameStudioScreen() {
         </>
       )}
 
+      {/* Hiệu ứng răng cưa viền tem thư nếu chọn stamp_scallop */}
+      {frameEdgeStyle === 'stamp_scallop' && (
+        <>
+          <View style={[styles.stampPerforationsColumn, { left: -5 }]} pointerEvents="none">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((k) => (
+              <View key={k} style={styles.stampScallopHole} />
+            ))}
+          </View>
+          <View style={[styles.stampPerforationsColumn, { right: -5 }]} pointerEvents="none">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((k) => (
+              <View key={k} style={styles.stampScallopHole} />
+            ))}
+          </View>
+        </>
+      )}
+
       {/* STICKERS TỰ DO TRÊN DẢI ẢNH */}
       {stickers.map((stk) => {
         if (isInteractive) {
@@ -1309,17 +1454,17 @@ export default function FrameStudioScreen() {
             </Pressable>
 
             <View style={styles.showcaseTitleBadge}>
-              <Text style={styles.showcaseTitleText}>📸 Trưng Bày Tác Phẩm</Text>
+              <Text style={styles.showcaseTitleText}>📱 Xem Trước Widget</Text>
             </View>
 
             <Pressable
               onPress={handlePublish}
               style={({ pressed }) => [
                 styles.showcasePublishBtn,
-                { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                { backgroundColor: '#FFD93D', transform: [{ scale: pressed ? 0.95 : 1 }] },
               ]}
             >
-              <Text style={styles.showcasePublishBtnText}>🚀 Đăng</Text>
+              <Text style={styles.showcasePublishBtnText}>💛 Gửi Widget</Text>
             </Pressable>
           </View>
 
@@ -1436,11 +1581,11 @@ export default function FrameStudioScreen() {
                   onPress={handlePublish}
                   style={({ pressed }) => [
                     styles.socialShareTrendingBtn,
-                    { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                    { backgroundColor: '#FFD93D', transform: [{ scale: pressed ? 0.96 : 1 }] },
                   ]}
                 >
-                  <Text style={styles.socialShareTrendingBtnText}>
-                    🚀 Đăng lên Bảng tin Xu hướng
+                  <Text style={[styles.socialShareTrendingBtnText, { color: colors.ink }]}>
+                    💛 Gửi lên Widget bạn bè (Locket)
                   </Text>
                 </Pressable>
               </View>
@@ -1452,24 +1597,41 @@ export default function FrameStudioScreen() {
         <View style={styles.leafyStudioContainer}>
           {/* TOP BAR: STUDIO HEADER */}
           <View style={styles.studioHeader}>
-            {/* Left: Exit */}
+            {/* Left: Exit / Tab Title */}
             <Pressable
               onPress={() => {
-                Alert.alert(
-                  'Rời khỏi Studio? 🌿',
-                  'Các chỉnh sửa chưa lưu sẽ bị hủy.',
-                  [
-                    { text: 'Ở lại tiếp tục', style: 'cancel' },
-                    { text: 'Thoát', style: 'destructive', onPress: () => router.back() },
-                  ]
-                );
+                if (isTab) {
+                  Alert.alert(
+                    'Tạo khung mới? 🌿',
+                    'Làm mới dải ảnh về khung trắng tinh để bạn tự do sáng tạo từ đầu.',
+                    [
+                      { text: 'Hủy', style: 'cancel' },
+                      {
+                        text: 'Tạo mới 🎨',
+                        onPress: () => {
+                          createNewBlankFrame();
+                          setAppliedTemplateId(null);
+                        },
+                      },
+                    ]
+                  );
+                } else {
+                  Alert.alert(
+                    'Rời khỏi Studio? 🌿',
+                    'Các chỉnh sửa chưa lưu sẽ bị hủy.',
+                    [
+                      { text: 'Ở lại tiếp tục', style: 'cancel' },
+                      { text: 'Thoát', style: 'destructive', onPress: () => router.back() },
+                    ]
+                  );
+                }
               }}
               style={({ pressed }) => [
                 styles.studioHeaderBtn,
                 { transform: [{ scale: pressed ? 0.94 : 1 }] },
               ]}
             >
-              <Text style={styles.studioHeaderBtnText}>‹ Thoát</Text>
+              <Text style={styles.studioHeaderBtnText}>{isTab ? '🌿 Studio' : '‹ Thoát'}</Text>
             </Pressable>
 
             {/* Center: Frame title pill */}
@@ -1552,13 +1714,13 @@ export default function FrameStudioScreen() {
               </Pressable>
 
               <Pressable
-                onPress={() => setViewMode('instagram')}
+                onPress={handlePublish}
                 style={({ pressed }) => [
                   styles.studioCtaBtn,
-                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                  { backgroundColor: '#FFD93D', transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.studioCtaBtnText}>Tiếp tục ➔</Text>
+                <Text style={styles.studioCtaBtnText}>📲 Gửi Widget 💛</Text>
               </Pressable>
             </View>
           </View>
@@ -1669,7 +1831,7 @@ export default function FrameStudioScreen() {
           {/* DOCK CÔNG CỤ NỔI HOẶC THANH ĐIỀU KHIỂN NGỮ CẢNH ĐÁY HOẶC BỘ LỌC HÀN QUỐC */}
           {activeSheet === 'filter' ? (
             /* BĂNG CHUYỀN BỘ LỌC TONE HÀN QUỐC POLAROID */
-            <View style={styles.filterStripContainer}>
+            <View style={[styles.filterStripContainer, isTab && { paddingBottom: 84 }]}>
               <View style={styles.filterStripHeader}>
                 <Text style={styles.filterStripTitle}>🌈 Tone màu Photobooth Hàn Quốc</Text>
                 <Pressable
@@ -1717,7 +1879,7 @@ export default function FrameStudioScreen() {
             </View>
           ) : (selectedSticker || selectedText) ? (
             /* THANH NGỮ CẢNH ĐÁY: TÙY CHỈNH STICKER / CHỮ ĐANG CHỌN (KHÔNG CHE CANVAS) */
-            <View style={styles.studioDockWrapper}>
+            <View style={[styles.studioDockWrapper, isTab && { paddingBottom: 84 }]}>
               <View style={styles.contextualBottomBar}>
                 {/* Thông tin đối tượng đang chọn */}
                 <View style={styles.contextItemBadge}>
@@ -1730,7 +1892,72 @@ export default function FrameStudioScreen() {
                 </View>
 
                 {/* Các nút tùy chỉnh */}
-                <View style={styles.contextActionsRow}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.contextActionsRow}
+                >
+                  {/* Di chuyển các hướng (Nudge D-Pad) */}
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => {
+                      if (selectedSticker) moveSelectedSticker(-8, 0);
+                      else if (selectedText) moveSelectedTextItem(-8, 0);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      styles.contextMoveBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>◀</Text>
+                  </Pressable>
+
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => {
+                      if (selectedSticker) moveSelectedSticker(8, 0);
+                      else if (selectedText) moveSelectedTextItem(8, 0);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      styles.contextMoveBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>▶</Text>
+                  </Pressable>
+
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => {
+                      if (selectedSticker) moveSelectedSticker(0, -8);
+                      else if (selectedText) moveSelectedTextItem(0, -8);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      styles.contextMoveBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>▲</Text>
+                  </Pressable>
+
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => {
+                      if (selectedSticker) moveSelectedSticker(0, 8);
+                      else if (selectedText) moveSelectedTextItem(0, 8);
+                    }}
+                    style={({ pressed }) => [
+                      styles.contextMiniBtn,
+                      styles.contextMoveBtn,
+                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                    ]}
+                  >
+                    <Text style={styles.contextMiniBtnText}>▼</Text>
+                  </Pressable>
+
                   {/* Nhỏ hơn */}
                   <Pressable
                     hitSlop={8}
@@ -1791,6 +2018,27 @@ export default function FrameStudioScreen() {
                     <Text style={styles.contextMiniBtnText}>⟳</Text>
                   </Pressable>
 
+                  {/* Sửa nội dung chữ nếu đang chọn chữ */}
+                  {selectedText && (
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => {
+                        setNewTextInput(selectedText.text);
+                        if (selectedText.color) setTextColor(selectedText.color);
+                        if (selectedText.bgColor) setNewTextBgColor(selectedText.bgColor);
+                        setTextTab('free');
+                        setActiveSheet('text');
+                      }}
+                      style={({ pressed }) => [
+                        styles.contextMiniBtn,
+                        styles.contextEditBtn,
+                        { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                      ]}
+                    >
+                      <Text style={styles.contextMiniBtnText}>✏️</Text>
+                    </Pressable>
+                  )}
+
                   {/* Nhân bản */}
                   <Pressable
                     hitSlop={8}
@@ -1837,12 +2085,12 @@ export default function FrameStudioScreen() {
                   >
                     <Text style={[styles.contextMiniBtnText, { color: colors.ink }]}>✓</Text>
                   </Pressable>
-                </View>
+                </ScrollView>
               </View>
             </View>
           ) : (
             /* FLOATING STUDIO DOCK: 8 CÔNG CỤ SÁNG TẠO ĐỘC BẢN */
-            <View style={styles.studioDockWrapper}>
+            <View style={[styles.studioDockWrapper, isTab && { paddingBottom: 84 }]}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -1928,7 +2176,7 @@ export default function FrameStudioScreen() {
 
                 <View style={styles.leafySheetHeader}>
                   <Text style={styles.leafySheetTitle}>
-                    {activeSheet === 'template' && '🪄 Kho 16+ Mẫu Khung Có Sẵn'}
+                    {activeSheet === 'template' && `🪄 Kho ${STUDIO_PRESETS.length}+ Mẫu Khung Đa Dạng`}
                     {activeSheet === 'text' && '✍️ Thêm Chữ Lên Dải Ảnh'}
                     {activeSheet === 'sticker' && '✨ Sticker & Con Dấu Niêm Phong'}
                     {activeSheet === 'color' && '🎨 Phối Màu Nền & Họa Tiết'}
@@ -1976,12 +2224,12 @@ export default function FrameStudioScreen() {
                         contentContainerStyle={styles.templateCategoryScroll}
                       >
                         {[
-                          { id: 'all', label: 'Tất cả (16)' },
-                          { id: 'life4cuts', label: '🌸 Life4Cuts (4)' },
-                          { id: 'vintage', label: '☕ Vintage (3)' },
-                          { id: 'party', label: '🎂 Sinh nhật (3)' },
-                          { id: 'y2k', label: '⚡ Y2K Cyber (3)' },
-                          { id: 'besties', label: '💌 Besties (3)' },
+                          { id: 'all', label: `🌟 Tất cả (${STUDIO_PRESETS.length})` },
+                          { id: 'life4cuts', label: `🌸 Life4Cuts (${STUDIO_PRESETS.filter((p) => p.category === 'life4cuts').length})` },
+                          { id: 'vintage', label: `☕ Vintage (${STUDIO_PRESETS.filter((p) => p.category === 'vintage').length})` },
+                          { id: 'party', label: `🎂 Sinh nhật (${STUDIO_PRESETS.filter((p) => p.category === 'party').length})` },
+                          { id: 'y2k', label: `⚡ Y2K Cyber (${STUDIO_PRESETS.filter((p) => p.category === 'y2k').length})` },
+                          { id: 'besties', label: `💌 Besties (${STUDIO_PRESETS.filter((p) => p.category === 'besties').length})` },
                         ].map((cat) => {
                           const isCatActive = selectedTemplateCategory === cat.id;
                           return (
@@ -2086,97 +2334,253 @@ export default function FrameStudioScreen() {
                   {/* TAB 1: THÊM CHỮ */}
                   {activeSheet === 'text' && (
                     <View>
-                      <TextInput
-                        style={styles.leafyTextInput}
-                        value={newTextInput}
-                        onChangeText={setNewTextInput}
-                        placeholder="Gõ chữ bạn muốn đặt lên dải ảnh..."
-                        placeholderTextColor="#9CA3AF"
-                      />
-
-                      {/* Gợi ý quote nhanh 1-chạm */}
-                      <Text style={styles.sheetSectionLabel}>Quote hay 1-chạm:</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                        {[
-                          'Besties Forever 💖',
-                          'Y2K Vibes ✨',
-                          'Life4Cuts 🎞️',
-                          'Smile Always 😊',
-                          'Hanoi 2026 🌸',
-                          'Love you to the moon 🌙',
-                          'Matcha Date 🍵',
-                        ].map((quote) => (
-                          <Pressable
-                            key={quote}
-                            onPress={() => setNewTextInput(quote)}
-                            style={styles.leafyQuickChip}
-                          >
-                            <Text style={styles.leafyQuickChipText}>{quote}</Text>
-                          </Pressable>
-                        ))}
-                      </ScrollView>
-
-                      {/* Bảng màu chữ */}
-                      <Text style={styles.sheetSectionLabel}>Màu chữ:</Text>
-                      <View style={styles.colorSwatchesGrid}>
-                        {PALETTE_COLORS.map((item) => (
-                          <Pressable
-                            key={item.id}
-                            onPress={() => setTextColor(item.color)}
+                      {/* Segment chuyển tab: Chữ tự do / Tiêu đề khung */}
+                      <View style={styles.textTabSwitchContainer}>
+                        <Pressable
+                          onPress={() => setTextTab('free')}
+                          style={[
+                            styles.textTabSwitchBtn,
+                            textTab === 'free' && styles.textTabSwitchBtnActive,
+                          ]}
+                        >
+                          <Text
                             style={[
-                              styles.colorSwatch,
-                              { backgroundColor: item.color },
-                              textColor === item.color && styles.colorSwatchSelected,
+                              styles.textTabSwitchText,
+                              textTab === 'free' && styles.textTabSwitchTextActive,
                             ]}
-                          />
-                        ))}
+                          >
+                            ✨ Chữ Dán Tự Do
+                          </Text>
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => setTextTab('banner')}
+                          style={[
+                            styles.textTabSwitchBtn,
+                            textTab === 'banner' && styles.textTabSwitchBtnActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.textTabSwitchText,
+                              textTab === 'banner' && styles.textTabSwitchTextActive,
+                            ]}
+                          >
+                            🏷️ Tiêu Đề Khung
+                          </Text>
+                        </Pressable>
                       </View>
 
-                      {/* Nền nhãn dán chữ */}
-                      <Text style={[styles.sheetSectionLabel, { marginTop: 12 }]}>Nền nhãn dán chữ:</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-                        {[
-                          { color: 'transparent', label: 'Không nền' },
-                          { color: '#FFFFFF', label: 'Trắng' },
-                          { color: '#111111', label: 'Đen' },
-                          { color: '#FEF08A', label: 'Vàng bơ' },
-                          { color: '#FCE7F3', label: 'Hồng phấn' },
-                          { color: colors.lime, label: 'Lime' },
-                        ].map((bg) => (
+                      {textTab === 'free' ? (
+                        <>
+                          {selectedText && (
+                            <View style={styles.editingTextBanner}>
+                              <Text style={styles.editingTextLabel} numberOfLines={1}>
+                                ✏️ Đang sửa: "{selectedText.text}"
+                              </Text>
+                              <Pressable
+                                onPress={() => {
+                                  setSelectedTextId(null);
+                                  setNewTextInput('');
+                                }}
+                                style={styles.cancelEditBtn}
+                              >
+                                <Text style={styles.cancelEditBtnText}>✕ Tạo chữ mới</Text>
+                              </Pressable>
+                            </View>
+                          )}
+
+                          <TextInput
+                            style={styles.leafyTextInput}
+                            value={newTextInput}
+                            onChangeText={setNewTextInput}
+                            placeholder="Gõ chữ bạn muốn đặt lên dải ảnh..."
+                            placeholderTextColor="#9CA3AF"
+                          />
+
+                          {/* Gợi ý quote nhanh 1-chạm */}
+                          <Text style={styles.sheetSectionLabel}>Quote hay 1-chạm:</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                            {[
+                              'Besties Forever 💖',
+                              'Y2K Vibes ✨',
+                              'Life4Cuts 🎞️',
+                              'Smile Always 😊',
+                              'Hanoi 2026 🌸',
+                              'Love you to the moon 🌙',
+                              'Matcha Date 🍵',
+                            ].map((quote) => (
+                              <Pressable
+                                key={quote}
+                                onPress={() => setNewTextInput(quote)}
+                                style={styles.leafyQuickChip}
+                              >
+                                <Text style={styles.leafyQuickChipText}>{quote}</Text>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+
+                          {/* Bảng màu chữ */}
+                          <Text style={styles.sheetSectionLabel}>Màu chữ:</Text>
+                          <View style={styles.colorSwatchesGrid}>
+                            {PALETTE_COLORS.map((item) => (
+                              <Pressable
+                                key={item.id}
+                                onPress={() => {
+                                  setTextColor(item.color);
+                                  if (selectedText) {
+                                    updateTextItem(selectedText.id, { color: item.color });
+                                  }
+                                }}
+                                style={[
+                                  styles.colorSwatch,
+                                  { backgroundColor: item.color },
+                                  textColor === item.color && styles.colorSwatchSelected,
+                                ]}
+                              />
+                            ))}
+                          </View>
+
+                          {/* Nền nhãn dán chữ */}
+                          <Text style={[styles.sheetSectionLabel, { marginTop: 12 }]}>Nền nhãn dán chữ:</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                            {[
+                              { color: 'transparent', label: 'Không nền' },
+                              { color: '#FFFFFF', label: 'Trắng' },
+                              { color: '#111111', label: 'Đen' },
+                              { color: '#FEF08A', label: 'Vàng bơ' },
+                              { color: '#FCE7F3', label: 'Hồng phấn' },
+                              { color: colors.lime, label: 'Lime' },
+                            ].map((bg) => (
+                              <Pressable
+                                key={bg.color}
+                                onPress={() => {
+                                  setNewTextBgColor(bg.color);
+                                  if (selectedText) {
+                                    updateTextItem(selectedText.id, { bgColor: bg.color });
+                                  }
+                                }}
+                                style={[
+                                  styles.leafyBgChip,
+                                  newTextBgColor === bg.color && styles.leafyBgChipActive,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.leafyBgChipText,
+                                    newTextBgColor === bg.color && styles.leafyBgChipTextActive,
+                                  ]}
+                                >
+                                  {bg.label}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+
                           <Pressable
-                            key={bg.color}
-                            onPress={() => setNewTextBgColor(bg.color)}
-                            style={[
-                              styles.leafyBgChip,
-                              newTextBgColor === bg.color && styles.leafyBgChipActive,
-                            ]}
+                            onPress={() => {
+                              if (newTextInput.trim()) {
+                                if (selectedText) {
+                                  updateTextItem(selectedText.id, {
+                                    text: newTextInput.trim(),
+                                    color: textColor,
+                                    bgColor: newTextBgColor,
+                                  });
+                                } else {
+                                  addTextItem(newTextInput.trim(), textColor, newTextBgColor);
+                                }
+                                setNewTextInput('');
+                                closeActiveSheet();
+                              } else {
+                                Alert.alert('Chưa nhập chữ', 'Vui lòng gõ nội dung chữ bạn muốn thêm.');
+                              }
+                            }}
+                            style={styles.leafyConfirmBtn}
                           >
-                            <Text
-                              style={[
-                                styles.leafyBgChipText,
-                                newTextBgColor === bg.color && styles.leafyBgChipTextActive,
-                              ]}
-                            >
-                              {bg.label}
+                            <Text style={styles.leafyConfirmBtnText}>
+                              {selectedText ? '💾 Lưu Cập Nhật Chữ' : '✨ Đặt Chữ Lên Dải Ảnh'}
                             </Text>
                           </Pressable>
-                        ))}
-                      </ScrollView>
+                        </>
+                      ) : (
+                        /* TAB TIÊU ĐỀ KHUNG (CUSTOM BANNER TEXT) */
+                        <>
+                          <TextInput
+                            style={styles.leafyTextInput}
+                            value={customText}
+                            onChangeText={setCustomText}
+                            placeholder="Nhập tiêu đề hoặc lời nhắn dải ảnh..."
+                            placeholderTextColor="#9CA3AF"
+                          />
 
-                      <Pressable
-                        onPress={() => {
-                          if (newTextInput.trim()) {
-                            addTextItem(newTextInput.trim(), textColor, newTextBgColor);
-                            setNewTextInput('');
-                            closeActiveSheet();
-                          } else {
-                            Alert.alert('Chưa nhập chữ', 'Vui lòng gõ nội dung chữ bạn muốn thêm.');
-                          }
-                        }}
-                        style={styles.leafyConfirmBtn}
-                      >
-                        <Text style={styles.leafyConfirmBtnText}>✨ Đặt chữ lên dải ảnh</Text>
-                      </Pressable>
+                          <Text style={styles.sheetSectionLabel}>Vị trí tiêu đề trên khung:</Text>
+                          <View style={styles.textPositionRow}>
+                            {[
+                              { id: 'top', label: '⬆️ Phía trên' },
+                              { id: 'middle', label: '⏸️ Ở giữa' },
+                              { id: 'bottom', label: '⬇️ Phía dưới' },
+                            ].map((p) => {
+                              const isActive = textPosition === p.id;
+                              return (
+                                <Pressable
+                                  key={p.id}
+                                  onPress={() => setTextPosition(p.id as any)}
+                                  style={[
+                                    styles.textPositionBtn,
+                                    isActive && styles.textPositionBtnActive,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.textPositionBtnText,
+                                      isActive && styles.textPositionBtnTextActive,
+                                    ]}
+                                  >
+                                    {p.label}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+
+                          {/* Gợi ý quote tiêu đề */}
+                          <Text style={[styles.sheetSectionLabel, { marginTop: 12 }]}>Tiêu đề mẫu 1-chạm:</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                            {PREMADE_QUOTES.map((quote) => (
+                              <Pressable
+                                key={quote}
+                                onPress={() => setCustomText(quote)}
+                                style={styles.leafyQuickChip}
+                              >
+                                <Text style={styles.leafyQuickChipText}>{quote}</Text>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+
+                          {/* Màu chữ tiêu đề */}
+                          <Text style={styles.sheetSectionLabel}>Màu chữ tiêu đề:</Text>
+                          <View style={styles.colorSwatchesGrid}>
+                            {PALETTE_COLORS.map((item) => (
+                              <Pressable
+                                key={item.id}
+                                onPress={() => setTextColor(item.color)}
+                                style={[
+                                  styles.colorSwatch,
+                                  { backgroundColor: item.color },
+                                  textColor === item.color && styles.colorSwatchSelected,
+                                ]}
+                              />
+                            ))}
+                          </View>
+
+                          <Pressable
+                            onPress={closeActiveSheet}
+                            style={[styles.leafyConfirmBtn, { marginTop: 14 }]}
+                          >
+                            <Text style={styles.leafyConfirmBtnText}>✓ Hoàn Tất Tiêu Đề</Text>
+                          </Pressable>
+                        </>
+                      )}
                     </View>
                   )}
 
@@ -2671,7 +3075,7 @@ export default function FrameStudioScreen() {
         </Pressable>
       </Modal>
 
-      {/* MODAL ĐĂNG LÊN INSTAGRAM / BẢNG TIN XU HƯỚNG */}
+      {/* MODAL GỬI LÊN WIDGET BẠN BÈ (LOCKET SHARING) */}
       <Modal
         visible={showShareModal}
         transparent
@@ -2687,62 +3091,124 @@ export default function FrameStudioScreen() {
             style={styles.shareSheetCard}
           >
             <View style={styles.shareSheetHeader}>
-              <Text style={styles.shareSheetTitle}>🚀 Đăng lên Bảng tin Xu hướng</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 22 }}>💛</Text>
+                <Text style={styles.shareSheetTitle}>Gửi lên Widget Bạn Bè</Text>
+              </View>
               <Pressable onPress={() => setShowShareModal(false)} style={styles.shareSheetCloseBtn}>
                 <Text style={{ fontSize: 16, fontWeight: '800' }}>✕</Text>
               </Pressable>
             </View>
 
             <Text style={styles.shareSheetSubtitle}>
-              Khung ảnh độc bản "{frameName}" của bạn sẽ được chia sẻ cho toàn bộ cộng đồng LeafyBooth.
+              Gửi từ {currentUser.name}: Dải ảnh "{frameName || 'Photobooth'}" sẽ ghim ngay trên màn hình chính của bạn thân như Locket!
             </Text>
 
-            <Text style={styles.shareSheetSectionLabel}>Lời nhắn / Caption bài đăng:</Text>
+            {/* Chọn bạn bè nhận Widget */}
+            <Text style={styles.shareSheetSectionLabel}>Gửi đến ai trên màn hình chính?</Text>
+            <View style={styles.locketFriendRow}>
+              {/* Nút tất cả bạn bè */}
+              <Pressable
+                onPress={handleSelectAllFriends}
+                style={({ pressed }) => [
+                  styles.locketAllPill,
+                  isSendAllFriends && styles.locketAllPillActive,
+                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                ]}
+              >
+                <Text style={[styles.locketAllText, isSendAllFriends && styles.locketAllTextActive]}>
+                  {isSendAllFriends ? '✓ Tất cả (5 bạn)' : 'Gửi tất cả bạn bè'}
+                </Text>
+              </Pressable>
+
+              {/* Danh sách từng bạn */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+              >
+                {friends.map((friend) => {
+                  const isSelected = isSendAllFriends || selectedRecipientIds.includes(friend.id);
+                  return (
+                    <Pressable
+                      key={friend.id}
+                      onPress={() => toggleLocketFriend(friend.id)}
+                      style={({ pressed }) => [
+                        styles.locketFriendChip,
+                        isSelected && styles.locketFriendChipActive,
+                        { transform: [{ scale: pressed ? 0.94 : 1 }] },
+                      ]}
+                    >
+                      <View style={[styles.locketFriendAvatar, { backgroundColor: friend.avatarColor }]}>
+                        <Text style={styles.locketFriendLetter}>{friend.avatarLetter}</Text>
+                        {isSelected && (
+                          <View style={styles.locketFriendCheck}>
+                            <Text style={styles.locketFriendCheckText}>✓</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.locketFriendName,
+                          isSelected && styles.locketFriendNameActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {friend.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Lời nhắn nhanh / Quick tags */}
+            <Text style={styles.shareSheetSectionLabel}>Lời nhắn kèm dải ảnh:</Text>
+            <View style={styles.locketQuickTagsRow}>
+              {LOCKET_QUICK_TAGS.map((tag) => (
+                <Pressable
+                  key={tag}
+                  onPress={() => setPostCaption(tag)}
+                  style={({ pressed }) => [
+                    styles.locketQuickTagChip,
+                    postCaption === tag && styles.locketQuickTagChipActive,
+                    { transform: [{ scale: pressed ? 0.94 : 1 }] },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.locketQuickTagText,
+                      postCaption === tag && styles.locketQuickTagTextActive,
+                    ]}
+                  >
+                    {tag}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Ô nhập caption */}
             <TextInput
               style={styles.shareCaptionInput}
               value={postCaption}
               onChangeText={setPostCaption}
-              placeholder="Viết caption thật thơ mộng..."
+              placeholder="Thêm lời nhắn thật ngọt ngào..."
               placeholderTextColor="#9CA3AF"
               multiline
             />
 
-            <Text style={styles.shareSheetSectionLabel}>Hashtags thịnh hành (chạm để chọn):</Text>
-            <View style={styles.shareTagsWrap}>
-              {POPULAR_HASHTAGS.map((tag) => {
-                const selected = postHashtags.includes(tag);
-                return (
-                  <Pressable
-                    key={tag}
-                    onPress={() => toggleHashtag(tag)}
-                    style={[styles.shareTagChip, selected && styles.shareTagChipActive]}
-                  >
-                    <Text style={[styles.shareTagChipText, selected && styles.shareTagChipTextActive]}>
-                      {tag}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View style={styles.sharePublicToggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sharePublicTitle}>Chia sẻ công khai</Text>
-                <Text style={styles.sharePublicDesc}>Ai cũng có thể xem và lưu frame</Text>
-              </View>
-              <Switch
-                value={isPublic}
-                onValueChange={setIsPublic}
-                trackColor={{ false: '#D1D5DB', true: colors.lime }}
-                thumbColor={colors.white}
-              />
-            </View>
-
+            {/* Nút gửi chính */}
             <Pressable
-              onPress={handleConfirmPublish}
-              style={styles.shareConfirmBtn}
+              onPress={handleConfirmSendToLocket}
+              disabled={isSendingToLocket}
+              style={({ pressed }) => [
+                styles.shareConfirmBtn,
+                { backgroundColor: '#FFD93D', transform: [{ scale: pressed ? 0.97 : 1 }] },
+              ]}
             >
-              <Text style={styles.shareConfirmBtnText}>🚀 Đăng bài ngay</Text>
+              <Text style={styles.shareConfirmBtnText}>
+                {isSendingToLocket ? '⏳ Đang gửi lên widget...' : '💛 Gửi Lên Widget Ngay'}
+              </Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -4239,6 +4705,121 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.ink,
   },
+  // Locket Widget Share Sheet styles
+  locketFriendRow: {
+    marginBottom: 12,
+  },
+  locketAllPill: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  locketAllPillActive: {
+    backgroundColor: '#FEF08A',
+    borderColor: colors.ink,
+    borderWidth: 2,
+  },
+  locketAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  locketAllTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  locketFriendChip: {
+    alignItems: 'center',
+    padding: 6,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    width: 62,
+  },
+  locketFriendChipActive: {
+    borderColor: colors.ink,
+    backgroundColor: '#FEF9C3',
+    borderWidth: 2,
+    ...theme.shadows.hardSmall,
+  },
+  locketFriendAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 4,
+  },
+  locketFriendLetter: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  locketFriendCheck: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: colors.lime,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locketFriendCheckText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  locketFriendName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  locketFriendNameActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  locketQuickTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  locketQuickTagChip: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  locketQuickTagChipActive: {
+    backgroundColor: '#A7F3D0',
+    borderColor: colors.ink,
+    borderWidth: 1.5,
+  },
+  locketQuickTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  locketQuickTagTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
 
   // Canvas Variations for Distinctive Layouts
   stripCanvasGrid: {
@@ -4254,6 +4835,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 10,
     elevation: 8,
+  },
+  stripCanvasStamp: {
+    borderStyle: 'dashed',
+    borderWidth: 2.5,
+  },
+  stampPerforationsColumn: {
+    position: 'absolute',
+    top: 10,
+    bottom: 10,
+    justifyContent: 'space-between',
+    zIndex: 6,
+  },
+  stampScallopHole: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
   },
   stripLocationSubtitle: {
     fontSize: 8,
@@ -5992,8 +6592,98 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     borderColor: '#DC2626',
   },
+  contextMoveBtn: {
+    backgroundColor: '#FEF08A',
+  },
+  contextEditBtn: {
+    backgroundColor: '#93C5FD',
+  },
   contextDoneBtn: {
     backgroundColor: colors.lime,
     borderColor: colors.ink,
+  },
+  textTabSwitchContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 14,
+    padding: 3,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    marginBottom: 14,
+  },
+  textTabSwitchBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 11,
+  },
+  textTabSwitchBtnActive: {
+    backgroundColor: colors.lime,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  textTabSwitchText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#6B7280',
+  },
+  textTabSwitchTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  editingTextBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#3B82F6',
+    marginBottom: 10,
+  },
+  editingTextLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    flex: 1,
+  },
+  cancelEditBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#DBEAFE',
+    borderRadius: 6,
+  },
+  cancelEditBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1D4ED8',
+  },
+  textPositionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  textPositionBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  textPositionBtnActive: {
+    backgroundColor: colors.lime,
+  },
+  textPositionBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  textPositionBtnTextActive: {
+    fontWeight: '900',
   },
 });

@@ -15,10 +15,10 @@ interface CustomTabBarProps {
 }
 
 const TAB_CONFIG: Record<string, { label: string; icon: string }> = {
-  moments: { label: 'Khoảnh khắc', icon: '◎' },
-  garden: { label: 'Garden', icon: '🍃' },
-  booth: { label: 'Booth', icon: '🎞' },
-  profile: { label: 'Cá nhân', icon: '👤' },
+  moments: { label: 'Locket', icon: '💛' },
+  studio: { label: 'Tạo Khung', icon: '🎨' },
+  booth: { label: 'Chụp Booth', icon: '📸' },
+  profile: { label: 'Widget & Bạn', icon: '📱' },
 };
 
 function StickerPopTabBar({ state, descriptors, navigation, navigateToTab, emitter }: CustomTabBarProps) {
@@ -28,6 +28,11 @@ function StickerPopTabBar({ state, descriptors, navigation, navigateToTab, emitt
     <View style={[styles.tabBarWrapper, { bottom: Math.max(insets.bottom, 16) }]}>
       <View style={styles.tabBarContainer}>
         {state.routes.map((route: any, index: number) => {
+          const { options } = descriptors ? descriptors[route.key] || {} : {};
+          if (options?.href === null) {
+            return null;
+          }
+
           const isFocused = state.index === index;
           const config = TAB_CONFIG[route.name] || { label: route.name, icon: '•' };
 
@@ -80,9 +85,10 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="moments" />
-      <Tabs.Screen name="garden" />
+      <Tabs.Screen name="studio" />
       <Tabs.Screen name="booth" />
       <Tabs.Screen name="profile" />
+      <Tabs.Screen name="garden" options={{ href: null }} />
     </Tabs>
   );
 }
