@@ -115,8 +115,8 @@ export default function BoothResultScreen() {
     setIsSendingToLocket(false);
 
     Alert.alert(
-      'Đã gửi lên Widget bạn bè! 💛🎉',
-      'Dải ảnh 4 ô vừa chụp đã xuất hiện ngay trên màn hình chính của bạn thân!',
+      'Đã đăng lên Locket! 💛🎉',
+      'Dải ảnh 4 ô vừa chụp đã được ghim thành công lên Widget & Feed của bạn bè!',
       [
         {
           text: 'Xem trên Locket Feed 💛',
@@ -126,8 +126,8 @@ export default function BoothResultScreen() {
           },
         },
         {
-          text: 'Xong',
-          onPress: handleClose,
+          text: 'Chụp tiếp 📸',
+          onPress: handleRetake,
         },
       ]
     );
@@ -223,7 +223,30 @@ export default function BoothResultScreen() {
 
       {/* Action Buttons */}
       <View style={styles.actionSection}>
-        {/* Nút chính: Trang trí dải ảnh Sticker Pop trong Studio */}
+        {/* Nút 1: ĐĂNG LÊN LOCKET NGAY 💛 (Tức thì lên Widget bạn bè & Feed) */}
+        <Pressable
+          onPress={handleSendToLocket}
+          disabled={isSendingToLocket}
+          style={({ pressed }) => [
+            styles.locketInstantCtaButton,
+            { transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+        >
+          <View style={styles.locketInstantCtaIconBox}>
+            <Text style={{ fontSize: 22 }}>💛</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.locketInstantCtaTitle}>
+              {isSendingToLocket ? 'Đang đăng ảnh...' : 'Đăng Lên Locket Ngay 🚀'}
+            </Text>
+            <Text style={styles.locketInstantCtaSubtitle}>
+              Ghim ngay lên Widget bạn bè & Lướt xem Feed
+            </Text>
+          </View>
+          <Text style={styles.locketInstantCtaArrow}>➔</Text>
+        </Pressable>
+
+        {/* Nút 2: Trang trí thêm sticker, đổi viền độc lạ trong Studio */}
         <Pressable
           onPress={handleOpenStudioWithPhotos}
           style={({ pressed }) => [
@@ -232,25 +255,26 @@ export default function BoothResultScreen() {
           ]}
         >
           <View style={styles.studioCtaIconBox}>
-            <Text style={{ fontSize: 20 }}>✨</Text>
+            <Text style={{ fontSize: 18 }}>🎨</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.studioCtaTitle}>Trang Trí Sticker & Chữ</Text>
+            <Text style={styles.studioCtaTitle}>Trang Trí Khung & Sticker ✨</Text>
             <Text style={styles.studioCtaSubtitle}>180+ sticker, 6 font chữ, viền vé phim & camcorder</Text>
           </View>
           <Text style={styles.studioCtaArrow}>➔</Text>
         </Pressable>
 
+        {/* Hàng nút phụ: Lưu vào máy & Chụp lại */}
         <View style={styles.buttonRow}>
           <PillButton
-            title={isSaving ? 'Đang lưu...' : 'Lưu vào máy'}
+            title={isSaving ? 'Đang lưu...' : '💾 Lưu vào máy'}
             onPress={handleSaveToDevice}
             variant="white"
             style={styles.halfButton}
           />
           <PillButton
-            title={isSendingToLocket ? 'Đang gửi...' : '💛 Gửi Widget'}
-            onPress={handleSendToLocket}
+            title="📸 Chụp lại"
+            onPress={handleRetake}
             variant="secondary"
             style={styles.halfButton}
           />
@@ -258,12 +282,12 @@ export default function BoothResultScreen() {
 
         {/* Text Actions */}
         <View style={styles.textActionsRow}>
-          <Pressable onPress={handleRetake}>
-            <Text style={styles.linkText}>Chụp lại</Text>
+          <Pressable onPress={handleCustomize}>
+            <Text style={styles.linkText}>Tùy chỉnh bố cục dải ảnh</Text>
           </Pressable>
           <Text style={styles.dotSeparator}>·</Text>
-          <Pressable onPress={handleCustomize}>
-            <Text style={styles.linkText}>Tùy chỉnh</Text>
+          <Pressable onPress={handleClose}>
+            <Text style={styles.linkText}>Về màn hình chính</Text>
           </Pressable>
         </View>
       </View>
@@ -433,6 +457,46 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12,
     marginTop: 'auto',
+  },
+  locketInstantCtaButton: {
+    backgroundColor: '#FFD93D',
+    borderRadius: 16,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    ...theme.shadows.hard,
+  },
+  locketInstantCtaIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locketInstantCtaTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.ink,
+    letterSpacing: -0.2,
+  },
+  locketInstantCtaSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#374151',
+    marginTop: 2,
+  },
+  locketInstantCtaArrow: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.ink,
+    marginLeft: 4,
   },
   studioCtaButton: {
     backgroundColor: '#FFFFFF',

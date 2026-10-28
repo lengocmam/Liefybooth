@@ -25,7 +25,12 @@ const REACTION_BG_COLORS: Record<string, string> = {
   '😮': colors.white,
 };
 
-export const PickView: React.FC = () => {
+export interface PickViewProps {
+  onCloseFeed?: () => void;
+  pullDownPanResponder?: any;
+}
+
+export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResponder }) => {
   const {
     moments,
     friends,
@@ -77,12 +82,65 @@ export const PickView: React.FC = () => {
     };
   }, []);
 
-  // Danh sách khoảnh khắc đã lọc theo người đăng trên Feed
+  // Danh sách khoảnh khắc đã lọc theo người đăng trên Feed (luôn sắp xếp thời gian mới nhất lên đầu)
   const filteredMoments = useMemo(() => {
-    if (activeSenderFilter === 'all') return moments;
-    if (activeSenderFilter === 'me') return moments.filter((m) => m.senderId === currentUser.id);
-    return moments.filter((m) => m.senderId === activeSenderFilter);
+    let list = moments;
+    if (activeSenderFilter === 'me') {
+      list = moments.filter((m) => m.senderId === currentUser.id);
+    } else if (activeSenderFilter !== 'all') {
+      list = moments.filter((m) => m.senderId === activeSenderFilter);
+    }
+    // Sắp xếp giảm dần theo timestamp (mới nhất lên đầu)
+    return [...list].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return timeB - timeA;
+    });
   }, [moments, activeSenderFilter, currentUser.id]);
+
+  const [doubleTapMomentId, setDoubleTapMomentId] = useState<string | null>(null);
+
+  const handlePhotoDoubleTapOnCard = (momentId: string) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 350) {
+      playShutterSound();
+      addReaction(momentId, '❤️');
+      setDoubleTapMomentId(momentId);
+      doubleTapAnim.setValue(0);
+      Animated.sequence([
+        Animated.spring(doubleTapAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 90,
+          useNativeDriver: true,
+        }),
+        Animated.timing(doubleTapAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setDoubleTapMomentId(null);
+      });
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
+  const handleEmojiPressOnCard = (momentId: string, emoji: string) => {
+    playShutterSound();
+    addReaction(momentId, emoji);
+    setPoppingEmoji({ emoji, id: Date.now() });
+    popAnim.setValue(0);
+    Animated.timing(popAnim, {
+      toValue: 1,
+      duration: 650,
+      useNativeDriver: true,
+    }).start(() => {
+      setPoppingEmoji(null);
+    });
+  };
 
   const safeIndex = Math.min(activeMomentIndex, Math.max(0, filteredMoments.length - 1));
   const currentMoment: MomentItem | undefined = filteredMoments[safeIndex];
@@ -340,6 +398,24 @@ export const PickView: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {/* Locket Pull-Down Handle Bar (Thanh kéo xuống chuẩn Locket) */}
+      <View
+        {...(pullDownPanResponder ? pullDownPanResponder.panHandlers : {})}
+        style={styles.pullDownHeader}
+      >
+        <View style={styles.dragPillHandle} />
+        <Pressable
+          onPress={onCloseFeed || (() => setViewMode('plant'))}
+          style={({ pressed }) => [
+            styles.pullDownHintBtn,
+            { transform: [{ scale: pressed ? 0.96 : 1 }] },
+          ]}
+        >
+          <Text style={styles.pullDownHintIcon}>▼</Text>
+          <Text style={styles.pullDownHintText}>Kéo xuống để chụp ảnh</Text>
+        </Pressable>
+      </View>
+
       {/* 1. TOP BAR CÓ NÚT ĐỔI TÀI KHOẢN (MULTI-ACCOUNT TESTER SWITCHER) */}
       <View style={styles.topBar}>
         <View style={styles.topLeftRow}>
@@ -376,7 +452,7 @@ export const PickView: React.FC = () => {
 
           {/* Nút chụp nhanh camera */}
           <Pressable
-            onPress={() => setViewMode('plant')}
+            onPress={onCloseFeed || (() => setViewMode('plant'))}
             style={({ pressed }) => [
               styles.switchCameraPill,
               { transform: [{ scale: pressed ? 0.94 : 1 }] },
@@ -512,200 +588,8 @@ export const PickView: React.FC = () => {
           </ScrollView>
         </View>
 
-        {/* 3. HERO POLAROID CARD KÈM CỬ CHỈ VUỐT TAY LƯỚT ẢNH (SWIPE PANRESPONDER) */}
-        <View style={styles.heroPolaroidArea}>
-          {currentMoment ? (
-            <Animated.View
-              {...panResponder.panHandlers}
-              style={[
-                styles.polaroidCard,
-                {
-                  transform: [
-                    { translateX: panAnim },
-                    {
-                      rotate: panAnim.interpolate({
-                        inputRange: [-200, 0, 200],
-                        outputRange: ['-7deg', '0deg', '7deg'],
-                      }),
-                    },
-                    { scale: cardScaleAnim },
-                  ],
-                },
-              ]}
-            >
-              {/* Header dải ảnh: Tên người gửi + Thời gian */}
-              <View style={styles.senderPill}>
-                <View
-                  style={[
-                    styles.senderPillAvatar,
-                    { backgroundColor: currentMoment.senderColor },
-                  ]}
-                >
-                  <Text style={styles.senderPillLetter}>{currentMoment.senderLetter}</Text>
-                </View>
-                <Text style={styles.senderPillText}>
-                  {currentMoment.senderName} · {currentMoment.timeAgo}
-                </Text>
-              </View>
-
-              {/* Quick Actions góc trên phải: Ghim Widget / Xóa */}
-              <View style={styles.cardTopRightActions}>
-                {currentMoment.senderId === currentUser.id && (
-                  <Pressable
-                    hitSlop={10}
-                    onPress={() => handleDeleteMoment(currentMoment.id)}
-                    style={styles.cardMiniActionBtn}
-                  >
-                    <Text style={{ fontSize: 13 }}>🗑️</Text>
-                  </Pressable>
-                )}
-                <Pressable
-                  hitSlop={10}
-                  onPress={() => handlePinMoment(currentMoment)}
-                  style={[styles.cardMiniActionBtn, { backgroundColor: colors.yellow }]}
-                >
-                  <Text style={{ fontSize: 13 }}>📌</Text>
-                </Pressable>
-                <View style={styles.starSticker}>
-                  <Text style={styles.starIcon}>★</Text>
-                </View>
-              </View>
-
-              {/* Điều hướng chuyển ảnh Trước/Sau */}
-              {filteredMoments.length > 1 && (
-                <>
-                  <Pressable
-                    onPress={handlePrevPhoto}
-                    style={styles.navChevronLeft}
-                    hitSlop={14}
-                  >
-                    <Text style={styles.navChevronText}>‹</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={handleNextPhoto}
-                    style={styles.navChevronRight}
-                    hitSlop={14}
-                  >
-                    <Text style={styles.navChevronText}>›</Text>
-                  </Pressable>
-                </>
-              )}
-
-              {/* KHUNG ẢNH: DẢI PHOTOBOOTH 4 Ô HOẶC ẢNH VUÔNG LOCKET (CHẠM ĐÚP ĐỂ THẢ TIM ❤️) */}
-              <Pressable onPress={handlePhotoDoubleTap} style={{ position: 'relative' }}>
-                {currentMoment.stripPhotos && currentMoment.stripPhotos.length > 1 ? (
-                  <View
-                    style={[
-                      styles.photoboothCardStrip,
-                      { backgroundColor: currentMoment.frameColor || '#FF8FC7' },
-                    ]}
-                  >
-                    <View style={styles.photoboothGridPhotos}>
-                      {currentMoment.stripPhotos.slice(0, 4).map((imgUri, pIdx) => (
-                        <View key={pIdx} style={styles.photoboothMiniSlot}>
-                          <Image
-                            source={{ uri: imgUri }}
-                            style={styles.photoboothMiniImg}
-                            resizeMode="cover"
-                          />
-                        </View>
-                      ))}
-                    </View>
-                    {currentMoment.frameName && (
-                      <Text style={styles.photoboothFrameTitle} numberOfLines={1}>
-                        🌿 {currentMoment.frameName}
-                      </Text>
-                    )}
-                  </View>
-                ) : (
-                  <View style={styles.photoContainer}>
-                    <Image
-                      source={{ uri: currentMoment.photoUrl }}
-                      style={styles.photo}
-                      resizeMode="cover"
-                    />
-                  </View>
-                )}
-
-                {/* TIM TO BAY LÊN KHI CHẠM ĐÚP VÀO ẢNH */}
-                {showDoubleTapHeart && (
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[
-                      styles.doubleTapHeartOverlay,
-                      {
-                        opacity: doubleTapAnim,
-                        transform: [
-                          {
-                            scale: doubleTapAnim.interpolate({
-                              inputRange: [0, 0.4, 1],
-                              outputRange: [0.3, 1.4, 1.1],
-                            }),
-                          },
-                        ],
-                      },
-                    ]}
-                  >
-                    <Text style={styles.doubleTapHeartText}>❤️</Text>
-                  </Animated.View>
-                )}
-              </Pressable>
-
-              {/* Lời nhắn / Caption */}
-              <Text style={styles.captionText}>{currentMoment.caption}</Text>
-
-              {/* Dải chấm chỉ báo ảnh (Dots Carousel Indicator) */}
-              {filteredMoments.length > 1 && (
-                <View style={styles.paginationDotsRow}>
-                  {filteredMoments.slice(0, 10).map((_, dotIdx) => {
-                    const isCur = dotIdx === safeIndex;
-                    return (
-                      <Pressable
-                        key={dotIdx}
-                        onPress={() => setActiveMomentIndex(dotIdx)}
-                        hitSlop={8}
-                        style={[
-                          styles.paginationDot,
-                          isCur && styles.paginationDotActive,
-                        ]}
-                      />
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Chỉ báo thứ tự ảnh & gợi ý tương tác */}
-              {filteredMoments.length > 1 ? (
-                <Text style={styles.photoIndexBadge}>
-                  {safeIndex + 1}/{filteredMoments.length} · {activeFilterName} (chạm đúp ❤️ · vuốt ‹ ›)
-                </Text>
-              ) : null}
-            </Animated.View>
-          ) : (
-            /* EMPTY STATE KHI CHƯA CÓ ẢNH */
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardEmoji}>🌱</Text>
-              <Text style={styles.emptyCardTitle}>Chưa có ảnh từ {activeFilterName}</Text>
-              <Text style={styles.emptyCardDesc}>
-                {activeSenderFilter === 'me'
-                  ? 'Bạn chưa đăng ảnh nào lên Widget. Hãy chụp một bức ảnh hoặc tạo khung photobooth để gửi tặng bạn bè nhé!'
-                  : `${activeFilterName} chưa gửi ảnh nào cho bạn. Hãy gửi khoảnh khắc đầu tiên để rủ bạn ấy cùng chơi!`}
-              </Text>
-              <Pressable
-                onPress={() => setViewMode('plant')}
-                style={({ pressed }) => [
-                  styles.emptyCardBtn,
-                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
-                ]}
-              >
-                <Text style={styles.emptyCardBtnText}>📸 Chụp & Gửi ngay</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-
-        {/* 4. THANH 5 REACTION EMOJI KÈM HIỆU ỨNG TACTILE POP & FLOATING PARTICLE */}
-        <View style={styles.reactionsSection}>
+        {/* 3. DÒNG THỜI GIAN LƯỚT DỌC CHUẨN LOCKET (ẢNH MỚI NHẤT HIỆN LÊN TRÊN ĐẦU) */}
+        <View style={styles.verticalFeedContainer}>
           {/* Floating Emoji Particle khi bấm thả reaction */}
           {poppingEmoji && (
             <Animated.View
@@ -734,92 +618,178 @@ export const PickView: React.FC = () => {
                 },
               ]}
             >
-              <Text style={{ fontSize: 36 }}>{poppingEmoji.emoji}</Text>
+              <Text style={{ fontSize: 40 }}>{poppingEmoji.emoji}</Text>
             </Animated.View>
           )}
 
-          <View style={styles.reactionButtonsRow}>
-            {REACTION_ICONS.map((emoji) => {
-              const userReaction = currentMoment
-                ? currentMoment.userReactions?.[currentUser.id] ||
-                  (currentUser.id === 'me' ? currentMoment.myReaction : undefined)
-                : undefined;
-              const isMyReaction = userReaction === emoji;
-              const count = currentMoment?.reactions[emoji] || 0;
-              const bgColor = REACTION_BG_COLORS[emoji] || colors.white;
+          {filteredMoments.length > 0 ? (
+            filteredMoments.map((moment, idx) => {
+              const isFirst = idx === 0;
+              const isStrip = moment.stripPhotos && moment.stripPhotos.length > 1;
 
               return (
-                <Pressable
-                  key={emoji}
-                  disabled={!currentMoment}
-                  onPress={() => handleEmojiPress(emoji)}
-                  style={({ pressed }) => [
-                    styles.reactionButton,
-                    { backgroundColor: bgColor },
-                    isMyReaction && styles.reactionButtonActive,
-                    { transform: [{ scale: pressed ? 0.88 : isMyReaction ? 1.08 : 1 }] },
-                    !currentMoment && { opacity: 0.4 },
-                  ]}
-                >
-                  <Text style={styles.reactionEmoji}>{emoji}</Text>
-                  {count > 0 && (
-                    <View style={styles.reactionCountBadge}>
-                      <Text style={styles.reactionCountText}>{count}</Text>
+                <View key={moment.id} style={styles.feedCardWrapper}>
+                  {/* Header thẻ: Tên người gửi + Thời gian + Badge Mới nhất */}
+                  <View style={styles.feedCardTopHeader}>
+                    <View style={styles.feedSenderRow}>
+                      <View
+                        style={[
+                          styles.feedSenderAvatar,
+                          { backgroundColor: moment.senderColor },
+                        ]}
+                      >
+                        <Text style={styles.feedSenderLetter}>{moment.senderLetter}</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.feedSenderName}>{moment.senderName}</Text>
+                        <Text style={styles.senderPillTime}>⏱️ {moment.timeAgo}</Text>
+                      </View>
                     </View>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
 
-        {/* 5. PHẦN GẦN ĐÂY (CAROUSEL THU NHỎ CỦA BỘ LỌC ĐANG CHỌN) */}
-        <View style={styles.recentSection}>
-          <View style={styles.recentHeaderRow}>
-            <Text style={styles.recentSectionTitle}>
-              Gần đây · {activeFilterName} ({filteredMoments.length})
-            </Text>
-            <Pressable onPress={() => setShowMemoriesModal(true)}>
-              <Text style={styles.viewAllHistoryLink}>Xem tất cả ➔</Text>
-            </Pressable>
-          </View>
+                    <View style={styles.feedCardActions}>
+                      {isFirst && (
+                        <View style={styles.newestBadge}>
+                          <Text style={styles.newestBadgeText}>✨ MỚI NHẤT</Text>
+                        </View>
+                      )}
+                      {moment.senderId === currentUser.id && (
+                        <Pressable
+                          hitSlop={10}
+                          onPress={() => handleDeleteMoment(moment.id)}
+                          style={styles.cardMiniActionBtn}
+                        >
+                          <Text style={{ fontSize: 13 }}>🗑️</Text>
+                        </Pressable>
+                      )}
+                      <Pressable
+                        hitSlop={10}
+                        onPress={() => handlePinMoment(moment)}
+                        style={[styles.cardMiniActionBtn, { backgroundColor: colors.yellow }]}
+                      >
+                        <Text style={{ fontSize: 13 }}>📌</Text>
+                      </Pressable>
+                    </View>
+                  </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recentScroll}
-          >
-            {filteredMoments.map((item, idx) => {
-              const isActive = idx === safeIndex;
-              const isStrip = item.stripPhotos && item.stripPhotos.length > 1;
-              return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => setActiveMomentIndex(idx)}
-                  style={({ pressed }) => [
-                    styles.miniPolaroid,
-                    isActive && styles.miniPolaroidActive,
-                    { transform: [{ scale: pressed ? 0.93 : 1 }] },
-                  ]}
-                >
-                  <View style={styles.miniPhotoWrapper}>
-                    <Image
-                      source={{ uri: isStrip && item.stripPhotos ? item.stripPhotos[0] : item.photoUrl }}
-                      style={styles.miniPhoto}
-                    />
-                    {isStrip && (
-                      <View style={styles.miniStripBadge}>
-                        <Text style={styles.miniStripBadgeText}>4-Cut</Text>
+                  {/* KHUNG ẢNH: DẢI PHOTOBOOTH 4 Ô HOẶC ẢNH VUÔNG LOCKET (CHẠM ĐÚP ĐỂ THẢ TIM ❤️) */}
+                  <Pressable
+                    onPress={() => handlePhotoDoubleTapOnCard(moment.id)}
+                    style={styles.cardPhotoPressable}
+                  >
+                    {isStrip && moment.stripPhotos ? (
+                      <View
+                        style={[
+                          styles.photoboothCardStrip,
+                          { backgroundColor: moment.frameColor || '#FF8FC7' },
+                        ]}
+                      >
+                        <View style={styles.photoboothGridPhotos}>
+                          {moment.stripPhotos.slice(0, 4).map((imgUri, pIdx) => (
+                            <View key={pIdx} style={styles.photoboothMiniSlot}>
+                              <Image
+                                source={{ uri: imgUri }}
+                                style={styles.photoboothMiniImg}
+                                resizeMode="cover"
+                              />
+                            </View>
+                          ))}
+                        </View>
+                        {moment.frameName && (
+                          <Text style={styles.photoboothFrameTitle} numberOfLines={1}>
+                            🌿 {moment.frameName}
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={styles.photoContainer}>
+                        <Image
+                          source={{ uri: moment.photoUrl }}
+                          style={styles.photo}
+                          resizeMode="cover"
+                        />
                       </View>
                     )}
+
+                    {/* TIM TO KHI CHẠM ĐÚP */}
+                    {doubleTapMomentId === moment.id && (
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          styles.doubleTapHeartOverlay,
+                          {
+                            opacity: doubleTapAnim,
+                            transform: [
+                              {
+                                scale: doubleTapAnim.interpolate({
+                                  inputRange: [0, 0.4, 1],
+                                  outputRange: [0.3, 1.4, 1.1],
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      >
+                        <Text style={styles.doubleTapHeartText}>❤️</Text>
+                      </Animated.View>
+                    )}
+                  </Pressable>
+
+                  {/* Lời nhắn / Caption */}
+                  {moment.caption ? (
+                    <Text style={styles.captionText}>{moment.caption}</Text>
+                  ) : null}
+
+                  {/* THANH 5 REACTION EMOJI */}
+                  <View style={styles.cardReactionsRow}>
+                    {REACTION_ICONS.map((emoji) => {
+                      const userReaction = moment.userReactions?.[currentUser.id] ||
+                        (currentUser.id === 'me' ? moment.myReaction : undefined);
+                      const isMyReaction = userReaction === emoji;
+                      const count = moment.reactions[emoji] || 0;
+                      const bgColor = REACTION_BG_COLORS[emoji] || colors.white;
+
+                      return (
+                        <Pressable
+                          key={emoji}
+                          onPress={() => handleEmojiPressOnCard(moment.id, emoji)}
+                          style={({ pressed }) => [
+                            styles.reactionButton,
+                            { backgroundColor: bgColor },
+                            isMyReaction && styles.reactionButtonActive,
+                            { transform: [{ scale: pressed ? 0.9 : isMyReaction ? 1.06 : 1 }] },
+                          ]}
+                        >
+                          <Text style={styles.reactionEmoji}>{emoji}</Text>
+                          {count > 0 && (
+                            <View style={styles.reactionCountBadge}>
+                              <Text style={styles.reactionCountText}>{count}</Text>
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    })}
                   </View>
-                  <Text style={styles.miniSenderText} numberOfLines={1}>
-                    {item.senderName}
-                  </Text>
-                </Pressable>
+                </View>
               );
-            })}
-          </ScrollView>
+            })
+          ) : (
+            /* EMPTY STATE KHI CHƯA CÓ ẢNH */
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyCardEmoji}>🌱</Text>
+              <Text style={styles.emptyCardTitle}>Chưa có ảnh từ {activeFilterName}</Text>
+              <Text style={styles.emptyCardDesc}>
+                {activeSenderFilter === 'me'
+                  ? 'Bạn chưa đăng ảnh nào lên Widget. Hãy chụp một bức ảnh hoặc tạo khung photobooth để gửi tặng bạn bè nhé!'
+                  : `${activeFilterName} chưa gửi ảnh nào cho bạn. Hãy gửi khoảnh khắc đầu tiên để rủ bạn ấy cùng chơi!`}
+              </Text>
+              <Pressable
+                onPress={onCloseFeed || (() => setViewMode('plant'))}
+                style={styles.emptyCardBtn}
+              >
+                <Text style={styles.emptyCardBtnText}>📸 Chụp & Gửi ngay</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -1238,8 +1208,43 @@ export const PickView: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.pink,
+    backgroundColor: '#F8F9FA',
     paddingHorizontal: 16,
+  },
+  pullDownHeader: {
+    alignItems: 'center',
+    paddingTop: 6,
+    paddingBottom: 8,
+    marginBottom: 4,
+  },
+  dragPillHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#9CA3AF',
+    marginBottom: 6,
+  },
+  pullDownHintBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    ...theme.shadows.hardSmall,
+  },
+  pullDownHintIcon: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  pullDownHintText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.ink,
   },
   scrollFeedContent: {
     flexGrow: 1,
@@ -1368,6 +1373,88 @@ const styles = StyleSheet.create({
   },
   senderFilterNameActive: {
     fontWeight: '900',
+  },
+
+  // Vertical Locket Feed Styles
+  verticalFeedContainer: {
+    paddingVertical: 8,
+    gap: 16,
+  },
+  feedCardWrapper: {
+    backgroundColor: colors.white,
+    borderRadius: 22,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    padding: 14,
+    ...theme.shadows.hard,
+  },
+  feedCardTopHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  feedSenderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  feedSenderAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedSenderLetter: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  feedSenderName: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  senderPillTime: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  feedCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  newestBadge: {
+    backgroundColor: '#FFE600',
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  newestBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  cardPhotoPressable: {
+    position: 'relative',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  cardReactionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1.5,
+    borderTopColor: '#F3F4F6',
   },
 
   // Hero Polaroid Card Area

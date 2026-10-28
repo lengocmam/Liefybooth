@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
+import { useMomentsStore } from '../../features/moments/hooks/useMomentsStore';
 
 interface CustomTabBarProps {
   state: any;
@@ -23,6 +24,12 @@ const TAB_CONFIG: Record<string, { label: string; icon: string }> = {
 
 function StickerPopTabBar({ state, descriptors, navigation, navigateToTab, emitter }: CustomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const viewMode = useMomentsStore((s) => s.viewMode);
+
+  const currentRouteName = state.routes[state.index]?.name;
+  if (currentRouteName === 'moments' && viewMode === 'pick') {
+    return null; // Ẩn tab bar hoàn toàn khi đang lướt Locket Feed toàn màn hình
+  }
 
   return (
     <View style={[styles.tabBarWrapper, { bottom: Math.max(insets.bottom, 16) }]}>

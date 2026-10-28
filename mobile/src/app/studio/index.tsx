@@ -872,9 +872,13 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     setGradientTheme,
     createNewBlankFrame,
     saveCurrentFrame,
+    loadSavedFrame,
+    deleteSavedFrame,
+    savedCustomFrames,
   } = useStudioStore();
 
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory>('all');
+  const [templateTab, setTemplateTab] = useState<'presets' | 'my_frames'>('presets');
   const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
@@ -1176,6 +1180,25 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
   const handleSetTextItemFontSize = useCallback((id: string, fontSize: number) => {
     setTextItemFontSize(id, fontSize);
   }, [setTextItemFontSize]);
+
+  const handleSaveAsTemplate = () => {
+    playShutterSound();
+    const saved = saveCurrentFrame();
+    Alert.alert(
+      'Đã lưu mẫu khung! 💾✨',
+      `Khung "${saved.name}" đã được lưu thành công vào [Khung của tôi]. Bạn có thể áp dụng lại bất cứ lúc nào hoặc dùng để chụp trong Booth!`,
+      [
+        {
+          text: 'Xem Khung Của Tôi 📂',
+          onPress: () => {
+            setTemplateTab('my_frames');
+            setActiveSheet('template');
+          },
+        },
+        { text: 'Tiếp tục sửa', style: 'cancel' },
+      ]
+    );
+  };
 
   const handlePublish = () => {
     if (!frameName.trim()) {
@@ -1897,8 +1920,18 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               <Text style={styles.studioHeaderNewBtnText}>➕ Mới</Text>
             </Pressable>
 
-            {/* Right: Actions Row (Chụp ngay + Tiếp tục) */}
+            {/* Right: Actions Row (Lưu Mẫu + Chụp ngay + Up Locket) */}
             <View style={styles.studioHeaderRightRow}>
+              <Pressable
+                onPress={handleSaveAsTemplate}
+                style={({ pressed }) => [
+                  styles.studioSaveTemplateBtn,
+                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                ]}
+              >
+                <Text style={styles.studioSaveTemplateBtnText}>💾 Lưu</Text>
+              </Pressable>
+
               <Pressable
                 onPress={() => {
                   saveCurrentFrame();
@@ -1921,7 +1954,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.studioBoothBtnText}>📸 Chụp ngay</Text>
+                <Text style={styles.studioBoothBtnText}>📸 Chụp</Text>
               </Pressable>
 
               <Pressable
@@ -1931,7 +1964,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   { backgroundColor: '#FFD93D', transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.studioCtaBtnText}>📲 Gửi Widget 💛</Text>
+                <Text style={styles.studioCtaBtnText}>🚀 Up Locket 💛</Text>
               </Pressable>
             </View>
           </View>
@@ -1958,101 +1991,27 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     { transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={styles.canvasActionPillText}>🪄 Chọn Mẫu Khung</Text>
+                  <Text style={styles.canvasActionPillText}>🪄 Mẫu Khung</Text>
                 </Pressable>
 
                 <Pressable
-                  onPress={() => {
-                    Alert.alert(
-                      'Tạo khung mới? 🌿',
-                      'Làm mới dải ảnh về khung trắng tinh để bạn tự do sáng tạo từ đầu.',
-                      [
-                        { text: 'Hủy', style: 'cancel' },
-                        {
-                          text: 'Tạo mới 🎨',
-                          onPress: () => {
-                            createNewBlankFrame();
-                            setAppliedTemplateId(null);
-                          },
-                        },
-                      ]
-                    );
-                  }}
+                  onPress={handleSaveAsTemplate}
                   style={({ pressed }) => [
                     styles.canvasActionPill,
-                    styles.canvasActionPillNew,
-                    { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                    { backgroundColor: '#EFF6FF', borderColor: '#3B82F6', transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={styles.canvasActionPillText}>➕ Khung mới</Text>
+                  <Text style={[styles.canvasActionPillText, { color: '#1D4ED8' }]}>💾 Lưu Mẫu</Text>
                 </Pressable>
 
                 <Pressable
-                  onPress={startPhotoboothSequence}
-                  disabled={isShootingSequence}
+                  onPress={handlePublish}
                   style={({ pressed }) => [
                     styles.canvasActionPill,
-                    styles.canvasActionPillCamera,
-                    { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                    { backgroundColor: '#FFD93D', borderColor: colors.ink, transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={styles.canvasActionPillText}>
-                    {isShootingSequence
-                      ? '📸 Đang chụp...'
-                      : `📸 Chụp ${frameLayout === 'polaroid_1' ? '1' : frameLayout === 'duo_note' ? '2' : frameLayout === 'strip_3' ? '3' : '4'} shot (3s)`}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => {
-                    const randomSet = SAMPLE_MODEL_SETS[Math.floor(Math.random() * SAMPLE_MODEL_SETS.length)];
-                    setAllSlotPhotos([...randomSet]);
-                  }}
-                  style={({ pressed }) => [
-                    styles.canvasActionPill,
-                    styles.canvasActionPillModel,
-                    { transform: [{ scale: pressed ? 0.95 : 1 }] },
-                  ]}
-                >
-                  <Text style={styles.canvasActionPillText}>
-                    {frameLayout === 'polaroid_1' ? '🎲 1 Ảnh mẫu' : frameLayout === 'duo_note' ? '🎲 2 Ảnh mẫu' : frameLayout === 'strip_3' ? '🎲 3 Ảnh mẫu' : '🎲 4 Ảnh mẫu'}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => {
-                    if (selectedStickerId) {
-                      removeSticker(selectedStickerId);
-                      setSelectedStickerId(null);
-                    } else if (selectedTextId) {
-                      removeTextItem(selectedTextId);
-                      setSelectedTextId(null);
-                    } else {
-                      Alert.alert(
-                        'Làm mới dải ảnh? 🌿',
-                        'Xóa tất cả sticker và chữ để trang trí lại từ đầu?',
-                        [
-                          { text: 'Hủy', style: 'cancel' },
-                          { text: 'Làm mới', style: 'destructive', onPress: clearAllCanvasItems },
-                        ]
-                      );
-                    }
-                  }}
-                  style={({ pressed }) => [
-                    styles.canvasActionPill,
-                    styles.canvasActionPillClear,
-                    (selectedStickerId || selectedTextId) && { backgroundColor: '#FEE2E2', borderColor: '#DC2626' },
-                    { transform: [{ scale: pressed ? 0.95 : 1 }] },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.canvasActionPillText,
-                      (selectedStickerId || selectedTextId) && { color: '#DC2626', fontWeight: '900' },
-                    ]}
-                  >
-                    {selectedStickerId ? '🗑️ Xóa sticker' : selectedTextId ? '🗑️ Xóa chữ' : '🗑️ Xóa'}
-                  </Text>
+                  <Text style={[styles.canvasActionPillText, { color: colors.ink, fontWeight: '900' }]}>🚀 Up Locket 💛</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -2216,138 +2175,350 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.sheetScrollBody}
                 >
-                  {/* TAB 0: KHO MẪU KHUNG CÓ SẴN (TEMPLATE GALLERY) */}
+                  {/* TAB 0: KHO MẪU KHUNG CÓ SẴN & KHUNG CỦA TÔI */}
                   {activeSheet === 'template' && (
                     <View>
-                      {/* Nút hành động nhanh: Làm mới về khung trắng */}
-                      <View style={styles.templateQuickActionRow}>
+                      {/* Segment Tab: Mẫu Hệ Thống vs Khung Của Tôi */}
+                      <View style={styles.templateMainSegmentRow}>
                         <Pressable
-                          onPress={() => {
-                            createNewBlankFrame();
-                            setAppliedTemplateId(null);
-                            Alert.alert('Khung Trắng 🌿', 'Đã chuyển về khung trắng sạch sẽ để bạn tự do sáng tạo!');
-                          }}
-                          style={({ pressed }) => [
-                            styles.templateBlankBtn,
-                            { transform: [{ scale: pressed ? 0.98 : 1 }] },
+                          onPress={() => setTemplateTab('presets')}
+                          style={[
+                            styles.templateMainSegmentBtn,
+                            templateTab === 'presets' && styles.templateMainSegmentBtnActive,
                           ]}
                         >
-                          <Text style={styles.templateBlankIcon}>➕</Text>
-                          <Text style={styles.templateBlankText}>Bắt đầu từ khung trắng (Làm lại)</Text>
+                          <Text
+                            style={[
+                              styles.templateMainSegmentText,
+                              templateTab === 'presets' && styles.templateMainSegmentTextActive,
+                            ]}
+                          >
+                            🌟 Mẫu Hệ Thống ({STUDIO_PRESETS.length})
+                          </Text>
+                        </Pressable>
+
+                        <Pressable
+                          onPress={() => setTemplateTab('my_frames')}
+                          style={[
+                            styles.templateMainSegmentBtn,
+                            templateTab === 'my_frames' && styles.templateMainSegmentBtnActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.templateMainSegmentText,
+                              templateTab === 'my_frames' && styles.templateMainSegmentTextActive,
+                            ]}
+                          >
+                            💾 Khung Của Tôi ({savedCustomFrames.length})
+                          </Text>
                         </Pressable>
                       </View>
 
-                      {/* Phân loại thể loại mẫu */}
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.templateCategoryScroll}
-                      >
-                        {[
-                          { id: 'all', label: `🌟 Tất cả (${STUDIO_PRESETS.length})` },
-                          { id: 'life4cuts', label: `🌸 Life4Cuts (${STUDIO_PRESETS.filter((p) => p.category === 'life4cuts').length})` },
-                          { id: 'vintage', label: `☕ Vintage (${STUDIO_PRESETS.filter((p) => p.category === 'vintage').length})` },
-                          { id: 'party', label: `🎂 Sinh nhật (${STUDIO_PRESETS.filter((p) => p.category === 'party').length})` },
-                          { id: 'y2k', label: `⚡ Y2K Cyber (${STUDIO_PRESETS.filter((p) => p.category === 'y2k').length})` },
-                          { id: 'besties', label: `💌 Besties (${STUDIO_PRESETS.filter((p) => p.category === 'besties').length})` },
-                        ].map((cat) => {
-                          const isCatActive = selectedTemplateCategory === cat.id;
-                          return (
+                      {templateTab === 'presets' ? (
+                        <View>
+                          {/* Nút hành động nhanh: Làm mới về khung trắng */}
+                          <View style={styles.templateQuickActionRow}>
                             <Pressable
-                              key={cat.id}
-                              onPress={() => setSelectedTemplateCategory(cat.id as TemplateCategory)}
-                              style={[
-                                styles.templateCatChip,
-                                isCatActive && styles.templateCatChipActive,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.templateCatChipText,
-                                  isCatActive && styles.templateCatChipTextActive,
-                                ]}
-                              >
-                                {cat.label}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </ScrollView>
-
-                      {/* Lưới các mẫu khung */}
-                      <View style={styles.templateCardsGrid}>
-                        {STUDIO_PRESETS.filter((p) =>
-                          selectedTemplateCategory === 'all' ? true : p.category === selectedTemplateCategory
-                        ).map((preset) => {
-                          const isCurrentApplied =
-                            appliedTemplateId === preset.id || frameName === preset.name;
-                          return (
-                            <Pressable
-                              key={preset.id}
                               onPress={() => {
-                                applyPreset(preset);
-                                setAppliedTemplateId(preset.id);
-                                playShutterSound();
+                                createNewBlankFrame();
+                                setAppliedTemplateId(null);
+                                Alert.alert('Khung Trắng 🌿', 'Đã chuyển về khung trắng sạch sẽ để bạn tự do sáng tạo!');
                               }}
                               style={({ pressed }) => [
-                                styles.templatePresetCard,
-                                isCurrentApplied && styles.templatePresetCardActive,
-                                { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                                styles.templateBlankBtn,
+                                { transform: [{ scale: pressed ? 0.98 : 1 }] },
                               ]}
                             >
-                              {/* Mini preview banner */}
-                              <View
-                                style={[
-                                  styles.templateCardPreview,
-                                  { backgroundColor: preset.previewColor },
-                                ]}
-                              >
-                                <View style={styles.templateCardIconBadge}>
-                                  <Text style={{ fontSize: 18 }}>{preset.icon}</Text>
-                                </View>
-                                <View style={styles.templateCardCategoryBadge}>
-                                  <Text style={styles.templateCardCategoryBadgeText}>
-                                    {preset.badge}
-                                  </Text>
-                                </View>
-                                <View style={styles.templateCardStickersMiniRow}>
-                                  {preset.stickers.slice(0, 3).map((stk, sIdx) => (
-                                    <Text key={sIdx} style={{ fontSize: 12 }}>
-                                      {stk.emoji}
-                                    </Text>
-                                  ))}
-                                </View>
-                              </View>
+                              <Text style={styles.templateBlankIcon}>➕</Text>
+                              <Text style={styles.templateBlankText}>Bắt đầu từ khung trắng (Làm lại)</Text>
+                            </Pressable>
+                          </View>
 
-                              {/* Info area */}
-                              <View style={styles.templateCardInfo}>
-                                <Text style={styles.templateCardTitle} numberOfLines={1}>
-                                  {preset.name}
-                                </Text>
-                                <Text style={styles.templateCardDesc} numberOfLines={2}>
-                                  {preset.desc}
-                                </Text>
-
-                                <View
+                          {/* Phân loại thể loại mẫu */}
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.templateCategoryScroll}
+                          >
+                            {[
+                              { id: 'all', label: `🌟 Tất cả (${STUDIO_PRESETS.length})` },
+                              { id: 'life4cuts', label: `🌸 Life4Cuts (${STUDIO_PRESETS.filter((p) => p.category === 'life4cuts').length})` },
+                              { id: 'vintage', label: `☕ Vintage (${STUDIO_PRESETS.filter((p) => p.category === 'vintage').length})` },
+                              { id: 'party', label: `🎂 Sinh nhật (${STUDIO_PRESETS.filter((p) => p.category === 'party').length})` },
+                              { id: 'y2k', label: `⚡ Y2K Cyber (${STUDIO_PRESETS.filter((p) => p.category === 'y2k').length})` },
+                              { id: 'besties', label: `💌 Besties (${STUDIO_PRESETS.filter((p) => p.category === 'besties').length})` },
+                            ].map((cat) => {
+                              const isCatActive = selectedTemplateCategory === cat.id;
+                              return (
+                                <Pressable
+                                  key={cat.id}
+                                  onPress={() => setSelectedTemplateCategory(cat.id as TemplateCategory)}
                                   style={[
-                                    styles.templateApplyPill,
-                                    isCurrentApplied && styles.templateApplyPillActive,
+                                    styles.templateCatChip,
+                                    isCatActive && styles.templateCatChipActive,
                                   ]}
                                 >
                                   <Text
                                     style={[
-                                      styles.templateApplyText,
-                                      isCurrentApplied && styles.templateApplyTextActive,
+                                      styles.templateCatChipText,
+                                      isCatActive && styles.templateCatChipTextActive,
                                     ]}
                                   >
-                                    {isCurrentApplied ? '✓ Đang chọn' : 'Áp dụng ➔'}
+                                    {cat.label}
                                   </Text>
-                                </View>
-                              </View>
+                                </Pressable>
+                              );
+                            })}
+                          </ScrollView>
+
+                          {/* Lưới các mẫu khung có sẵn */}
+                          <View style={styles.templateCardsGrid}>
+                            {STUDIO_PRESETS.filter((p) =>
+                              selectedTemplateCategory === 'all' ? true : p.category === selectedTemplateCategory
+                            ).map((preset) => {
+                              const isCurrentApplied =
+                                appliedTemplateId === preset.id || frameName === preset.name;
+                              return (
+                                <Pressable
+                                  key={preset.id}
+                                  onPress={() => {
+                                    applyPreset(preset);
+                                    setAppliedTemplateId(preset.id);
+                                    playShutterSound();
+                                  }}
+                                  style={({ pressed }) => [
+                                    styles.templatePresetCard,
+                                    isCurrentApplied && styles.templatePresetCardActive,
+                                    { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                                  ]}
+                                >
+                                  {/* Mini preview banner */}
+                                  <View
+                                    style={[
+                                      styles.templateCardPreview,
+                                      { backgroundColor: preset.previewColor },
+                                    ]}
+                                  >
+                                    <View style={styles.templateCardIconBadge}>
+                                      <Text style={{ fontSize: 18 }}>{preset.icon}</Text>
+                                    </View>
+                                    <View style={styles.templateCardCategoryBadge}>
+                                      <Text style={styles.templateCardCategoryBadgeText}>
+                                        {preset.badge}
+                                      </Text>
+                                    </View>
+                                    <View style={styles.templateCardStickersMiniRow}>
+                                      {preset.stickers.slice(0, 3).map((stk, sIdx) => (
+                                        <Text key={sIdx} style={{ fontSize: 12 }}>
+                                          {stk.emoji}
+                                        </Text>
+                                      ))}
+                                    </View>
+                                  </View>
+
+                                  {/* Info area */}
+                                  <View style={styles.templateCardInfo}>
+                                    <Text style={styles.templateCardTitle} numberOfLines={1}>
+                                      {preset.name}
+                                    </Text>
+                                    <Text style={styles.templateCardDesc} numberOfLines={2}>
+                                      {preset.desc}
+                                    </Text>
+
+                                    <View
+                                      style={[
+                                        styles.templateApplyPill,
+                                        isCurrentApplied && styles.templateApplyPillActive,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.templateApplyText,
+                                          isCurrentApplied && styles.templateApplyTextActive,
+                                        ]}
+                                      >
+                                        {isCurrentApplied ? '✓ Đang chọn' : 'Áp dụng ➔'}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      ) : (
+                        /* TAB: KHUNG CỦA TÔI */
+                        <View style={styles.myFramesContainer}>
+                          {/* Banner lưu thiết kế hiện tại */}
+                          <View style={styles.myFramesHeaderCard}>
+                            <View style={styles.myFramesHeaderContent}>
+                              <Text style={styles.myFramesHeaderTitle}>Lưu thiết kế đang chỉnh sửa 🎨</Text>
+                              <Text style={styles.myFramesHeaderDesc}>
+                                Khung "{frameName || 'Khung của tôi'}" ({stickers.length} sticker, {textItems.length} chữ) sẽ được lưu lại để dùng lại hoặc chụp trong Booth.
+                              </Text>
+                            </View>
+                            <Pressable
+                              onPress={handleSaveAsTemplate}
+                              style={({ pressed }) => [
+                                styles.myFramesSaveActionBtn,
+                                { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                              ]}
+                            >
+                              <Text style={styles.myFramesSaveActionBtnText}>➕ Lưu Mẫu Này</Text>
                             </Pressable>
-                          );
-                        })}
-                      </View>
+                          </View>
+
+                          {savedCustomFrames.length === 0 ? (
+                            <View style={styles.myFramesEmptyContainer}>
+                              <Text style={{ fontSize: 36, marginBottom: 8 }}>🖼️</Text>
+                              <Text style={styles.myFramesEmptyTitle}>Chưa có khung nào được lưu</Text>
+                              <Text style={styles.myFramesEmptySubtitle}>
+                                Thiết kế dải ảnh với sticker & màu bạn thích rồi bấm nút "Lưu Mẫu Này" ở trên nhé!
+                              </Text>
+                            </View>
+                          ) : (
+                            <View style={styles.templateCardsGrid}>
+                              {savedCustomFrames.map((frame) => {
+                                const isCurrentApplied =
+                                  appliedTemplateId === frame.id || frameName === frame.name;
+                                return (
+                                  <View
+                                    key={frame.id}
+                                    style={[
+                                      styles.templatePresetCard,
+                                      isCurrentApplied && styles.templatePresetCardActive,
+                                    ]}
+                                  >
+                                    {/* Preview banner */}
+                                    <View
+                                      style={[
+                                        styles.templateCardPreview,
+                                        { backgroundColor: frame.previewColor || frame.backgroundColor },
+                                        frame.frameEdgeStyle === 'film_perforated' && { borderLeftWidth: 3, borderRightWidth: 3, borderColor: '#1F2937' },
+                                      ]}
+                                    >
+                                      <View style={styles.templateCardIconBadge}>
+                                        <Text style={{ fontSize: 16 }}>🎨</Text>
+                                      </View>
+                                      <View style={styles.templateCardCategoryBadge}>
+                                        <Text style={styles.templateCardCategoryBadgeText}>
+                                          {frame.frameEdgeStyle === 'film_perforated'
+                                            ? 'Vé phim'
+                                            : frame.frameEdgeStyle === 'stamp_scallop'
+                                            ? 'Tem thư'
+                                            : 'Tự tạo'}
+                                        </Text>
+                                      </View>
+                                      <View style={styles.templateCardStickersMiniRow}>
+                                        {frame.stickers?.slice(0, 3).map((stk, sIdx) => (
+                                          <Text key={sIdx} style={{ fontSize: 12 }}>
+                                            {stk.emoji}
+                                          </Text>
+                                        ))}
+                                      </View>
+                                    </View>
+
+                                    {/* Info area */}
+                                    <View style={styles.templateCardInfo}>
+                                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={[styles.templateCardTitle, { flex: 1 }]} numberOfLines={1}>
+                                          {frame.name}
+                                        </Text>
+                                        <Pressable
+                                          onPress={() => {
+                                            Alert.alert(
+                                              'Xóa khung mẫu? 🗑️',
+                                              `Bạn có chắc chắn muốn xóa mẫu khung "${frame.name}" không?`,
+                                              [
+                                                { text: 'Hủy', style: 'cancel' },
+                                                {
+                                                  text: 'Xóa',
+                                                  style: 'destructive',
+                                                  onPress: () => {
+                                                    deleteSavedFrame(frame.id);
+                                                    playShutterSound();
+                                                  },
+                                                },
+                                              ]
+                                            );
+                                          }}
+                                          hitSlop={8}
+                                        >
+                                          <Text style={{ fontSize: 13, color: '#9CA3AF' }}>🗑️</Text>
+                                        </Pressable>
+                                      </View>
+
+                                      <Text style={styles.templateCardDesc} numberOfLines={1}>
+                                        {(frame.stickers?.length || 0)} sticker · {(frame.textItems?.length || 0)} chữ · {new Date(frame.createdAt).toLocaleDateString('vi-VN')}
+                                      </Text>
+
+                                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                                        {/* Nút dùng mẫu */}
+                                        <Pressable
+                                          onPress={() => {
+                                            loadSavedFrame(frame.id);
+                                            setAppliedTemplateId(frame.id);
+                                            playShutterSound();
+                                            Alert.alert('Đã áp dụng! 🎨', `Đã tải mẫu khung "${frame.name}" vào Studio.`);
+                                          }}
+                                          style={({ pressed }) => [
+                                            styles.templateApplyPill,
+                                            isCurrentApplied && styles.templateApplyPillActive,
+                                            { flex: 1, paddingVertical: 6, transform: [{ scale: pressed ? 0.95 : 1 }] },
+                                          ]}
+                                        >
+                                          <Text
+                                            style={[
+                                              styles.templateApplyText,
+                                              isCurrentApplied && styles.templateApplyTextActive,
+                                              { fontSize: 10 },
+                                            ]}
+                                          >
+                                            {isCurrentApplied ? '✓ Đang dùng' : '🎨 Dùng'}
+                                          </Text>
+                                        </Pressable>
+
+                                        {/* Nút chụp với khung này */}
+                                        <Pressable
+                                          onPress={() => {
+                                            loadSavedFrame(frame.id);
+                                            useBoothStore.getState().setActiveCustomFrame({
+                                              id: frame.id,
+                                              name: frame.name,
+                                              color: frame.backgroundColor,
+                                              edgeStyle: frame.frameEdgeStyle,
+                                            });
+                                            useBoothStore.getState().setFrameColor(frame.backgroundColor);
+                                            if (frame.customText || frame.name) {
+                                              useBoothStore.getState().setStripTitle(frame.customText || frame.name);
+                                            }
+                                            closeActiveSheet();
+                                            router.push('/booth/camera' as any);
+                                          }}
+                                          style={({ pressed }) => [
+                                            styles.templateApplyPill,
+                                            {
+                                              flex: 1,
+                                              paddingVertical: 6,
+                                              backgroundColor: '#FFD93D',
+                                              borderColor: colors.ink,
+                                              borderWidth: 1,
+                                              transform: [{ scale: pressed ? 0.95 : 1 }],
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.templateApplyText, { fontSize: 10 }]}>📸 Chụp</Text>
+                                        </Pressable>
+                                      </View>
+                                    </View>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          )}
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -6859,5 +7030,108 @@ const styles = StyleSheet.create({
   },
   textPositionBtnTextActive: {
     fontWeight: '900',
+  },
+  studioSaveTemplateBtn: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#3B82F6',
+  },
+  studioSaveTemplateBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1D4ED8',
+  },
+  templateMainSegmentRow: {
+    flexDirection: 'row',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 14,
+    padding: 3,
+    marginBottom: 12,
+  },
+  templateMainSegmentBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 11,
+  },
+  templateMainSegmentBtnActive: {
+    backgroundColor: colors.white,
+    ...theme.shadows.hardSmall,
+  },
+  templateMainSegmentText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#6B7280',
+  },
+  templateMainSegmentTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  myFramesContainer: {
+    paddingBottom: 20,
+  },
+  myFramesHeaderCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  myFramesHeaderContent: {
+    flex: 1,
+  },
+  myFramesHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#065F46',
+    marginBottom: 2,
+  },
+  myFramesHeaderDesc: {
+    fontSize: 10,
+    color: '#047857',
+    lineHeight: 14,
+  },
+  myFramesSaveActionBtn: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  myFramesSaveActionBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  myFramesEmptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    marginTop: 6,
+  },
+  myFramesEmptyTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 4,
+  },
+  myFramesEmptySubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });

@@ -250,7 +250,8 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
   },
 
   viewMode: 'plant',
-  setViewMode: (mode) => set({ viewMode: mode }),
+  // Bỏ qua nếu giá trị không đổi để không phát thông báo re-render thừa
+  setViewMode: (mode) => set((s) => (s.viewMode === mode ? s : { viewMode: mode })),
 
   friends: INITIAL_FRIENDS,
   maxFriends: 20,

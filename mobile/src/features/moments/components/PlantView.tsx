@@ -7,6 +7,8 @@ import {
   TextInput,
   Animated,
   ScrollView,
+  Image,
+  PanResponder,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { colors } from '../../../core/theme/colors';
@@ -14,11 +16,17 @@ import { theme } from '../../../core/theme/theme';
 import { useMomentsStore } from '../hooks/useMomentsStore';
 import { playShutterSound } from '../../booth/services/soundService';
 
-export const PlantView: React.FC = () => {
+interface PlantViewProps {
+  onOpenFeed?: () => void;
+  pullUpPanResponder?: any;
+}
+
+export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanResponder }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
 
   const {
+    moments,
     friends,
     selectedRecipientIds,
     isAllSelected,
@@ -28,6 +36,8 @@ export const PlantView: React.FC = () => {
     setViewMode,
   } = useMomentsStore();
 
+  const latestMoment = moments[0];
+
   const [caption, setCaption] = useState('');
   const [facing, setFacing] = useState<'front' | 'back'>('front');
   const [flash, setFlash] = useState(false);
@@ -35,6 +45,43 @@ export const PlantView: React.FC = () => {
   const [sentToast, setSentToast] = useState(false);
 
   const flashAnim = useRef(new Animated.Value(0)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  // Hiệu ứng nhấp nhô nhẹ cho icon kéo lên ▲
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceAnim, {
+          toValue: -4,
+          duration: 650,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bounceAnim, {
+          toValue: 0,
+          duration: 650,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [bounceAnim]);
+
+  // Cử chỉ vuốt lên trên màn hình chụp để kéo hộp ảnh lên
+  const swipeUpResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) => {
+        return g.dy < -20 && Math.abs(g.dy) > Math.abs(g.dx);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy < -40) {
+          if (onOpenFeed) onOpenFeed();
+          else setViewMode('pick');
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -102,7 +149,7 @@ export const PlantView: React.FC = () => {
             <Text style={styles.friendsPillText}>12/20 bạn</Text>
           </View>
           <Pressable
-            onPress={() => setViewMode('pick')}
+            onPress={onOpenFeed || (() => setViewMode('pick'))}
             style={({ pressed }) => [
               styles.switchViewPill,
               { transform: [{ scale: pressed ? 0.95 : 1 }] },
@@ -113,8 +160,51 @@ export const PlantView: React.FC = () => {
         </View>
       </View>
 
-      {/* 1:1 Camera Viewfinder */}
-      <View style={styles.viewfinderContainer}>
+      {/* Widget Ảnh bạn bè mới nhất hiện lên trên đầu theo thời gian (Locket Top Live Pill) */}
+      {latestMoment && (
+        <Pressable
+          onPress={onOpenFeed || (() => setViewMode('pick'))}
+          style={({ pressed }) => [
+            styles.topLatestMomentPill,
+            { transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+        >
+          <View
+            style={[
+              styles.topMomentAvatarCircle,
+              { backgroundColor: latestMoment.senderColor },
+            ]}
+          >
+            <Text style={styles.topMomentAvatarLetter}>{latestMoment.senderLetter}</Text>
+          </View>
+
+          <View style={styles.topMomentContentCol}>
+            <View style={styles.topMomentSenderRow}>
+              <Text style={styles.topMomentSenderName}>{latestMoment.senderName}</Text>
+              <View style={styles.topMomentTimeBadge}>
+                <Text style={styles.topMomentTimeText}>{latestMoment.timeAgo}</Text>
+              </View>
+            </View>
+            <Text style={styles.topMomentCaption} numberOfLines={1}>
+              {latestMoment.caption}
+            </Text>
+          </View>
+
+          <View style={styles.topMomentThumbBox}>
+            <Image
+              source={{ uri: latestMoment.photoUrl }}
+              style={styles.topMomentThumb}
+              resizeMode="cover"
+            />
+          </View>
+        </Pressable>
+      )}
+
+      {/* 1:1 Camera Viewfinder có hỗ trợ cử chỉ vuốt kéo lên */}
+      <View
+        {...swipeUpResponder.panHandlers}
+        style={styles.viewfinderContainer}
+      >
         <View style={styles.viewfinder}>
           {permission?.granted ? (
             <CameraView
@@ -284,6 +374,45 @@ export const PlantView: React.FC = () => {
           </Pressable>
         </ScrollView>
       </View>
+
+      {/* Thanh kéo lên Hộp ảnh như Locket (Locket Pull-Up Drawer Bar) */}
+      <Pressable
+        {...(pullUpPanResponder ? pullUpPanResponder.panHandlers : {})}
+        onPress={onOpenFeed || (() => setViewMode('pick'))}
+        style={({ pressed }) => [
+          styles.locketPullUpBar,
+          { transform: [{ scale: pressed ? 0.98 : 1 }] },
+        ]}
+      >
+        <View style={styles.pullUpThumbWrapper}>
+          {latestMoment?.photoUrl ? (
+            <Image source={{ uri: latestMoment.photoUrl }} style={styles.pullUpThumb} />
+          ) : (
+            <View style={styles.pullUpThumbPlaceholder}>
+              <Text style={{ fontSize: 16 }}>💛</Text>
+            </View>
+          )}
+          {latestMoment && !latestMoment.isSeen && (
+            <View style={styles.unreadDot} />
+          )}
+        </View>
+
+        <View style={styles.pullUpTextCol}>
+          <View style={styles.pullUpTitleRow}>
+            <Text style={styles.pullUpTitle}>▲ Kéo lên xem Hộp ảnh</Text>
+            <View style={styles.pullUpCountBadge}>
+              <Text style={styles.pullUpCountText}>{moments.length}</Text>
+            </View>
+          </View>
+          <Text style={styles.pullUpSubtitle} numberOfLines={1}>
+            {latestMoment ? `Ảnh mới nhất từ ${latestMoment.senderName} · ${latestMoment.timeAgo}` : 'Xem kỷ niệm bạn bè'}
+          </Text>
+        </View>
+
+        <Animated.View style={[styles.pullUpArrowBtn, { transform: [{ translateY: bounceAnim }] }]}>
+          <Text style={styles.pullUpArrowIcon}>▲</Text>
+        </Animated.View>
+      </Pressable>
     </View>
   );
 };
@@ -291,7 +420,7 @@ export const PlantView: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B3D2E', // Màu xanh rừng đặc trưng
+    backgroundColor: '#111317', // Tối giản studio matte dark
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg,
   },
@@ -302,7 +431,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   topTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: colors.white,
     letterSpacing: -0.5,
@@ -313,7 +442,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   friendsPill: {
-    backgroundColor: colors.lime,
+    backgroundColor: colors.white,
     borderRadius: 20,
     borderWidth: 2,
     borderColor: colors.ink,
@@ -327,7 +456,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   switchViewPill: {
-    backgroundColor: colors.pink,
+    backgroundColor: '#FFE600',
     borderRadius: 20,
     borderWidth: 2,
     borderColor: colors.ink,
@@ -340,6 +469,78 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.ink,
   },
+  topLatestMomentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+    gap: 8,
+    ...theme.shadows.hardSmall,
+  },
+  topMomentAvatarCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topMomentAvatarLetter: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  topMomentContentCol: {
+    flex: 1,
+  },
+  topMomentSenderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  topMomentSenderName: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  topMomentTimeBadge: {
+    backgroundColor: '#FFE600',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.ink,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  topMomentTimeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  topMomentCaption: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4B5563',
+    marginTop: 1,
+  },
+  topMomentThumbBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+  },
+  topMomentThumb: {
+    width: '100%',
+    height: '100%',
+  },
   viewfinderContainer: {
     alignItems: 'center',
     position: 'relative',
@@ -349,7 +550,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 26,
     borderWidth: 3,
-    borderColor: colors.lime,
+    borderColor: '#FFFFFF',
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#111111',
@@ -605,7 +806,99 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   recipientNameActive: {
-    color: colors.lime,
+    color: '#FFE600',
     fontWeight: '900',
+  },
+  locketPullUpBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 6,
+    marginBottom: 2,
+    gap: 12,
+    ...theme.shadows.hard,
+  },
+  pullUpThumbWrapper: {
+    position: 'relative',
+  },
+  pullUpThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.ink,
+  },
+  pullUpThumbPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#FFE600',
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FF4F8B',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  pullUpTextCol: {
+    flex: 1,
+  },
+  pullUpTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pullUpTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  pullUpCountBadge: {
+    backgroundColor: '#FFE600',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  pullUpCountText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  pullUpSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4B5563',
+    marginTop: 2,
+  },
+  pullUpArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pullUpArrowIcon: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.ink,
   },
 });

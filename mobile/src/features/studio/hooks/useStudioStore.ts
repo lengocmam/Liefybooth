@@ -95,6 +95,12 @@ export interface SavedCustomFrame {
   pattern: FramePattern;
   frameEdgeStyle: FrameEdgeStyle;
   sealStamp: SealStampType;
+  washiTapeStyle?: WashiTapeStyle;
+  gradientTheme?: GradientTheme;
+  stickers: CustomSticker[];
+  textItems: CustomTextItem[];
+  customText?: string;
+  photoFilter?: PhotoFilter;
   stickersCount: number;
 }
 
@@ -207,6 +213,8 @@ interface StudioState {
   createNewBlankFrame: () => void;
   savedCustomFrames: SavedCustomFrame[];
   saveCurrentFrame: () => SavedCustomFrame;
+  loadSavedFrame: (frameId: string) => boolean;
+  deleteSavedFrame: (frameId: string) => void;
   setCustomText: (text: string) => void;
   setTextPosition: (pos: TextPosition) => void;
   setTextStyleType: (type: TextStyleType) => void;
@@ -2095,7 +2103,58 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   clearAllStickers: () =>
     set({ stickers: [], selectedStickerId: null }),
 
-  savedCustomFrames: [],
+  savedCustomFrames: [
+    {
+      id: 'my_frame_y2k_pink',
+      name: 'Khung Y2K Trái Tim Hồng',
+      createdAt: Date.now() - 86400000,
+      previewColor: '#FFB6C1',
+      frameLayout: 'strip_4',
+      backgroundColor: '#FFB6C1',
+      borderColor: '#111827',
+      pattern: 'stars',
+      frameEdgeStyle: 'stamp_scallop',
+      sealStamp: 'love_wax',
+      washiTapeStyle: 'strawberry',
+      gradientTheme: 'none',
+      stickers: [
+        { id: 's1', emoji: '💖', x: 20, y: 35, size: 36, rotation: -10 },
+        { id: 's2', emoji: '✨', x: 85, y: 15, size: 32, rotation: 15 },
+        { id: 's3', emoji: '🎀', x: 75, y: 88, size: 38, rotation: 5 },
+      ],
+      textItems: [
+        { id: 't1', text: 'Sweet Memories', x: 18, y: 92, fontSize: 13, fontStyleType: 'aesthetic_serif', color: '#111827' },
+      ],
+      customText: 'Sweet Memories',
+      photoFilter: 'none',
+      stickersCount: 4,
+    },
+    {
+      id: 'my_frame_movie_ticket',
+      name: 'Vé Xem Phim Retro 1998',
+      createdAt: Date.now() - 172800000,
+      previewColor: '#FEE2E2',
+      frameLayout: 'strip_4',
+      backgroundColor: '#FEE2E2',
+      borderColor: '#111827',
+      pattern: 'solid',
+      frameEdgeStyle: 'film_perforated',
+      sealStamp: 'vintage_post',
+      washiTapeStyle: 'gingham',
+      gradientTheme: 'none',
+      stickers: [
+        { id: 's4', emoji: '🎟️', x: 15, y: 10, size: 34, rotation: -12 },
+        { id: 's5', emoji: '🎬', x: 80, y: 18, size: 32, rotation: 8 },
+        { id: 's6', emoji: '🍿', x: 82, y: 86, size: 36, rotation: -6 },
+      ],
+      textItems: [
+        { id: 't2', text: 'CINEMA ADMIT ONE', x: 14, y: 92, fontSize: 11, fontStyleType: 'typewriter', color: '#111827' },
+      ],
+      customText: 'CINEMA ADMIT ONE',
+      photoFilter: 'warm',
+      stickersCount: 4,
+    },
+  ],
 
   saveCurrentFrame: () => {
     const s = get();
@@ -2110,12 +2169,47 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       pattern: s.pattern,
       frameEdgeStyle: s.frameEdgeStyle,
       sealStamp: s.sealStamp,
+      washiTapeStyle: s.washiTapeStyle,
+      gradientTheme: s.gradientTheme,
+      stickers: JSON.parse(JSON.stringify(s.stickers)),
+      textItems: JSON.parse(JSON.stringify(s.textItems)),
+      customText: s.customText,
+      photoFilter: s.photoFilter,
       stickersCount: s.stickers.length + s.textItems.length,
     };
     set((state) => ({
-      savedCustomFrames: [newFrame, ...state.savedCustomFrames],
+      savedCustomFrames: [newFrame, ...state.savedCustomFrames.filter((f) => f.id !== newFrame.id)],
     }));
     return newFrame;
+  },
+
+  loadSavedFrame: (frameId: string) => {
+    const frame = get().savedCustomFrames.find((f) => f.id === frameId);
+    if (!frame) return false;
+    set({
+      frameName: frame.name,
+      backgroundColor: frame.backgroundColor,
+      borderColor: frame.borderColor,
+      pattern: frame.pattern,
+      frameLayout: frame.frameLayout,
+      frameEdgeStyle: frame.frameEdgeStyle,
+      sealStamp: frame.sealStamp,
+      washiTapeStyle: frame.washiTapeStyle || 'none',
+      gradientTheme: frame.gradientTheme || 'none',
+      stickers: frame.stickers ? JSON.parse(JSON.stringify(frame.stickers)) : [],
+      textItems: frame.textItems ? JSON.parse(JSON.stringify(frame.textItems)) : [],
+      customText: frame.customText || '',
+      photoFilter: frame.photoFilter || 'none',
+      selectedStickerId: null,
+      selectedTextId: null,
+    });
+    return true;
+  },
+
+  deleteSavedFrame: (frameId: string) => {
+    set((state) => ({
+      savedCustomFrames: state.savedCustomFrames.filter((f) => f.id !== frameId),
+    }));
   },
 
   createNewBlankFrame: () => {
