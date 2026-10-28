@@ -40,6 +40,15 @@ interface BoothState {
   setFilter: (filter: StripFilter) => void;
   setStripTitle: (title: string) => void;
 
+  // Khung tùy biến đang kích hoạt từ Studio
+  activeCustomFrame: {
+    id: string;
+    name: string;
+    color: string;
+    edgeStyle?: string;
+  } | null;
+  setActiveCustomFrame: (frame: { id: string; name: string; color: string; edgeStyle?: string } | null) => void;
+
   // Reset toàn bộ phiên chụp
   resetBooth: () => void;
 }
@@ -80,10 +89,19 @@ export const useBoothStore = create<BoothState>((set) => ({
   setFilter: (filter) => set({ filter }),
   setStripTitle: (title) => set({ stripTitle: title }),
 
+  activeCustomFrame: null,
+  setActiveCustomFrame: (frame) =>
+    set((state) => ({
+      activeCustomFrame: frame,
+      frameColor: frame?.color || state.frameColor,
+      stripTitle: frame ? `${frame.name} · ${new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}` : state.stripTitle,
+    })),
+
   resetBooth: () =>
     set({
       capturedPhotos: [],
       layout: 'vertical',
       filter: 'original',
+      activeCustomFrame: null,
     }),
 }));

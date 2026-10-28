@@ -10,6 +10,14 @@ export interface CustomSticker {
   rotation?: number;
 }
 
+export type FontStyleType =
+  | 'modern_bold'
+  | 'handwriting'
+  | 'typewriter'
+  | 'aesthetic_serif'
+  | 'bubble_cute'
+  | 'neon_cyber';
+
 export interface CustomTextItem {
   id: string;
   text: string;
@@ -19,6 +27,7 @@ export interface CustomTextItem {
   rotation?: number;
   color?: string;
   bgColor?: string;
+  fontStyleType?: FontStyleType;
 }
 
 export type FramePattern = 'solid' | 'dots' | 'stripes' | 'stars';
@@ -26,7 +35,15 @@ export type TextPosition = 'top' | 'bottom' | 'middle';
 export type TextStyleType = 'badge' | 'minimal' | 'pop';
 export type PhotoFilter = 'none' | 'vintage' | 'bw' | 'warm' | 'cool' | 'pastel';
 export type FrameLayoutType = 'strip_4' | 'grid_4' | 'strip_3' | 'duo_note' | 'polaroid_1';
-export type FrameEdgeStyle = 'classic' | 'film_perforated' | 'stamp_scallop' | 'washi_corners' | 'neon_glow';
+export type FrameEdgeStyle =
+  | 'classic'
+  | 'film_perforated'
+  | 'stamp_scallop'
+  | 'washi_corners'
+  | 'neon_glow'
+  | 'ticket_stub'
+  | 'vhs_camcorder'
+  | 'heart_cutout';
 export type SealStampType = 'none' | 'leafy_certified' | 'special_edition' | 'besties' | 'love_wax' | 'vintage_post';
 export type WashiTapeStyle = 'none' | 'gingham' | 'vintage_tape' | 'caution' | 'hologram' | 'strawberry';
 export type GradientTheme =
@@ -143,6 +160,7 @@ interface StudioState {
   // Actions
   setSlotPhoto: (index: number, uri: string | null) => void;
   setAllSlotPhotos: (photos: (string | null)[]) => void;
+  setSlotPhotos: (photos: (string | null)[]) => void;
   setPhotoFilter: (filter: PhotoFilter) => void;
   setPostCaption: (caption: string) => void;
   toggleHashtag: (tag: string) => void;
@@ -169,16 +187,18 @@ interface StudioState {
   setSelectedStickerId: (id: string | null) => void;
   moveSelectedSticker: (dx: number, dy: number) => void;
   resizeSelectedSticker: (delta: number) => void;
+  setStickerSize: (id: string, size: number) => void;
   rotateSelectedSticker: (delta: number) => void;
   duplicateSelectedSticker: () => void;
-  addTextItem: (text: string, color?: string, bgColor?: string) => void;
-  addTextItemAt: (text: string, x: number, y: number, color?: string, bgColor?: string) => void;
+  addTextItem: (text: string, color?: string, bgColor?: string, fontStyleType?: FontStyleType, fontSize?: number) => void;
+  addTextItemAt: (text: string, x: number, y: number, color?: string, bgColor?: string, fontStyleType?: FontStyleType, fontSize?: number) => void;
   removeTextItem: (id: string) => void;
   updateTextItem: (id: string, updates: Partial<CustomTextItem>) => void;
   setTextItemPosition: (id: string, x: number, y: number) => void;
   setSelectedTextId: (id: string | null) => void;
   moveSelectedTextItem: (dx: number, dy: number) => void;
   resizeSelectedTextItem: (delta: number) => void;
+  setTextItemFontSize: (id: string, fontSize: number) => void;
   rotateSelectedTextItem: (delta: number) => void;
   duplicateSelectedTextItem: () => void;
   clearAllCanvasItems: () => void;
@@ -1349,6 +1369,313 @@ export const STUDIO_PRESETS: StudioPresetItem[] = [
     locationTag: '📍 Đà Lạt Skyline',
     photoFilter: 'pastel',
   },
+  // --- 7. BỘ KHUNG ĐỘC LẠ MỚI (QUIRKY & UNIQUE FRAMES) ---
+  {
+    id: 'preset-cinema-ticket',
+    name: 'Vé Xem Phim Cổ Điển 🎟️',
+    category: 'vintage',
+    icon: '🎟️',
+    badge: 'Độc lạ',
+    desc: 'Khung vé xem phim khía cạnh đục lỗ vintage cinema',
+    previewColor: '#FFE600',
+    backgroundColor: '#FFF4D6',
+    borderColor: colors.ink,
+    pattern: 'stripes',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'ticket_stub',
+    sealStamp: 'special_edition',
+    washiTapeStyle: 'vintage_tape',
+    gradientTheme: 'kraft',
+    stickers: [
+      { id: 'stk-ct1', emoji: '🎟️', x: 12, y: 35, size: 28, rotation: -12 },
+      { id: 'stk-ct2', emoji: '🎬', x: 130, y: 150, size: 26, rotation: 8 },
+      { id: 'stk-ct3', emoji: '🍿', x: 14, y: 380, size: 26, rotation: 5 },
+    ],
+    textItems: [
+      {
+        id: 'txt-ct1',
+        text: 'ADMIT ONE ★ VIP',
+        x: 15,
+        y: 470,
+        fontSize: 14,
+        rotation: 0,
+        color: '#111111',
+        bgColor: '#FFE600',
+        fontStyleType: 'typewriter',
+      },
+    ],
+    customText: 'ADMIT ONE ★ VIP',
+    textColor: colors.ink,
+    locationTag: '📍 Cinema Paradiso',
+    photoFilter: 'vintage',
+  },
+  {
+    id: 'preset-vhs-1998',
+    name: 'Máy Quay VHS 1998 📼',
+    category: 'vintage',
+    icon: '📼',
+    badge: 'Retro REC',
+    desc: 'Ống ngắm camcorder REC đỏ, timecode hoài niệm 90s',
+    previewColor: '#1A1D20',
+    backgroundColor: '#181A1B',
+    borderColor: '#333333',
+    pattern: 'solid',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'vhs_camcorder',
+    sealStamp: 'none',
+    stickers: [
+      { id: 'stk-vhs1', emoji: '🔴', x: 12, y: 32, size: 18, rotation: 0 },
+      { id: 'stk-vhs2', emoji: '📼', x: 128, y: 145, size: 26, rotation: -8 },
+      { id: 'stk-vhs3', emoji: '⚡', x: 16, y: 340, size: 24, rotation: 10 },
+    ],
+    textItems: [
+      {
+        id: 'txt-vhs1',
+        text: 'REC [00:19:98] SP',
+        x: 12,
+        y: 470,
+        fontSize: 12,
+        rotation: 0,
+        color: '#00FF66',
+        bgColor: '#000000',
+        fontStyleType: 'neon_cyber',
+      },
+    ],
+    customText: 'REC [00:19:98] SP',
+    textColor: '#00FF66',
+    locationTag: '📍 VHS Studio Cam',
+    photoFilter: 'vintage',
+  },
+  {
+    id: 'preset-strawberry-cake',
+    name: 'Bánh Kem Dâu Sweet 🍰',
+    category: 'besties',
+    icon: '🍰',
+    badge: 'Cute Edge',
+    desc: 'Viền lượn sóng viền kem dâu ngọt ngào đáng yêu',
+    previewColor: '#FFD6E8',
+    backgroundColor: '#FFEBF3',
+    borderColor: '#FF4D8D',
+    pattern: 'dots',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'heart_cutout',
+    sealStamp: 'besties',
+    washiTapeStyle: 'strawberry',
+    gradientTheme: 'cherry',
+    stickers: [
+      { id: 'stk-sc1', emoji: '🍓', x: 14, y: 32, size: 26, rotation: -6 },
+      { id: 'stk-sc2', emoji: '🍰', x: 126, y: 155, size: 28, rotation: 10 },
+      { id: 'stk-sc3', emoji: '🎀', x: 14, y: 350, size: 26, rotation: -8 },
+    ],
+    textItems: [
+      {
+        id: 'txt-sc1',
+        text: 'Sweet Love 🍓',
+        x: 20,
+        y: 470,
+        fontSize: 15,
+        rotation: 0,
+        color: '#FF2E79',
+        bgColor: '#FFFFFF',
+        fontStyleType: 'bubble_cute',
+      },
+    ],
+    customText: 'Sweet Love 🍓',
+    textColor: '#FF2E79',
+    locationTag: '📍 Sweet Berry Bakery',
+    photoFilter: 'pastel',
+  },
+  {
+    id: 'preset-y2k-cyberpunk',
+    name: 'Cyberpunk Matrix 2000 👾',
+    category: 'y2k',
+    icon: '👾',
+    badge: 'Y2K Cyber',
+    desc: 'Đèn neon số ma trận tương lai Y2K vũ trụ ảo',
+    previewColor: '#0F172A',
+    backgroundColor: '#0F172A',
+    borderColor: '#00E5FF',
+    pattern: 'stripes',
+    frameLayout: 'strip_4',
+    frameEdgeStyle: 'neon_glow',
+    sealStamp: 'leafy_certified',
+    washiTapeStyle: 'hologram',
+    gradientTheme: 'cyber',
+    stickers: [
+      { id: 'stk-y2k1', emoji: '👾', x: 14, y: 35, size: 28, rotation: 0 },
+      { id: 'stk-y2k2', emoji: '💿', x: 128, y: 148, size: 26, rotation: 18 },
+      { id: 'stk-y2k3', emoji: '🛸', x: 15, y: 360, size: 26, rotation: -12 },
+    ],
+    textItems: [
+      {
+        id: 'txt-y2k1',
+        text: 'CYBER MATRIX 2000',
+        x: 10,
+        y: 470,
+        fontSize: 12,
+        rotation: 0,
+        color: '#00FFFF',
+        bgColor: '#020617',
+        fontStyleType: 'neon_cyber',
+      },
+    ],
+    customText: 'CYBER MATRIX 2000',
+    textColor: '#00FFFF',
+    locationTag: '📍 Neo Tokyo Metaverse',
+    photoFilter: 'cool',
+  },
+  {
+    id: 'preset-bullet-journal',
+    name: 'Nhật Ký Bullet Journal 📔',
+    category: 'life4cuts',
+    icon: '📔',
+    badge: 'Sổ tay',
+    desc: 'Khung dạng sổ tay kẹp ghim giấy ghi nhớ viết tay',
+    previewColor: '#F5E6C8',
+    backgroundColor: '#FDFBF7',
+    borderColor: colors.ink,
+    pattern: 'dots',
+    frameLayout: 'duo_note',
+    frameEdgeStyle: 'washi_corners',
+    sealStamp: 'vintage_post',
+    washiTapeStyle: 'gingham',
+    gradientTheme: 'kraft',
+    stickers: [
+      { id: 'stk-bj1', emoji: '📎', x: 14, y: 30, size: 26, rotation: -15 },
+      { id: 'stk-bj2', emoji: '🌿', x: 125, y: 140, size: 24, rotation: 12 },
+      { id: 'stk-bj3', emoji: '☕', x: 18, y: 320, size: 24, rotation: 0 },
+    ],
+    textItems: [
+      {
+        id: 'txt-bj1',
+        text: 'Dear Diary, peaceful day 🌿',
+        x: 12,
+        y: 440,
+        fontSize: 14,
+        rotation: 0,
+        color: '#2A2016',
+        bgColor: '#FFFBEA',
+        fontStyleType: 'handwriting',
+      },
+    ],
+    customText: 'Dear Diary, peaceful day 🌿',
+    textColor: '#2A2016',
+    locationTag: '📍 Góc Cafe Nhỏ',
+    photoFilter: 'warm',
+  },
+  {
+    id: 'preset-tokyo-manga-pop',
+    name: 'Truyện Tranh Manga 🗯️',
+    category: 'party',
+    icon: '🗯️',
+    badge: 'Manga Pop',
+    desc: 'Khung ô truyện tranh bóng thoại đậm chất manga Nhật',
+    previewColor: '#FFFBE6',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#000000',
+    pattern: 'dots',
+    frameLayout: 'grid_4',
+    frameEdgeStyle: 'classic',
+    sealStamp: 'special_edition',
+    stickers: [
+      { id: 'stk-mg1', emoji: '🗯️', x: 12, y: 30, size: 30, rotation: -10 },
+      { id: 'stk-mg2', emoji: '💥', x: 126, y: 150, size: 28, rotation: 15 },
+      { id: 'stk-mg3', emoji: '💫', x: 15, y: 350, size: 26, rotation: 0 },
+    ],
+    textItems: [
+      {
+        id: 'txt-mg1',
+        text: 'CHAPTER 01: TOKYO',
+        x: 12,
+        y: 460,
+        fontSize: 15,
+        rotation: 0,
+        color: '#000000',
+        bgColor: '#FFFF00',
+        fontStyleType: 'modern_bold',
+      },
+    ],
+    customText: 'CHAPTER 01: TOKYO',
+    textColor: '#000000',
+    locationTag: '📍 Akihabara Comics',
+    photoFilter: 'bw',
+  },
+  {
+    id: 'preset-retro-polaroid-love',
+    name: 'Thư Tình Polaroid 💌',
+    category: 'vintage',
+    icon: '💌',
+    badge: 'Thư tay',
+    desc: 'Viền tem thư răng cưa cổ điển gắn mộc sáp đỏ',
+    previewColor: '#FFF5EB',
+    backgroundColor: '#FFF8F2',
+    borderColor: '#6B4226',
+    pattern: 'solid',
+    frameLayout: 'polaroid_1',
+    frameEdgeStyle: 'stamp_scallop',
+    sealStamp: 'love_wax',
+    washiTapeStyle: 'vintage_tape',
+    stickers: [
+      { id: 'stk-pl1', emoji: '💌', x: 14, y: 28, size: 28, rotation: -8 },
+      { id: 'stk-pl2', emoji: '🌹', x: 124, y: 160, size: 26, rotation: 14 },
+      { id: 'stk-pl3', emoji: '🕊️', x: 15, y: 360, size: 26, rotation: 0 },
+    ],
+    textItems: [
+      {
+        id: 'txt-pl1',
+        text: 'Always & Forever With You',
+        x: 12,
+        y: 470,
+        fontSize: 14,
+        rotation: 0,
+        color: '#4A2810',
+        bgColor: '#FFFFFF',
+        fontStyleType: 'aesthetic_serif',
+      },
+    ],
+    customText: 'Always & Forever With You',
+    textColor: '#4A2810',
+    locationTag: '📍 Paris Mon Amour',
+    photoFilter: 'vintage',
+  },
+  {
+    id: 'preset-midnight-vip',
+    name: 'Midnight Club VIP 🍸',
+    category: 'party',
+    icon: '🍸',
+    badge: 'Party VIP',
+    desc: 'Đêm tiệc ánh đèn huyền ảo vé vào cửa VIP party',
+    previewColor: '#1E1B4B',
+    backgroundColor: '#1E1B4B',
+    borderColor: '#C084FC',
+    pattern: 'stars',
+    frameLayout: 'strip_3',
+    frameEdgeStyle: 'ticket_stub',
+    sealStamp: 'special_edition',
+    gradientTheme: 'midnight',
+    stickers: [
+      { id: 'stk-mv1', emoji: '🍸', x: 14, y: 32, size: 28, rotation: 10 },
+      { id: 'stk-mv2', emoji: '🪩', x: 128, y: 150, size: 28, rotation: 0 },
+      { id: 'stk-mv3', emoji: '✨', x: 16, y: 330, size: 24, rotation: -12 },
+    ],
+    textItems: [
+      {
+        id: 'txt-mv1',
+        text: 'ALL NIGHT PARTY ★ VIP',
+        x: 10,
+        y: 460,
+        fontSize: 13,
+        rotation: 0,
+        color: '#E9D5FF',
+        bgColor: '#312E81',
+        fontStyleType: 'neon_cyber',
+      },
+    ],
+    customText: 'ALL NIGHT PARTY ★ VIP',
+    textColor: '#E9D5FF',
+    locationTag: '📍 Skybar Rooftop',
+    photoFilter: 'cool',
+  },
 ];
 
 const INITIAL_TRENDING: TrendingFrameItem[] = [
@@ -1565,9 +1892,20 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     set((state) => ({
       stickers: state.stickers.map((s) => {
         if (s.id !== id) return s;
-        const newSize = Math.max(16, Math.min((s.size || 28) + delta, 56));
-        return { ...s, size: newSize };
+        const currentSize = s.size || 28;
+        let nextSize = currentSize + delta;
+        if (delta > 0 && nextSize > 56) nextSize = 20;
+        else if (delta < 0 && nextSize < 16) nextSize = 16;
+        return { ...s, size: nextSize };
       }),
+    }));
+  },
+
+  setStickerSize: (id, size) => {
+    set((state) => ({
+      stickers: state.stickers.map((s) =>
+        s.id === id ? { ...s, size: Math.max(16, Math.min(Math.round(size), 60)) } : s
+      ),
     }));
   },
 
@@ -1603,7 +1941,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     }));
   },
 
-  addTextItem: (text, color = colors.ink, bgColor = '#FFFFFF') => {
+  addTextItem: (text, color = colors.ink, bgColor = '#FFFFFF', fontStyleType = 'modern_bold', fontSize = 14) => {
     if (!text.trim()) return;
     if (get().textItems.length >= 12) return;
     const newId = generateTextId();
@@ -1615,16 +1953,17 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         text: text.trim(),
         x: 15 + ((count * 15) % 60),
         y: 60 + ((count * 90) % 520),
-        fontSize: 13,
+        fontSize,
         rotation: 0,
         color,
         bgColor,
+        fontStyleType,
       },
     ];
     set({ textItems: nextTexts, selectedTextId: newId, selectedStickerId: null });
   },
 
-  addTextItemAt: (text, x, y, color = colors.ink, bgColor = '#FFFFFF') => {
+  addTextItemAt: (text, x, y, color = colors.ink, bgColor = '#FFFFFF', fontStyleType = 'modern_bold', fontSize = 14) => {
     if (!text.trim()) return;
     if (get().textItems.length >= 12) return;
     const newId = generateTextId();
@@ -1638,10 +1977,11 @@ export const useStudioStore = create<StudioState>((set, get) => ({
           text: text.trim(),
           x: clampedX,
           y: clampedY,
-          fontSize: 13,
+          fontSize,
           rotation: 0,
           color,
           bgColor,
+          fontStyleType,
         },
       ],
       selectedTextId: newId,
@@ -1700,9 +2040,20 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     set((state) => ({
       textItems: state.textItems.map((t) => {
         if (t.id !== id) return t;
-        const newSize = Math.max(9, Math.min((t.fontSize || 13) + delta, 28));
-        return { ...t, fontSize: newSize };
+        const currentSize = t.fontSize || 13;
+        let nextSize = currentSize + delta;
+        if (delta > 0 && nextSize > 28) nextSize = 10;
+        else if (delta < 0 && nextSize < 9) nextSize = 9;
+        return { ...t, fontSize: nextSize };
       }),
+    }));
+  },
+
+  setTextItemFontSize: (id, fontSize) => {
+    set((state) => ({
+      textItems: state.textItems.map((t) =>
+        t.id === id ? { ...t, fontSize: Math.max(9, Math.min(Math.round(fontSize), 32)) } : t
+      ),
     }));
   },
 
@@ -1830,6 +2181,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
     }),
 
   setAllSlotPhotos: (photos) => set({ slotPhotos: photos }),
+  setSlotPhotos: (photos) => set({ slotPhotos: photos }),
 
   setPhotoFilter: (filter) => set({ photoFilter: filter }),
 

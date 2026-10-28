@@ -13,11 +13,13 @@ import { theme } from '../../core/theme/theme';
 import { DEFAULT_BACKDROPS } from '../../core/constants';
 import { PillButton } from '../../core/components/PillButton';
 import { useBoothStore, BackdropItem } from '../../features/booth/hooks/useBoothStore';
+import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
 
 export default function BoothScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { selectBackdrop, resetBooth } = useBoothStore();
+  const { savedCustomFrames } = useStudioStore();
 
   const handleStartShooting = (backdrop: BackdropItem) => {
     resetBooth();
@@ -101,6 +103,75 @@ export default function BoothScreen() {
             </View>
           </View>
         </Pressable>
+
+        {/* Banner Tự Tạo Khung Độc Lạ */}
+        <Pressable
+          onPress={() => router.push('/studio' as any)}
+          style={({ pressed }) => [
+            styles.diyFrameBanner,
+            { transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+        >
+          <View style={styles.diyBannerIconBox}>
+            <Text style={{ fontSize: 24 }}>🎨</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.diyBannerBadge}>
+              <Text style={styles.diyBannerBadgeText}>180+ STICKER · 6 FONT CHỮ</Text>
+            </View>
+            <Text style={styles.diyBannerTitle}>Tự Thiết Kế Khung Độc Lạ</Text>
+            <Text style={styles.diyBannerDesc}>
+              Khung vé xem phim, camcorder 1998 REC, viền lượn sóng bánh kem
+            </Text>
+          </View>
+          <Text style={styles.diyBannerArrow}>➔</Text>
+        </Pressable>
+
+        {/* Section: Khung Tự Thiết Kế (nếu có) */}
+        {savedCustomFrames && savedCustomFrames.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Khung Bạn Đã Tự Tạo ✨</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+              {savedCustomFrames.map((cf) => (
+                <Pressable
+                  key={cf.id}
+                  onPress={() => {
+                    resetBooth();
+                    selectBackdrop({
+                      id: cf.id,
+                      name: cf.name,
+                      dateLabel: 'DIY',
+                      color: cf.backgroundColor,
+                    });
+                    useBoothStore.getState().setActiveCustomFrame({
+                      id: cf.id,
+                      name: cf.name,
+                      color: cf.backgroundColor,
+                      edgeStyle: cf.frameEdgeStyle,
+                    });
+                    router.push('/booth/camera' as any);
+                  }}
+                  style={({ pressed }) => [
+                    styles.customFrameCard,
+                    { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                  ]}
+                >
+                  <View style={[styles.stripThumbnail, { backgroundColor: cf.backgroundColor }]}>
+                    {[0, 1, 2, 3].map((i) => (
+                      <View key={i} style={styles.thumbnailSlot} />
+                    ))}
+                  </View>
+                  <Text style={styles.backdropName} numberOfLines={1}>
+                    {cf.name}
+                  </Text>
+                  <Text style={styles.customFrameSubText}>🎨 Khung DIY</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         {/* Section: Tất cả nền */}
         <View style={styles.sectionHeader}>
@@ -243,6 +314,73 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: colors.ink,
+  },
+  diyFrameBanner: {
+    backgroundColor: colors.pink,
+    borderRadius: theme.borders.radius.card,
+    borderWidth: theme.borders.width,
+    borderColor: colors.ink,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 24,
+    ...theme.shadows.hard,
+  },
+  diyBannerIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.hardSmall,
+  },
+  diyBannerBadge: {
+    backgroundColor: colors.yellow,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  diyBannerBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  diyBannerTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  diyBannerDesc: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#374151',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  diyBannerArrow: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  customFrameCard: {
+    width: 120,
+    marginRight: 14,
+    alignItems: 'center',
+  },
+  customFrameSubText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.ink,
+    marginTop: 2,
+    opacity: 0.8,
   },
   grid: {
     flexDirection: 'row',

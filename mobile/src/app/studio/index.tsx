@@ -24,6 +24,7 @@ import {
   FramePattern,
   TextPosition,
   TextStyleType,
+  FontStyleType,
   CustomSticker,
   CustomTextItem,
   PhotoFilter,
@@ -40,6 +41,7 @@ import {
 import { exportStudioFrameToImage } from '../../core/utils/stripExportService';
 import { playShutterSound } from '../../features/booth/services/soundService';
 import { useMomentsStore } from '../../features/moments/hooks/useMomentsStore';
+import { useBoothStore } from '../../features/booth/hooks/useBoothStore';
 
 type ActiveSheet =
   | 'none'
@@ -70,7 +72,44 @@ const EDGE_STYLE_OPTIONS: { id: FrameEdgeStyle; name: string; icon: string; desc
   { id: 'stamp_scallop', name: 'Tem Bưu Chính', icon: '✂️', desc: 'Răng cưa viền tem thư cổ điển' },
   { id: 'washi_corners', name: 'Băng Dính Washi', icon: '📼', desc: 'Dán băng dính chéo 4 góc' },
   { id: 'neon_glow', name: 'Phát Sáng Neon', icon: '✨', desc: 'Hiệu ứng ánh sáng Cyber' },
+  { id: 'ticket_stub', name: 'Vé Phim Đục Lỗ', icon: '🎟️', desc: 'Cuống vé khía cạnh cinema độc lạ' },
+  { id: 'vhs_camcorder', name: 'Máy Quay 1998 REC', icon: '📹', desc: 'Ống ngắm camcorder REC vintage' },
+  { id: 'heart_cutout', name: 'Viền Kem Lượn Sóng', icon: '🍰', desc: 'Viền sóng bánh kem dâu ngọt ngào' },
 ];
+
+const FONT_STYLE_OPTIONS: { id: FontStyleType; label: string; preview: string }[] = [
+  { id: 'modern_bold', label: 'Hiện đại', preview: 'BOLD' },
+  { id: 'handwriting', label: 'Viết tay', preview: 'Hand' },
+  { id: 'typewriter', label: 'Máy chữ', preview: 'Type' },
+  { id: 'aesthetic_serif', label: 'Thanh lịch', preview: 'Serif' },
+  { id: 'bubble_cute', label: 'Bong bóng', preview: 'Cute' },
+  { id: 'neon_cyber', label: 'Neon Cyber', preview: 'CYBER' },
+];
+
+const FONT_SIZE_OPTIONS = [
+  { size: 12, label: 'Nhỏ (12)' },
+  { size: 15, label: 'Vừa (15)' },
+  { size: 19, label: 'Lớn (19)' },
+  { size: 26, label: 'Cực đại (26)' },
+];
+
+const getFontStyleProps = (styleType?: FontStyleType) => {
+  switch (styleType) {
+    case 'handwriting':
+      return { fontStyle: 'italic' as const, fontWeight: '700' as const, letterSpacing: 0.5 };
+    case 'typewriter':
+      return { fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }), fontWeight: '700' as const, letterSpacing: 0.5 };
+    case 'aesthetic_serif':
+      return { fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }), fontStyle: 'italic' as const, fontWeight: '700' as const, letterSpacing: 0.3 };
+    case 'bubble_cute':
+      return { fontWeight: '900' as const, letterSpacing: 0.8 };
+    case 'neon_cyber':
+      return { fontWeight: '900' as const, letterSpacing: 1.8, textTransform: 'uppercase' as const };
+    case 'modern_bold':
+    default:
+      return { fontWeight: '900' as const, letterSpacing: 0.2 };
+  }
+};
 
 const SEAL_STAMP_OPTIONS: { id: SealStampType; name: string; icon: string; title: string }[] = [
   { id: 'none', name: 'Không dùng', icon: '🚫', title: 'Không đóng dấu' },
@@ -193,41 +232,72 @@ const STICKER_CATEGORIES = [
   {
     id: 'cute',
     name: '🌸 Dễ thương',
-    stickers: ['🌸', '🎀', '💖', '🍓', '🐰', '🐱', '🧸', '🍒', '🦋', '🌈'],
+    stickers: ['🌸', '🎀', '💖', '🍓', '🐰', '🐱', '🧸', '🍒', '🦋', '🌈', '🌷', '🍡', '🧁', '🤍', '🍼', '🐣', '🪞', '🫧'],
   },
   {
     id: 'sparkle',
     name: '✨ Lấp lánh',
-    stickers: ['✨', '⭐', '⚡', '💫', '🔥', '💿', '👑', '💎', '🍀'],
+    stickers: ['✨', '⭐', '⚡', '💫', '🔥', '💿', '👑', '💎', '🍀', '🌟', '🪄', '🌙', '🪐', '☀️', '🎇', '🌠', '🔮', '🗝️'],
+  },
+  {
+    id: 'kpop',
+    name: '🫰 K-Pop Idol',
+    stickers: ['🫰', '🖤', '💗', '🎤', '🎧', '🪩', '💜', '🤍', '🕶️', '💅', '📸', '🕺', '💃', '💌', '🎫', '📻', '🎶', '🏷️'],
+  },
+  {
+    id: 'y2k',
+    name: '👾 Y2K Cyber',
+    stickers: ['👾', '💿', '🕹️', '👽', '🛸', '🤖', '🌐', '📺', '📼', '🛹', '⛓️', '🕷️', '☠️', '🎱', '🎲', '🧬', '🚀', '☣️'],
   },
   {
     id: 'nature',
-    name: '🍂 Thu & Mùa',
-    stickers: ['🍂', '🍁', '🌿', '🍃', '🌻', '🍄', '🌵', '☕', '🥐'],
+    name: '🌿 Vintage Mùa',
+    stickers: ['🌿', '🍂', '🍁', '🍃', '🌻', '🍄', '🌵', '☕', '🥐', '🍞', '🌾', '🪵', '🕯️', '🪴', '🧺', '🍎', '🥞', '🍯'],
   },
   {
     id: 'party',
-    name: '🎂 Sinh nhật',
-    stickers: ['🎂', '🎉', '🎁', '🎈', '🥂', '🍰', '🍕', '🍻'],
+    name: '🎉 Tiệc & Bday',
+    stickers: ['🎂', '🎉', '🎁', '🎈', '🥂', '🍰', '🍕', '🍻', '🥳', '🍾', '🍿', '🍩', '🧃', '🍭', '🎊', '🪅', '🍔', '🍟'],
+  },
+  {
+    id: 'pets',
+    name: '🐾 Thú cưng',
+    stickers: ['🐶', '🐱', '🐾', '🦊', '🐻', '🐼', '🐨', '🐸', '🐵', '🐧', '🦆', '🦉', '🐝', '🐬', '🦄', '🐹', '🦦', '🦔'],
+  },
+  {
+    id: 'meme',
+    name: '😎 Meme Vui',
+    stickers: ['😎', '🥺', '🤪', '🤩', '🤤', '🥳', '🫠', '🫡', '🤫', '🤭', '🫢', '🤠', '👻', '🤡', '😈', '🫶', '🤙', '✌️'],
+  },
+  {
+    id: 'love',
+    name: '💌 Tình yêu',
+    stickers: ['💌', '💘', '💝', '💖', '💗', '💓', '💞', '💕', '💍', '🌹', '💐', '🍫', '💋', '💏', '👫', '🕊️', '💒', '🪽'],
   },
   {
     id: 'holiday',
-    name: '🎃 Dịp lễ',
-    stickers: ['🎃', '👻', '🕸️', '🦇', '🎄', '🎅', '❄️', '🎆'],
+    name: '🎃 Lễ hội',
+    stickers: ['🎃', '👻', '🕸️', '🦇', '🎄', '🎅', '❄️', '🎆', '🧨', '🧧', '🎋', '🎏', '🏖️', '🍉', '🍧', '⛺', '🏕️', '🪁'],
   },
 ];
 
 const PREMADE_QUOTES = [
-  '💖 Besties',
-  '🍂 Autumn Vibes',
-  '☕ Coffee & Chill',
-  '🎂 Happy Birthday',
-  '📸 Say cheese!',
-  '🌿 Plant a moment',
-  '✨ Xinh xỉu',
-  '🖤 Love you',
-  '🌻 Sunny day',
-  '🍕 Vui hết nấc',
+  '💖 Besties Forever',
+  '🌸 Cute Vibes Only',
+  '✨ Xinh xỉu up xỉu down',
+  '📸 Say cheese & smile!',
+  '☕ Coffee & Chill time',
+  '🍂 Autumn in my heart',
+  '🎂 Happy Birthday to you',
+  '🫰 Saranghae K-Vibes',
+  '👾 Y2K Cyber Girl',
+  '🌿 Plant a sweet moment',
+  '🖤 Love you 3000',
+  '🌻 Always bright & sunny',
+  '🍕 Vui hết nấc bên nhau',
+  '🎟️ VIP Ticket Life4Cuts',
+  '📼 REC 1998 Memory',
+  '💌 Always & Forever',
 ];
 
 // STUDIO_PRESETS and StudioPresetItem imported from useStudioStore
@@ -242,11 +312,9 @@ interface DraggableCanvasStickerProps {
   sticker: CustomSticker;
   isSelected: boolean;
   onSelect: () => void;
-  onRemove: () => void;
-  onRotate?: () => void;
-  onDuplicate?: () => void;
   onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  onSetSize?: (size: number) => void;
   canvasHeight?: number;
 }
 
@@ -255,16 +323,20 @@ const DraggableCanvasSticker = React.memo(
     sticker,
     isSelected,
     onSelect,
-    onRemove,
-    onRotate,
-    onDuplicate,
     onDragStart,
     onDragEnd,
+    onSetSize,
     canvasHeight = 700,
   }: DraggableCanvasStickerProps) {
     const [isDragging, setIsDragging] = useState(false);
     const isDraggingRef = useRef(false);
-    const [pos, setPos] = useState({ x: sticker.x, y: sticker.y });
+    const isPinchingRef = useRef(false);
+    const initialPinchDistRef = useRef<number | null>(null);
+    const initialSizeRef = useRef<number>(sticker.size || 30);
+    const currentScaleRatioRef = useRef<number>(1);
+
+    const pan = useRef(new Animated.ValueXY({ x: sticker.x, y: sticker.y })).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
     const startPos = useRef({ x: sticker.x, y: sticker.y });
     const currentPos = useRef({ x: sticker.x, y: sticker.y });
 
@@ -275,13 +347,15 @@ const DraggableCanvasSticker = React.memo(
     onDragStartRef.current = onDragStart;
     const onDragEndRef = useRef(onDragEnd);
     onDragEndRef.current = onDragEnd;
+    const onSetSizeRef = useRef(onSetSize);
+    onSetSizeRef.current = onSetSize;
     const canvasHeightRef = useRef(canvasHeight);
     canvasHeightRef.current = canvasHeight;
 
     useEffect(() => {
-      setPos({ x: sticker.x, y: sticker.y });
+      pan.setValue({ x: sticker.x, y: sticker.y });
       currentPos.current = { x: sticker.x, y: sticker.y };
-    }, [sticker.x, sticker.y]);
+    }, [sticker.x, sticker.y, pan]);
 
     const panResponder = useMemo(
       () =>
@@ -293,68 +367,121 @@ const DraggableCanvasSticker = React.memo(
           },
           onMoveShouldSetPanResponderCapture: () => false,
           onPanResponderTerminationRequest: () => false,
-          onPanResponderGrant: () => {
+          onPanResponderGrant: (evt) => {
             onSelectRef.current();
             isDraggingRef.current = false;
-            onDragStartRef.current?.();
-            startPos.current = { ...currentPos.current };
-          },
-          onPanResponderMove: (_, gestureState) => {
-            if (!isDraggingRef.current && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2)) {
-              isDraggingRef.current = true;
-              setIsDragging(true);
-            }
-            if (isDraggingRef.current) {
-              const nextX = Math.round(startPos.current.x + gestureState.dx);
-              const nextY = Math.round(startPos.current.y + gestureState.dy);
-              const clampedX = Math.max(-15, Math.min(nextX, 175));
-              const maxY = Math.max(100, canvasHeightRef.current - 35);
-              const clampedY = Math.max(0, Math.min(nextY, maxY));
-              currentPos.current = { x: clampedX, y: clampedY };
-              setPos({ x: clampedX, y: clampedY });
+            isPinchingRef.current = false;
+            currentScaleRatioRef.current = 1;
+            const touches = evt.nativeEvent.touches;
+            if (touches && touches.length >= 2) {
+              isPinchingRef.current = true;
+              initialPinchDistRef.current = Math.hypot(
+                touches[0].pageX - touches[1].pageX,
+                touches[0].pageY - touches[1].pageY
+              );
+              initialSizeRef.current = sticker.size || 30;
+            } else {
+              initialPinchDistRef.current = null;
+              onDragStartRef.current?.();
+              startPos.current = { ...currentPos.current };
             }
           },
-          onPanResponderRelease: (_, gestureState) => {
-            if (isDraggingRef.current) {
+          onPanResponderMove: (evt, gestureState) => {
+            const touches = evt.nativeEvent.touches;
+            if (touches && touches.length >= 2) {
+              // Cử chỉ 2 ngón tay chụm/kéo phóng to nhỏ (Pinch to zoom)
+              const currentDist = Math.hypot(
+                touches[0].pageX - touches[1].pageX,
+                touches[0].pageY - touches[1].pageY
+              );
+              if (!isPinchingRef.current || !initialPinchDistRef.current) {
+                isPinchingRef.current = true;
+                initialPinchDistRef.current = currentDist;
+                initialSizeRef.current = sticker.size || 30;
+              } else if (initialPinchDistRef.current > 5) {
+                const ratio = currentDist / initialPinchDistRef.current;
+                const clampedRatio = Math.max(0.4, Math.min(ratio, 2.5));
+                currentScaleRatioRef.current = clampedRatio;
+                scaleAnim.setValue(clampedRatio);
+              }
+              return;
+            }
+
+            // Kéo di chuyển 1 ngón tay bình thường
+            if (!isPinchingRef.current) {
+              if (!isDraggingRef.current && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2)) {
+                isDraggingRef.current = true;
+                setIsDragging(true);
+              }
+              if (isDraggingRef.current) {
+                const nextX = Math.round(startPos.current.x + gestureState.dx);
+                const nextY = Math.round(startPos.current.y + gestureState.dy);
+                const clampedX = Math.max(-15, Math.min(nextX, 175));
+                const maxY = Math.max(100, canvasHeightRef.current - 35);
+                const clampedY = Math.max(0, Math.min(nextY, maxY));
+                currentPos.current = { x: clampedX, y: clampedY };
+                pan.setValue({ x: clampedX, y: clampedY });
+              }
+            }
+          },
+          onPanResponderRelease: () => {
+            if (isPinchingRef.current) {
+              isPinchingRef.current = false;
+              scaleAnim.setValue(1);
+              if (currentScaleRatioRef.current !== 1 && initialSizeRef.current) {
+                const finalSize = Math.round(
+                  Math.max(16, Math.min(initialSizeRef.current * currentScaleRatioRef.current, 60))
+                );
+                onSetSizeRef.current?.(finalSize);
+              }
+              initialPinchDistRef.current = null;
+              currentScaleRatioRef.current = 1;
+            } else if (isDraggingRef.current) {
               isDraggingRef.current = false;
               setIsDragging(false);
-              const nextX = Math.round(startPos.current.x + gestureState.dx);
-              const nextY = Math.round(startPos.current.y + gestureState.dy);
-              const clampedX = Math.max(-15, Math.min(nextX, 175));
-              const maxY = Math.max(100, canvasHeightRef.current - 35);
-              const clampedY = Math.max(0, Math.min(nextY, maxY));
-              currentPos.current = { x: clampedX, y: clampedY };
-              setPos({ x: clampedX, y: clampedY });
-              onDragEndRef.current(clampedX, clampedY);
+              onDragEndRef.current(currentPos.current.x, currentPos.current.y);
             } else {
               onSelectRef.current();
             }
           },
           onPanResponderTerminate: () => {
-            if (isDraggingRef.current) {
+            if (isPinchingRef.current) {
+              isPinchingRef.current = false;
+              scaleAnim.setValue(1);
+              if (currentScaleRatioRef.current !== 1 && initialSizeRef.current) {
+                const finalSize = Math.round(
+                  Math.max(16, Math.min(initialSizeRef.current * currentScaleRatioRef.current, 60))
+                );
+                onSetSizeRef.current?.(finalSize);
+              }
+              initialPinchDistRef.current = null;
+              currentScaleRatioRef.current = 1;
+            } else if (isDraggingRef.current) {
               isDraggingRef.current = false;
               setIsDragging(false);
               onDragEndRef.current(currentPos.current.x, currentPos.current.y);
             }
           },
         }),
-      []
+      [pan, scaleAnim, sticker.size]
     );
 
     const size = sticker.size || 30;
     const rotation = sticker.rotation || 0;
 
     return (
-      <View
+      <Animated.View
         {...panResponder.panHandlers}
         style={[
           styles.canvasSticker,
           {
-            top: pos.y,
-            left: pos.x,
+            top: 0,
+            left: 0,
             transform: [
+              { translateX: pan.x },
+              { translateY: pan.y },
               { rotate: `${rotation}deg` },
-              { scale: isDragging ? 1.25 : 1 },
+              { scale: scaleAnim },
             ],
             zIndex: isDragging ? 999 : isSelected ? 50 : 10,
             cursor: isDragging ? 'grabbing' : 'grab',
@@ -376,50 +503,7 @@ const DraggableCanvasSticker = React.memo(
         >
           {sticker.emoji}
         </Text>
-        {isSelected && (
-          <>
-            {/* Nút Xóa (Góc trên phải) */}
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              hitSlop={12}
-              style={styles.handleDotRemove}
-            >
-              <Text style={styles.handleDotRemoveText}>✕</Text>
-            </Pressable>
-
-            {/* Nút Xoay 15° (Góc dưới phải) */}
-            {onRotate && (
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onRotate();
-                }}
-                hitSlop={12}
-                style={styles.handleDotRotate}
-              >
-                <Text style={styles.handleDotText}>⟳</Text>
-              </Pressable>
-            )}
-
-            {/* Nút Nhân bản (Góc dưới trái) */}
-            {onDuplicate && (
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onDuplicate();
-                }}
-                hitSlop={12}
-                style={styles.handleDotDuplicate}
-              >
-                <Text style={styles.handleDotText}>📑</Text>
-              </Pressable>
-            )}
-          </>
-        )}
-      </View>
+      </Animated.View>
     );
   },
   (prev, next) => {
@@ -440,11 +524,9 @@ interface DraggableCanvasTextProps {
   item: CustomTextItem;
   isSelected: boolean;
   onSelect: () => void;
-  onRemove: () => void;
-  onRotate?: () => void;
-  onDuplicate?: () => void;
   onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  onSetSize?: (fontSize: number) => void;
   canvasHeight?: number;
 }
 
@@ -453,16 +535,20 @@ const DraggableCanvasText = React.memo(
     item,
     isSelected,
     onSelect,
-    onRemove,
-    onRotate,
-    onDuplicate,
     onDragStart,
     onDragEnd,
+    onSetSize,
     canvasHeight = 700,
   }: DraggableCanvasTextProps) {
     const [isDragging, setIsDragging] = useState(false);
     const isDraggingRef = useRef(false);
-    const [pos, setPos] = useState({ x: item.x, y: item.y });
+    const isPinchingRef = useRef(false);
+    const initialPinchDistRef = useRef<number | null>(null);
+    const initialFontSizeRef = useRef<number>(item.fontSize || 13);
+    const currentScaleRatioRef = useRef<number>(1);
+
+    const pan = useRef(new Animated.ValueXY({ x: item.x, y: item.y })).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
     const startPos = useRef({ x: item.x, y: item.y });
     const currentPos = useRef({ x: item.x, y: item.y });
 
@@ -473,13 +559,15 @@ const DraggableCanvasText = React.memo(
     onDragStartRef.current = onDragStart;
     const onDragEndRef = useRef(onDragEnd);
     onDragEndRef.current = onDragEnd;
+    const onSetSizeRef = useRef(onSetSize);
+    onSetSizeRef.current = onSetSize;
     const canvasHeightRef = useRef(canvasHeight);
     canvasHeightRef.current = canvasHeight;
 
     useEffect(() => {
-      setPos({ x: item.x, y: item.y });
+      pan.setValue({ x: item.x, y: item.y });
       currentPos.current = { x: item.x, y: item.y };
-    }, [item.x, item.y]);
+    }, [item.x, item.y, pan]);
 
     const panResponder = useMemo(
       () =>
@@ -491,52 +579,103 @@ const DraggableCanvasText = React.memo(
           },
           onMoveShouldSetPanResponderCapture: () => false,
           onPanResponderTerminationRequest: () => false,
-          onPanResponderGrant: () => {
+          onPanResponderGrant: (evt) => {
             onSelectRef.current();
             isDraggingRef.current = false;
-            onDragStartRef.current?.();
-            startPos.current = { ...currentPos.current };
-          },
-          onPanResponderMove: (_, gestureState) => {
-            if (!isDraggingRef.current && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2)) {
-              isDraggingRef.current = true;
-              setIsDragging(true);
-            }
-            if (isDraggingRef.current) {
-              const nextX = Math.round(startPos.current.x + gestureState.dx);
-              const nextY = Math.round(startPos.current.y + gestureState.dy);
-              const clampedX = Math.max(-15, Math.min(nextX, 175));
-              const maxY = Math.max(100, canvasHeightRef.current - 25);
-              const clampedY = Math.max(0, Math.min(nextY, maxY));
-              currentPos.current = { x: clampedX, y: clampedY };
-              setPos({ x: clampedX, y: clampedY });
+            isPinchingRef.current = false;
+            currentScaleRatioRef.current = 1;
+            const touches = evt.nativeEvent.touches;
+            if (touches && touches.length >= 2) {
+              isPinchingRef.current = true;
+              initialPinchDistRef.current = Math.hypot(
+                touches[0].pageX - touches[1].pageX,
+                touches[0].pageY - touches[1].pageY
+              );
+              initialFontSizeRef.current = item.fontSize || 13;
+            } else {
+              initialPinchDistRef.current = null;
+              onDragStartRef.current?.();
+              startPos.current = { ...currentPos.current };
             }
           },
-          onPanResponderRelease: (_, gestureState) => {
-            if (isDraggingRef.current) {
+          onPanResponderMove: (evt, gestureState) => {
+            const touches = evt.nativeEvent.touches;
+            if (touches && touches.length >= 2) {
+              // Cử chỉ 2 ngón tay chụm/kéo phóng to nhỏ (Pinch to zoom)
+              const currentDist = Math.hypot(
+                touches[0].pageX - touches[1].pageX,
+                touches[0].pageY - touches[1].pageY
+              );
+              if (!isPinchingRef.current || !initialPinchDistRef.current) {
+                isPinchingRef.current = true;
+                initialPinchDistRef.current = currentDist;
+                initialFontSizeRef.current = item.fontSize || 13;
+              } else if (initialPinchDistRef.current > 5) {
+                const ratio = currentDist / initialPinchDistRef.current;
+                const clampedRatio = Math.max(0.5, Math.min(ratio, 2.5));
+                currentScaleRatioRef.current = clampedRatio;
+                scaleAnim.setValue(clampedRatio);
+              }
+              return;
+            }
+
+            // Kéo di chuyển 1 ngón tay bình thường
+            if (!isPinchingRef.current) {
+              if (!isDraggingRef.current && (Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2)) {
+                isDraggingRef.current = true;
+                setIsDragging(true);
+              }
+              if (isDraggingRef.current) {
+                const nextX = Math.round(startPos.current.x + gestureState.dx);
+                const nextY = Math.round(startPos.current.y + gestureState.dy);
+                const clampedX = Math.max(-15, Math.min(nextX, 175));
+                const maxY = Math.max(100, canvasHeightRef.current - 25);
+                const clampedY = Math.max(0, Math.min(nextY, maxY));
+                currentPos.current = { x: clampedX, y: clampedY };
+                pan.setValue({ x: clampedX, y: clampedY });
+              }
+            }
+          },
+          onPanResponderRelease: () => {
+            if (isPinchingRef.current) {
+              isPinchingRef.current = false;
+              scaleAnim.setValue(1);
+              if (currentScaleRatioRef.current !== 1 && initialFontSizeRef.current) {
+                const finalSize = Math.round(
+                  Math.max(9, Math.min(initialFontSizeRef.current * currentScaleRatioRef.current, 32))
+                );
+                onSetSizeRef.current?.(finalSize);
+              }
+              initialPinchDistRef.current = null;
+              currentScaleRatioRef.current = 1;
+            } else if (isDraggingRef.current) {
               isDraggingRef.current = false;
               setIsDragging(false);
-              const nextX = Math.round(startPos.current.x + gestureState.dx);
-              const nextY = Math.round(startPos.current.y + gestureState.dy);
-              const clampedX = Math.max(-15, Math.min(nextX, 175));
-              const maxY = Math.max(100, canvasHeightRef.current - 25);
-              const clampedY = Math.max(0, Math.min(nextY, maxY));
-              currentPos.current = { x: clampedX, y: clampedY };
-              setPos({ x: clampedX, y: clampedY });
-              onDragEndRef.current(clampedX, clampedY);
+              onDragEndRef.current(currentPos.current.x, currentPos.current.y);
             } else {
               onSelectRef.current();
             }
           },
           onPanResponderTerminate: () => {
-            if (isDraggingRef.current) {
+            if (isPinchingRef.current) {
+              isPinchingRef.current = false;
+              scaleAnim.setValue(1);
+              if (currentScaleRatioRef.current !== 1 && initialFontSizeRef.current) {
+                const finalSize = Math.round(
+                  Math.max(9, Math.min(initialFontSizeRef.current * currentScaleRatioRef.current, 32))
+                );
+                onSetSizeRef.current?.(finalSize);
+              }
+              initialPinchDistRef.current = null;
+              currentScaleRatioRef.current = 1;
+            } else if (isDraggingRef.current) {
               isDraggingRef.current = false;
               setIsDragging(false);
               onDragEndRef.current(currentPos.current.x, currentPos.current.y);
             }
           },
         }),
-      []
+      [pan, scaleAnim, item.fontSize]
     );
 
     const fontSize = item.fontSize || 12;
@@ -544,16 +683,18 @@ const DraggableCanvasText = React.memo(
     const hasBg = item.bgColor && item.bgColor !== 'transparent';
 
     return (
-      <View
+      <Animated.View
         {...panResponder.panHandlers}
         style={[
           styles.canvasTextItem,
           {
-            top: pos.y,
-            left: pos.x,
+            top: 0,
+            left: 0,
             transform: [
+              { translateX: pan.x },
+              { translateY: pan.y },
               { rotate: `${rotation}deg` },
-              { scale: isDragging ? 1.15 : 1 },
+              { scale: scaleAnim },
             ],
             zIndex: isDragging ? 999 : isSelected ? 50 : 15,
             cursor: isDragging ? 'grabbing' : 'grab',
@@ -578,6 +719,7 @@ const DraggableCanvasText = React.memo(
             {
               fontSize,
               color: item.color || colors.ink,
+              ...getFontStyleProps(item.fontStyleType),
               userSelect: 'none',
               pointerEvents: 'none',
             } as any,
@@ -585,50 +727,7 @@ const DraggableCanvasText = React.memo(
         >
           {item.text}
         </Text>
-        {isSelected && (
-          <>
-            {/* Nút Xóa (Góc trên phải) */}
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              hitSlop={12}
-              style={styles.handleDotRemove}
-            >
-              <Text style={styles.handleDotRemoveText}>✕</Text>
-            </Pressable>
-
-            {/* Nút Xoay 15° (Góc dưới phải) */}
-            {onRotate && (
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onRotate();
-                }}
-                hitSlop={12}
-                style={styles.handleDotRotate}
-              >
-                <Text style={styles.handleDotText}>⟳</Text>
-              </Pressable>
-            )}
-
-            {/* Nút Nhân bản (Góc dưới trái) */}
-            {onDuplicate && (
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onDuplicate();
-                }}
-                hitSlop={12}
-                style={styles.handleDotDuplicate}
-              >
-                <Text style={styles.handleDotText}>📑</Text>
-              </Pressable>
-            )}
-          </>
-        )}
-      </View>
+      </Animated.View>
     );
   },
   (prev, next) => {
@@ -642,6 +741,7 @@ const DraggableCanvasText = React.memo(
       prev.item.rotation === next.item.rotation &&
       prev.item.color === next.item.color &&
       prev.item.bgColor === next.item.bgColor &&
+      prev.item.fontStyleType === next.item.fontStyleType &&
       prev.canvasHeight === next.canvasHeight
     );
   }
@@ -710,6 +810,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     setStickerPosition,
     moveSelectedSticker,
     resizeSelectedSticker,
+    setStickerSize,
     rotateSelectedSticker,
     duplicateSelectedSticker,
     textItems,
@@ -722,6 +823,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     setTextItemPosition,
     moveSelectedTextItem,
     resizeSelectedTextItem,
+    setTextItemFontSize,
     rotateSelectedTextItem,
     duplicateSelectedTextItem,
     customText,
@@ -783,6 +885,8 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
   const [lastSelectedEmoji, setLastSelectedEmoji] = useState('✨');
   const [newTextInput, setNewTextInput] = useState('');
   const [newTextBgColor, setNewTextBgColor] = useState('#FFFFFF');
+  const [newTextFontStyle, setNewTextFontStyle] = useState<FontStyleType>('modern_bold');
+  const [newTextFontSize, setNewTextFontSize] = useState<number>(14);
   const [textTab, setTextTab] = useState<'free' | 'banner'>('free');
   const [canvasHeight, setCanvasHeight] = useState(700);
   const [isExporting, setIsExporting] = useState(false);
@@ -830,14 +934,19 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     }).start();
   };
 
-  // Khởi động chuỗi chụp Photobooth 4 shot tự động kèm âm thanh & flash
+  // Khởi động chuỗi chụp Photobooth tự động theo bố cục khung kèm âm thanh & flash
   const startPhotoboothSequence = async () => {
     if (isShootingSequence) return;
     setIsShootingSequence(true);
 
+    const totalShots =
+      frameLayout === 'polaroid_1' ? 1 :
+      frameLayout === 'duo_note' ? 2 :
+      frameLayout === 'strip_3' ? 3 : 4;
+
     const sampleSet = SAMPLE_MODEL_SETS[Math.floor(Math.random() * SAMPLE_MODEL_SETS.length)];
 
-    for (let shot = 0; shot < 4; shot++) {
+    for (let shot = 0; shot < totalShots; shot++) {
       setShootingStep(shot);
       for (let c = 3; c > 0; c--) {
         setCountdownNum(c);
@@ -989,7 +1098,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     // 2. Nếu đang gõ text trong sheet và chạm vào canvas: đặt text tại vị trí chạm
     if (activeSheet === 'text' && newTextInput.trim().length > 0) {
       const { locationX, locationY } = event.nativeEvent;
-      addTextItemAt(newTextInput.trim(), locationX, locationY, textColor, newTextBgColor);
+      addTextItemAt(newTextInput.trim(), locationX, locationY, textColor, newTextBgColor, newTextFontStyle, newTextFontSize);
       setNewTextInput('');
       closeActiveSheet();
       return;
@@ -1003,6 +1112,16 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
 
   const selectedSticker = stickers.find((s) => s.id === selectedStickerId);
   const selectedText = textItems.find((t) => t.id === selectedTextId);
+
+  useEffect(() => {
+    if (selectedText) {
+      setNewTextInput(selectedText.text);
+      if (selectedText.bgColor) setNewTextBgColor(selectedText.bgColor);
+      if (selectedText.color) setTextColor(selectedText.color);
+      if (selectedText.fontStyleType) setNewTextFontStyle(selectedText.fontStyleType);
+      if (selectedText.fontSize) setNewTextFontSize(selectedText.fontSize);
+    }
+  }, [selectedTextId]);
 
   const handleCanvasSelectSticker = useCallback((id: string) => {
     setSelectedStickerId(id);
@@ -1029,6 +1148,34 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     setIsDraggingAny(false);
     setTextItemPosition(id, x, y);
   }, [setTextItemPosition]);
+
+  const handleDragStartAny = useCallback(() => {
+    setIsDraggingAny(true);
+  }, []);
+
+  const handleRotateSticker15 = useCallback(() => {
+    rotateSelectedSticker(15);
+  }, [rotateSelectedSticker]);
+
+  const handleRotateText15 = useCallback(() => {
+    rotateSelectedTextItem(15);
+  }, [rotateSelectedTextItem]);
+
+  const handleResizeSticker4 = useCallback(() => {
+    resizeSelectedSticker(4);
+  }, [resizeSelectedSticker]);
+
+  const handleResizeText2 = useCallback(() => {
+    resizeSelectedTextItem(2);
+  }, [resizeSelectedTextItem]);
+
+  const handleSetStickerSize = useCallback((id: string, size: number) => {
+    setStickerSize(id, size);
+  }, [setStickerSize]);
+
+  const handleSetTextItemFontSize = useCallback((id: string, fontSize: number) => {
+    setTextItemFontSize(id, fontSize);
+  }, [setTextItemFontSize]);
 
   const handlePublish = () => {
     if (!frameName.trim()) {
@@ -1106,6 +1253,11 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
           isInteractive
             ? (e) => {
                 e.stopPropagation();
+                if (selectedStickerId || selectedTextId) {
+                  setSelectedStickerId(null);
+                  setSelectedTextId(null);
+                  return;
+                }
                 setSlotActionModalIndex(slot - 1);
               }
             : undefined
@@ -1220,20 +1372,32 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
       ) : frameLayout === 'duo_note' ? (
         <View style={styles.framesColumn}>
           {[1, 2].map((slot) => renderSinglePhotoSlot(slot, isInteractive, styles.duoSlot))}
-          <View style={styles.duoNoteCard}>
-            <Text style={styles.duoNoteTitle}>💌 Lời nhắn kỷ niệm:</Text>
+          <Pressable
+            onPress={isInteractive ? () => { setTextTab('banner'); setActiveSheet('text'); } : undefined}
+            style={({ pressed }) => [
+              styles.duoNoteCard,
+              isInteractive && pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] },
+            ]}
+          >
+            <Text style={styles.duoNoteTitle}>💌 Lời nhắn kỷ niệm: {isInteractive ? '✎' : ''}</Text>
             <Text style={styles.duoNoteContent}>{customText || 'Mãi bên nhau bạn nhé! 🌿✨'}</Text>
             <Text style={styles.duoNoteFooter}>— {creatorName || 'Leafy Creator'} · {timestampText || '2026'}</Text>
-          </View>
+          </Pressable>
         </View>
       ) : frameLayout === 'polaroid_1' ? (
         <View style={styles.polaroidContainer}>
           {renderSinglePhotoSlot(1, isInteractive, styles.polaroidSlot)}
-          <View style={styles.polaroidFooterArea}>
+          <Pressable
+            onPress={isInteractive ? () => { setTextTab('banner'); setActiveSheet('text'); } : undefined}
+            style={({ pressed }) => [
+              styles.polaroidFooterArea,
+              isInteractive && pressed && { opacity: 0.88 },
+            ]}
+          >
             <Text style={[styles.polaroidCaptionText, { color: textColor }]}>
               {customText || 'Khoảnh khắc đáng nhớ 🌸'}
             </Text>
-          </View>
+          </Pressable>
         </View>
       ) : (
         /* strip_4 (mặc định) */
@@ -1337,6 +1501,51 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
         </>
       )}
 
+      {/* Hiệu ứng vé xem phim đục lỗ cuống vé nếu chọn ticket_stub */}
+      {frameEdgeStyle === 'ticket_stub' && (
+        <>
+          <View style={[styles.ticketNotch, styles.ticketNotchLeft1]} pointerEvents="none" />
+          <View style={[styles.ticketNotch, styles.ticketNotchRight1]} pointerEvents="none" />
+          <View style={[styles.ticketNotch, styles.ticketNotchLeft2]} pointerEvents="none" />
+          <View style={[styles.ticketNotch, styles.ticketNotchRight2]} pointerEvents="none" />
+          <View style={styles.ticketPerforationLine} pointerEvents="none" />
+          <View style={styles.ticketBadgeStamp} pointerEvents="none">
+            <Text style={styles.ticketBadgeText}>★ ADMIT ONE · CINEMA TICKET ★</Text>
+          </View>
+        </>
+      )}
+
+      {/* Hiệu ứng ống ngắm máy quay VHS 1998 nếu chọn vhs_camcorder */}
+      {frameEdgeStyle === 'vhs_camcorder' && (
+        <>
+          <View style={[styles.vhsBracket, styles.vhsBracketTL]} pointerEvents="none" />
+          <View style={[styles.vhsBracket, styles.vhsBracketTR]} pointerEvents="none" />
+          <View style={[styles.vhsBracket, styles.vhsBracketBL]} pointerEvents="none" />
+          <View style={[styles.vhsBracket, styles.vhsBracketBR]} pointerEvents="none" />
+          <View style={styles.vhsRecContainer} pointerEvents="none">
+            <View style={styles.vhsRecDot} />
+            <Text style={styles.vhsRecText}>REC</Text>
+            <Text style={styles.vhsRecTime}>[00:19:98]</Text>
+          </View>
+        </>
+      )}
+
+      {/* Hiệu ứng viền lượn sóng bánh kem nếu chọn heart_cutout */}
+      {frameEdgeStyle === 'heart_cutout' && (
+        <>
+          <View style={[styles.heartWaveColumn, { left: -5 }]} pointerEvents="none">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((k) => (
+              <View key={k} style={styles.heartWaveBubble} />
+            ))}
+          </View>
+          <View style={[styles.heartWaveColumn, { right: -5 }]} pointerEvents="none">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((k) => (
+              <View key={k} style={styles.heartWaveBubble} />
+            ))}
+          </View>
+        </>
+      )}
+
       {/* STICKERS TỰ DO TRÊN DẢI ẢNH */}
       {stickers.map((stk) => {
         if (isInteractive) {
@@ -1346,11 +1555,9 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               sticker={stk}
               isSelected={stk.id === selectedStickerId}
               onSelect={() => handleCanvasSelectSticker(stk.id)}
-              onRemove={() => handleCanvasRemoveSticker(stk.id)}
-              onRotate={() => rotateSelectedSticker(15)}
-              onDuplicate={duplicateSelectedSticker}
-              onDragStart={() => setIsDraggingAny(true)}
+              onDragStart={handleDragStartAny}
               onDragEnd={(x, y) => handleCanvasStickerDragEnd(stk.id, x, y)}
+              onSetSize={(size) => handleSetStickerSize(stk.id, size)}
               canvasHeight={canvasHeight}
             />
           );
@@ -1382,11 +1589,9 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               item={item}
               isSelected={item.id === selectedTextId}
               onSelect={() => handleCanvasSelectText(item.id)}
-              onRemove={() => handleCanvasRemoveText(item.id)}
-              onRotate={() => rotateSelectedTextItem(15)}
-              onDuplicate={duplicateSelectedTextItem}
-              onDragStart={() => setIsDraggingAny(true)}
+              onDragStart={handleDragStartAny}
               onDragEnd={(x, y) => handleCanvasTextDragEnd(item.id, x, y)}
+              onSetSize={(fontSize) => handleSetTextItemFontSize(item.id, fontSize)}
               canvasHeight={canvasHeight}
             />
           );
@@ -1416,7 +1621,11 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
             <Text
               style={[
                 styles.canvasTextContent,
-                { fontSize: item.fontSize || 12, color: item.color || colors.ink },
+                {
+                  fontSize: item.fontSize || 12,
+                  color: item.color || colors.ink,
+                  ...getFontStyleProps(item.fontStyleType),
+                },
               ]}
             >
               {item.text}
@@ -1693,24 +1902,26 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               <Pressable
                 onPress={() => {
                   saveCurrentFrame();
-                  Alert.alert(
-                    'Đã lưu khung ảnh! 🌿',
-                    'Khung "' + (frameName || 'Khung của tôi') + '" đã sẵn sàng trong thư viện. Chuyển sang Booth để chụp ngay nhé?',
-                    [
-                      { text: 'Ở lại chỉnh tiếp', style: 'cancel' },
-                      {
-                        text: 'Chụp ngay 📸',
-                        onPress: () => router.push('/(tabs)/booth' as any),
-                      },
-                    ]
-                  );
+                  // Đồng bộ khung sang Booth
+                  useBoothStore.getState().setActiveCustomFrame({
+                    id: 'current_studio_frame',
+                    name: frameName || 'Khung của tôi',
+                    color: effectiveBgColor,
+                    edgeStyle: frameEdgeStyle,
+                  });
+                  useBoothStore.getState().setFrameColor(effectiveBgColor);
+                  if (customText || frameName) {
+                    useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
+                  }
+                  // Mở thẳng camera để chụp ảnh với khung này!
+                  router.push('/booth/camera' as any);
                 }}
                 style={({ pressed }) => [
                   styles.studioBoothBtn,
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.studioBoothBtnText}>📸 Chụp</Text>
+                <Text style={styles.studioBoothBtnText}>📸 Chụp ngay</Text>
               </Pressable>
 
               <Pressable
@@ -1786,7 +1997,9 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   ]}
                 >
                   <Text style={styles.canvasActionPillText}>
-                    {isShootingSequence ? '📸 Đang chụp...' : '📸 Chụp 4 shot (3s)'}
+                    {isShootingSequence
+                      ? '📸 Đang chụp...'
+                      : `📸 Chụp ${frameLayout === 'polaroid_1' ? '1' : frameLayout === 'duo_note' ? '2' : frameLayout === 'strip_3' ? '3' : '4'} shot (3s)`}
                   </Text>
                 </Pressable>
 
@@ -1801,27 +2014,45 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     { transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={styles.canvasActionPillText}>🎲 4 Ảnh mẫu</Text>
+                  <Text style={styles.canvasActionPillText}>
+                    {frameLayout === 'polaroid_1' ? '🎲 1 Ảnh mẫu' : frameLayout === 'duo_note' ? '🎲 2 Ảnh mẫu' : frameLayout === 'strip_3' ? '🎲 3 Ảnh mẫu' : '🎲 4 Ảnh mẫu'}
+                  </Text>
                 </Pressable>
 
                 <Pressable
                   onPress={() => {
-                    Alert.alert(
-                      'Làm mới dải ảnh? 🌿',
-                      'Xóa tất cả sticker và chữ để trang trí lại từ đầu?',
-                      [
-                        { text: 'Hủy', style: 'cancel' },
-                        { text: 'Làm mới', style: 'destructive', onPress: clearAllCanvasItems },
-                      ]
-                    );
+                    if (selectedStickerId) {
+                      removeSticker(selectedStickerId);
+                      setSelectedStickerId(null);
+                    } else if (selectedTextId) {
+                      removeTextItem(selectedTextId);
+                      setSelectedTextId(null);
+                    } else {
+                      Alert.alert(
+                        'Làm mới dải ảnh? 🌿',
+                        'Xóa tất cả sticker và chữ để trang trí lại từ đầu?',
+                        [
+                          { text: 'Hủy', style: 'cancel' },
+                          { text: 'Làm mới', style: 'destructive', onPress: clearAllCanvasItems },
+                        ]
+                      );
+                    }
                   }}
                   style={({ pressed }) => [
                     styles.canvasActionPill,
                     styles.canvasActionPillClear,
+                    (selectedStickerId || selectedTextId) && { backgroundColor: '#FEE2E2', borderColor: '#DC2626' },
                     { transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={styles.canvasActionPillText}>🗑️ Xóa</Text>
+                  <Text
+                    style={[
+                      styles.canvasActionPillText,
+                      (selectedStickerId || selectedTextId) && { color: '#DC2626', fontWeight: '900' },
+                    ]}
+                  >
+                    {selectedStickerId ? '🗑️ Xóa sticker' : selectedTextId ? '🗑️ Xóa chữ' : '🗑️ Xóa'}
+                  </Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -1876,217 +2107,6 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   );
                 })}
               </ScrollView>
-            </View>
-          ) : (selectedSticker || selectedText) ? (
-            /* THANH NGỮ CẢNH ĐÁY: TÙY CHỈNH STICKER / CHỮ ĐANG CHỌN (KHÔNG CHE CANVAS) */
-            <View style={[styles.studioDockWrapper, isTab && { paddingBottom: 84 }]}>
-              <View style={styles.contextualBottomBar}>
-                {/* Thông tin đối tượng đang chọn */}
-                <View style={styles.contextItemBadge}>
-                  <Text style={styles.contextItemEmoji}>
-                    {selectedSticker ? selectedSticker.emoji : '✍️'}
-                  </Text>
-                  <Text style={styles.contextItemTitle} numberOfLines={1}>
-                    {selectedSticker ? 'Sticker' : selectedText?.text}
-                  </Text>
-                </View>
-
-                {/* Các nút tùy chỉnh */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.contextActionsRow}
-                >
-                  {/* Di chuyển các hướng (Nudge D-Pad) */}
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) moveSelectedSticker(-8, 0);
-                      else if (selectedText) moveSelectedTextItem(-8, 0);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      styles.contextMoveBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>◀</Text>
-                  </Pressable>
-
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) moveSelectedSticker(8, 0);
-                      else if (selectedText) moveSelectedTextItem(8, 0);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      styles.contextMoveBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>▶</Text>
-                  </Pressable>
-
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) moveSelectedSticker(0, -8);
-                      else if (selectedText) moveSelectedTextItem(0, -8);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      styles.contextMoveBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>▲</Text>
-                  </Pressable>
-
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) moveSelectedSticker(0, 8);
-                      else if (selectedText) moveSelectedTextItem(0, 8);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      styles.contextMoveBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>▼</Text>
-                  </Pressable>
-
-                  {/* Nhỏ hơn */}
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) resizeSelectedSticker(-4);
-                      else if (selectedText) resizeSelectedTextItem(-2);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>−</Text>
-                  </Pressable>
-
-                  {/* Lớn hơn */}
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) resizeSelectedSticker(4);
-                      else if (selectedText) resizeSelectedTextItem(2);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>+</Text>
-                  </Pressable>
-
-                  {/* Xoay trái */}
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) rotateSelectedSticker(-15);
-                      else if (selectedText) rotateSelectedTextItem(-15);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>⟲</Text>
-                  </Pressable>
-
-                  {/* Xoay phải */}
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) rotateSelectedSticker(15);
-                      else if (selectedText) rotateSelectedTextItem(15);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>⟳</Text>
-                  </Pressable>
-
-                  {/* Sửa nội dung chữ nếu đang chọn chữ */}
-                  {selectedText && (
-                    <Pressable
-                      hitSlop={8}
-                      onPress={() => {
-                        setNewTextInput(selectedText.text);
-                        if (selectedText.color) setTextColor(selectedText.color);
-                        if (selectedText.bgColor) setNewTextBgColor(selectedText.bgColor);
-                        setTextTab('free');
-                        setActiveSheet('text');
-                      }}
-                      style={({ pressed }) => [
-                        styles.contextMiniBtn,
-                        styles.contextEditBtn,
-                        { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                      ]}
-                    >
-                      <Text style={styles.contextMiniBtnText}>✏️</Text>
-                    </Pressable>
-                  )}
-
-                  {/* Nhân bản */}
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) duplicateSelectedSticker();
-                      else if (selectedText) duplicateSelectedTextItem();
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={styles.contextMiniBtnText}>📑</Text>
-                  </Pressable>
-
-                  {/* Xóa */}
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      if (selectedSticker) removeSticker(selectedSticker.id);
-                      else if (selectedText) removeTextItem(selectedText.id);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      styles.contextDeleteBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={[styles.contextMiniBtnText, { color: '#DC2626' }]}>🗑️</Text>
-                  </Pressable>
-
-                  {/* Xong */}
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => {
-                      setSelectedStickerId(null);
-                      setSelectedTextId(null);
-                    }}
-                    style={({ pressed }) => [
-                      styles.contextMiniBtn,
-                      styles.contextDoneBtn,
-                      { transform: [{ scale: pressed ? 0.92 : 1 }] },
-                    ]}
-                  >
-                    <Text style={[styles.contextMiniBtnText, { color: colors.ink }]}>✓</Text>
-                  </Pressable>
-                </ScrollView>
-              </View>
             </View>
           ) : (
             /* FLOATING STUDIO DOCK: 8 CÔNG CỤ SÁNG TẠO ĐỘC BẢN */
@@ -2401,15 +2421,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                           {/* Gợi ý quote nhanh 1-chạm */}
                           <Text style={styles.sheetSectionLabel}>Quote hay 1-chạm:</Text>
                           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                            {[
-                              'Besties Forever 💖',
-                              'Y2K Vibes ✨',
-                              'Life4Cuts 🎞️',
-                              'Smile Always 😊',
-                              'Hanoi 2026 🌸',
-                              'Love you to the moon 🌙',
-                              'Matcha Date 🍵',
-                            ].map((quote) => (
+                            {PREMADE_QUOTES.map((quote) => (
                               <Pressable
                                 key={quote}
                                 onPress={() => setNewTextInput(quote)}
@@ -2477,6 +2489,80 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                             ))}
                           </ScrollView>
 
+                          {/* Kiểu chữ */}
+                          <Text style={[styles.sheetSectionLabel, { marginTop: 6 }]}>Kiểu chữ nghệ thuật:</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                            {FONT_STYLE_OPTIONS.map((fOpt) => {
+                              const isCurrent = newTextFontStyle === fOpt.id;
+                              return (
+                                <Pressable
+                                  key={fOpt.id}
+                                  onPress={() => {
+                                    setNewTextFontStyle(fOpt.id);
+                                    if (selectedText) {
+                                      updateTextItem(selectedText.id, { fontStyleType: fOpt.id });
+                                    }
+                                  }}
+                                  style={[
+                                    styles.fontStyleChip,
+                                    isCurrent && styles.fontStyleChipActive,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.fontStylePreviewText,
+                                      getFontStyleProps(fOpt.id),
+                                      isCurrent && styles.fontStylePreviewTextActive,
+                                    ]}
+                                  >
+                                    {fOpt.preview}
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.fontStyleChipLabel,
+                                      isCurrent && styles.fontStyleChipLabelActive,
+                                    ]}
+                                  >
+                                    {fOpt.label}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </ScrollView>
+
+                          {/* Cỡ chữ */}
+                          <Text style={[styles.sheetSectionLabel, { marginTop: 4 }]}>Cỡ chữ nhanh:</Text>
+                          <View style={styles.fontSizeRow}>
+                            {FONT_SIZE_OPTIONS.map((sOpt) => {
+                              const isCurrent = newTextFontSize === sOpt.size;
+                              return (
+                                <Pressable
+                                  key={sOpt.size}
+                                  onPress={() => {
+                                    setNewTextFontSize(sOpt.size);
+                                    if (selectedText) {
+                                      updateTextItem(selectedText.id, { fontSize: sOpt.size });
+                                      setTextItemFontSize(selectedText.id, sOpt.size);
+                                    }
+                                  }}
+                                  style={[
+                                    styles.fontSizeChip,
+                                    isCurrent && styles.fontSizeChipActive,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.fontSizeChipText,
+                                      isCurrent && styles.fontSizeChipTextActive,
+                                    ]}
+                                  >
+                                    {sOpt.label}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+
                           <Pressable
                             onPress={() => {
                               if (newTextInput.trim()) {
@@ -2485,9 +2571,11 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                     text: newTextInput.trim(),
                                     color: textColor,
                                     bgColor: newTextBgColor,
+                                    fontStyleType: newTextFontStyle,
+                                    fontSize: newTextFontSize,
                                   });
                                 } else {
-                                  addTextItem(newTextInput.trim(), textColor, newTextBgColor);
+                                  addTextItem(newTextInput.trim(), textColor, newTextBgColor, newTextFontStyle, newTextFontSize);
                                 }
                                 setNewTextInput('');
                                 closeActiveSheet();
@@ -3867,61 +3955,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.ink,
   },
-  handleDotRemove: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#DC2626',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.white,
-    zIndex: 100,
-    ...theme.shadows.hardSmall,
-  },
-  handleDotRemoveText: {
-    color: colors.white,
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  handleDotRotate: {
-    position: 'absolute',
-    bottom: -8,
-    right: -8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.lime,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    zIndex: 100,
-    ...theme.shadows.hardSmall,
-  },
-  handleDotDuplicate: {
-    position: 'absolute',
-    bottom: -8,
-    left: -8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.yellow,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    zIndex: 100,
-    ...theme.shadows.hardSmall,
-  },
-  handleDotText: {
-    color: colors.ink,
-    fontSize: 10,
-    fontWeight: '900',
-  },
   duplicateBtn: {
     width: 32,
     height: 32,
@@ -4854,6 +4887,204 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderWidth: 1.5,
     borderColor: colors.ink,
+  },
+
+  // Ticket Stub Edge Styles
+  ticketNotch: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    zIndex: 8,
+  },
+  ticketNotchLeft1: {
+    left: -7,
+    top: '28%',
+  },
+  ticketNotchRight1: {
+    right: -7,
+    top: '28%',
+  },
+  ticketNotchLeft2: {
+    left: -7,
+    top: '72%',
+  },
+  ticketNotchRight2: {
+    right: -7,
+    top: '72%',
+  },
+  ticketPerforationLine: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    top: '72%',
+    height: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.3)',
+    borderStyle: 'dashed',
+    zIndex: 7,
+  },
+  ticketBadgeStamp: {
+    position: 'absolute',
+    bottom: 24,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 230, 0, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.ink,
+    zIndex: 8,
+  },
+  ticketBadgeText: {
+    fontSize: 7.5,
+    fontWeight: '900',
+    color: colors.ink,
+    letterSpacing: 0.5,
+  },
+
+  // VHS Camcorder Edge Styles
+  vhsBracket: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderColor: '#00FF66',
+    zIndex: 8,
+  },
+  vhsBracketTL: {
+    top: 6,
+    left: 6,
+    borderTopWidth: 2.5,
+    borderLeftWidth: 2.5,
+  },
+  vhsBracketTR: {
+    top: 6,
+    right: 6,
+    borderTopWidth: 2.5,
+    borderRightWidth: 2.5,
+  },
+  vhsBracketBL: {
+    bottom: 6,
+    left: 6,
+    borderBottomWidth: 2.5,
+    borderLeftWidth: 2.5,
+  },
+  vhsBracketBR: {
+    bottom: 6,
+    right: 6,
+    borderBottomWidth: 2.5,
+    borderRightWidth: 2.5,
+  },
+  vhsRecContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    zIndex: 9,
+  },
+  vhsRecDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF0033',
+  },
+  vhsRecText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#FF0033',
+    letterSpacing: 1,
+  },
+  vhsRecTime: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#00FF66',
+    letterSpacing: 0.5,
+  },
+
+  // Heart / Cake Wave Edge Styles
+  heartWaveColumn: {
+    position: 'absolute',
+    top: 10,
+    bottom: 10,
+    justifyContent: 'space-between',
+    zIndex: 6,
+  },
+  heartWaveBubble: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFE4E6',
+    borderWidth: 1.5,
+    borderColor: '#FF4D8D',
+  },
+
+  // Font Style & Size Chips
+  fontStyleChip: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginRight: 8,
+    alignItems: 'center',
+    ...theme.shadows.hardSmall,
+  },
+  fontStyleChipActive: {
+    backgroundColor: colors.yellow,
+    borderWidth: 2,
+    transform: [{ scale: 1.04 }],
+  },
+  fontStylePreviewText: {
+    fontSize: 13,
+    color: colors.ink,
+    marginBottom: 2,
+  },
+  fontStylePreviewTextActive: {
+    color: colors.ink,
+  },
+  fontStyleChipLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+  fontStyleChipLabelActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  fontSizeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  fontSizeChip: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.hardSmall,
+  },
+  fontSizeChipActive: {
+    backgroundColor: colors.lime,
+    borderWidth: 2,
+  },
+  fontSizeChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  fontSizeChipTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
   },
   stripLocationSubtitle: {
     fontSize: 8,
@@ -6534,73 +6765,6 @@ const styles = StyleSheet.create({
   },
   templateApplyTextActive: {
     color: colors.ink,
-  },
-  // Contextual Bottom Bar (Thay thế Dock khi chọn Sticker/Chữ)
-  contextualBottomBar: {
-    backgroundColor: colors.white,
-    borderRadius: 28,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    ...theme.shadows.hard,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  contextItemBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    maxWidth: 105,
-  },
-  contextItemEmoji: {
-    fontSize: 16,
-  },
-  contextItemTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  contextActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  contextMiniBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  contextMiniBtnText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  contextDeleteBtn: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#DC2626',
-  },
-  contextMoveBtn: {
-    backgroundColor: '#FEF08A',
-  },
-  contextEditBtn: {
-    backgroundColor: '#93C5FD',
-  },
-  contextDoneBtn: {
-    backgroundColor: colors.lime,
-    borderColor: colors.ink,
   },
   textTabSwitchContainer: {
     flexDirection: 'row',

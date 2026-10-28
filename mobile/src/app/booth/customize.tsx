@@ -13,6 +13,7 @@ import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
 import { PillButton } from '../../core/components/PillButton';
 import { useBoothStore, StripLayout, StripFilter } from '../../features/booth/hooks/useBoothStore';
+import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
 
 const COLOR_OPTIONS = [
   colors.pink,
@@ -202,6 +203,31 @@ export default function BoothCustomizeScreen() {
               );
             })}
           </View>
+
+          {/* Banner dẫn vào Studio trang trí chuyên sâu */}
+          <Pressable
+            onPress={() => {
+              useStudioStore.getState().setSlotPhotos(displayPhotos);
+              useStudioStore.getState().setBackgroundColor(frameColor);
+              if (stripTitle) {
+                useStudioStore.getState().setCustomText(stripTitle);
+              }
+              router.push('/studio' as any);
+            }}
+            style={({ pressed }) => [
+              styles.studioBanner,
+              { transform: [{ scale: pressed ? 0.98 : 1 }] },
+            ]}
+          >
+            <View style={styles.studioBannerIconBox}>
+              <Text style={{ fontSize: 20 }}>🎨</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.studioBannerTitle}>Studio Trang Trí Độc Lạ</Text>
+              <Text style={styles.studioBannerDesc}>Dán 180+ sticker, kiểu chữ & mép viền đặc biệt</Text>
+            </View>
+            <Text style={styles.studioBannerArrow}>➔</Text>
+          </Pressable>
 
           {/* Bottom Action Buttons */}
           <View style={styles.actionRow}>
@@ -433,6 +459,45 @@ const styles = StyleSheet.create({
   },
   filterLabelSelected: {
     fontWeight: '900',
+  },
+  studioBanner: {
+    backgroundColor: colors.pink,
+    borderRadius: 16,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+    ...theme.shadows.hard,
+  },
+  studioBannerIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studioBannerTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  studioBannerDesc: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4B5563',
+    marginTop: 2,
+  },
+  studioBannerArrow: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.ink,
   },
   actionRow: {
     flexDirection: 'row',

@@ -18,6 +18,7 @@ import { PillButton } from '../../core/components/PillButton';
 import { exportStripToImage } from '../../core/utils/stripExportService';
 import { useBoothStore } from '../../features/booth/hooks/useBoothStore';
 import { useMomentsStore } from '../../features/moments/hooks/useMomentsStore';
+import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
 import { playShutterSound } from '../../features/booth/services/soundService';
 
 export default function BoothResultScreen() {
@@ -77,6 +78,17 @@ export default function BoothResultScreen() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleOpenStudioWithPhotos = () => {
+    useStudioStore.getState().setSlotPhotos(displayPhotos);
+    if (frameColor) {
+      useStudioStore.getState().setBackgroundColor(frameColor);
+    }
+    if (stripTitle) {
+      useStudioStore.getState().setCustomText(stripTitle);
+    }
+    router.push('/studio' as any);
   };
 
   const handleRetake = () => {
@@ -211,6 +223,24 @@ export default function BoothResultScreen() {
 
       {/* Action Buttons */}
       <View style={styles.actionSection}>
+        {/* Nút chính: Trang trí dải ảnh Sticker Pop trong Studio */}
+        <Pressable
+          onPress={handleOpenStudioWithPhotos}
+          style={({ pressed }) => [
+            styles.studioCtaButton,
+            { transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+        >
+          <View style={styles.studioCtaIconBox}>
+            <Text style={{ fontSize: 20 }}>✨</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.studioCtaTitle}>Trang Trí Sticker & Chữ</Text>
+            <Text style={styles.studioCtaSubtitle}>180+ sticker, 6 font chữ, viền vé phim & camcorder</Text>
+          </View>
+          <Text style={styles.studioCtaArrow}>➔</Text>
+        </Pressable>
+
         <View style={styles.buttonRow}>
           <PillButton
             title={isSaving ? 'Đang lưu...' : 'Lưu vào máy'}
@@ -403,6 +433,46 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12,
     marginTop: 'auto',
+  },
+  studioCtaButton: {
+    backgroundColor: colors.yellow,
+    borderRadius: 16,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    ...theme.shadows.hard,
+  },
+  studioCtaIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studioCtaTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.ink,
+    letterSpacing: -0.2,
+  },
+  studioCtaSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4B5563',
+    marginTop: 2,
+  },
+  studioCtaArrow: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.ink,
+    marginLeft: 4,
   },
   buttonRow: {
     flexDirection: 'row',

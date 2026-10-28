@@ -377,11 +377,29 @@ export async function exportStudioFrameToImage(options: {
   textPosition: 'top' | 'middle' | 'bottom';
   textColor: string;
   stickers: { id: string; emoji: string; x: number; y: number; size?: number; rotation?: number }[];
-  textItems?: { id: string; text: string; x: number; y: number; fontSize?: number; rotation?: number; color?: string; bgColor?: string }[];
+  textItems?: {
+    id: string;
+    text: string;
+    x: number;
+    y: number;
+    fontSize?: number;
+    rotation?: number;
+    color?: string;
+    bgColor?: string;
+    fontStyleType?: 'modern_bold' | 'handwriting' | 'typewriter' | 'aesthetic_serif' | 'bubble_cute' | 'neon_cyber';
+  }[];
   slotPhotos?: (string | null)[];
   photoFilter?: string;
   frameLayout?: 'strip_4' | 'grid_4' | 'strip_3' | 'duo_note' | 'polaroid_1';
-  frameEdgeStyle?: 'classic' | 'film_perforated' | 'stamp_scallop' | 'washi_corners' | 'neon_glow';
+  frameEdgeStyle?:
+    | 'classic'
+    | 'film_perforated'
+    | 'stamp_scallop'
+    | 'washi_corners'
+    | 'neon_glow'
+    | 'ticket_stub'
+    | 'vhs_camcorder'
+    | 'heart_cutout';
   creatorName?: string;
   serialNumber?: string;
   showTimestamp?: boolean;
@@ -776,7 +794,30 @@ export async function exportStudioFrameToImage(options: {
             ctx.rotate(rotation);
           }
 
-          ctx.font = `900 ${Math.round(fontSize)}px sans-serif`;
+          const px = Math.round(fontSize);
+          let fontSpec = `900 ${px}px sans-serif`;
+          switch (t.fontStyleType) {
+            case 'handwriting':
+              fontSpec = `italic 600 ${px}px "Brush Script MT", cursive, sans-serif`;
+              break;
+            case 'typewriter':
+              fontSpec = `bold ${px}px "Courier New", Courier, monospace`;
+              break;
+            case 'aesthetic_serif':
+              fontSpec = `italic 600 ${px}px "Georgia", "Times New Roman", serif`;
+              break;
+            case 'bubble_cute':
+              fontSpec = `900 ${px}px "Comic Sans MS", "Chalkboard SE", sans-serif`;
+              break;
+            case 'neon_cyber':
+              fontSpec = `900 ${px}px "Trebuchet MS", "Impact", monospace, sans-serif`;
+              break;
+            case 'modern_bold':
+            default:
+              fontSpec = `900 ${px}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+              break;
+          }
+          ctx.font = fontSpec;
           const metrics = ctx.measureText(t.text);
           const textWidth = metrics.width;
           const textHeight = fontSize;
@@ -797,7 +838,7 @@ export async function exportStudioFrameToImage(options: {
         }
       }
 
-      // 11. Hiệu ứng viền đặc biệt (Cuộn phim Film Sprocket / Răng cưa Tem / Băng dính Washi)
+      // 11. Hiệu ứng viền đặc biệt (Cuộn phim Film Sprocket / Răng cưa Tem / Băng dính Washi / Vé xem phim / Camcorder / Viền bánh kem)
       if (options.frameEdgeStyle === 'film_perforated') {
         // Lỗ răng cưa cuộn phim nhựa dọc 2 bên lề
         ctx.fillStyle = '#FFFFFF';
@@ -867,6 +908,77 @@ export async function exportStudioFrameToImage(options: {
         ctx.lineWidth = 4;
         ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
         ctx.restore();
+      } else if (options.frameEdgeStyle === 'ticket_stub') {
+        // Khía cạnh cuống vé xem phim cinema
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#111111';
+        ctx.lineWidth = 2.5;
+        const notchRadius = 14;
+        const notchY1 = canvas.height * 0.28;
+        const notchY2 = canvas.height * 0.72;
+        [notchY1, notchY2].forEach((ny) => {
+          ctx.beginPath();
+          ctx.arc(0, ny, notchRadius, -Math.PI / 2, Math.PI / 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(canvas.width, ny, notchRadius, Math.PI / 2, (3 * Math.PI) / 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+        // Đường gạch đứt cuống vé
+        ctx.save();
+        ctx.setLineDash([8, 6]);
+        ctx.strokeStyle = '#555555';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(18, notchY2);
+        ctx.lineTo(canvas.width - 18, notchY2);
+        ctx.stroke();
+        ctx.restore();
+      } else if (options.frameEdgeStyle === 'vhs_camcorder') {
+        // Ống ngắm camcorder REC 1998
+        ctx.strokeStyle = '#00FF66';
+        ctx.lineWidth = 3;
+        const bSize = 24;
+        // Top-left
+        ctx.beginPath();
+        ctx.moveTo(18, 18 + bSize); ctx.lineTo(18, 18); ctx.lineTo(18 + bSize, 18);
+        ctx.stroke();
+        // Top-right
+        ctx.beginPath();
+        ctx.moveTo(canvas.width - 18 - bSize, 18); ctx.lineTo(canvas.width - 18, 18); ctx.lineTo(canvas.width - 18, 18 + bSize);
+        ctx.stroke();
+        // Bottom-left
+        ctx.beginPath();
+        ctx.moveTo(18, canvas.height - 18 - bSize); ctx.lineTo(18, canvas.height - 18); ctx.lineTo(18 + bSize, canvas.height - 18);
+        ctx.stroke();
+        // Bottom-right
+        ctx.beginPath();
+        ctx.moveTo(canvas.width - 18 - bSize, canvas.height - 18); ctx.lineTo(canvas.width - 18, canvas.height - 18); ctx.lineTo(canvas.width - 18, canvas.height - 18 - bSize);
+        ctx.stroke();
+        // REC indicator
+        ctx.fillStyle = '#FF0033';
+        ctx.beginPath();
+        ctx.arc(34, 38, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '900 13px monospace';
+        ctx.fillText('REC', 46, 43);
+      } else if (options.frameEdgeStyle === 'heart_cutout') {
+        // Viền lượn sóng bánh kem dâu
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#FF4D8D';
+        ctx.lineWidth = 2;
+        for (let py = 20; py < canvas.height - 20; py += 28) {
+          ctx.beginPath();
+          ctx.arc(6, py, 7, -Math.PI / 2, Math.PI / 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(canvas.width - 6, py, 7, Math.PI / 2, -Math.PI / 2);
+          ctx.fill();
+          ctx.stroke();
+        }
       }
 
       // 12. Viền ngoài bo khung dải ảnh

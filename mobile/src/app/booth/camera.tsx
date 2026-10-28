@@ -14,6 +14,7 @@ import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
 import { useBoothStore } from '../../features/booth/hooks/useBoothStore';
 import { playShutterSound } from '../../features/booth/services/soundService';
+import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
 
 export default function BoothCameraScreen() {
   const insets = useSafeAreaInsets();
@@ -29,6 +30,7 @@ export default function BoothCameraScreen() {
     cameraFacing,
     isMirrored,
     soundEnabled,
+    activeCustomFrame,
     toggleCameraFacing,
     toggleMirror,
     toggleSound,
@@ -56,7 +58,7 @@ export default function BoothCameraScreen() {
     }).start();
   };
 
-  const takeSinglePhoto = async (shotIndex: number) => {
+  const takeSinglePhoto = async (shotIndex: number): Promise<string> => {
     triggerFlash();
     if (soundEnabled) {
       playShutterSound();
@@ -81,6 +83,7 @@ export default function BoothCameraScreen() {
     }
 
     addCapturedPhoto(photoUri);
+    return photoUri;
   };
 
   const startPhotoboothSequence = async () => {
@@ -88,6 +91,7 @@ export default function BoothCameraScreen() {
     setIsShooting(true);
     resetPhotos();
 
+    const shotUris: string[] = [];
     for (let shot = 0; shot < 4; shot++) {
       setCurrentShotIndex(shot);
 
@@ -98,7 +102,10 @@ export default function BoothCameraScreen() {
       }
 
       setCountdown(null);
-      await takeSinglePhoto(shot);
+      const uri = await takeSinglePhoto(shot);
+      if (uri) {
+        shotUris.push(uri);
+      }
 
       // Nghỉ 1 giây giữa các khung hình để người dùng đổi dáng
       if (shot < 3) {
@@ -107,6 +114,12 @@ export default function BoothCameraScreen() {
     }
 
     setIsShooting(false);
+
+    // Đồng bộ ngay lập tức 4 ảnh thật vừa chụp vào Studio Store!
+    if (shotUris.length > 0) {
+      useStudioStore.getState().setSlotPhotos(shotUris);
+    }
+
     // Chuyển tới màn hình kết quả dải ảnh
     router.replace('/booth/result' as any);
   };
@@ -127,8 +140,10 @@ export default function BoothCameraScreen() {
         </Pressable>
 
         {/* Nền đang chọn Pill */}
-        <View style={styles.backdropPill}>
-          <Text style={styles.backdropPillText}>Nền {selectedBackdrop.name}</Text>
+        <View style={[styles.backdropPill, activeCustomFrame && { backgroundColor: colors.yellow }]}>
+          <Text style={styles.backdropPillText}>
+            {activeCustomFrame ? `🎨 ${activeCustomFrame.name}` : `Nền ${selectedBackdrop.name}`}
+          </Text>
         </View>
 
         {/* Nút bật/tắt âm thanh */}
