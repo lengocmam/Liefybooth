@@ -191,11 +191,31 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
           </View>
 
           <View style={styles.topMomentThumbBox}>
-            <Image
-              source={{ uri: latestMoment.photoUrl }}
-              style={styles.topMomentThumb}
-              resizeMode="cover"
-            />
+            {latestMoment.stripPhotos && latestMoment.stripPhotos.length > 1 ? (
+              <View
+                style={[
+                  styles.topMomentStripThumb,
+                  { backgroundColor: latestMoment.frameColor || '#FF8FC7' },
+                ]}
+              >
+                <View style={styles.topMomentMiniGrid}>
+                  {latestMoment.stripPhotos.slice(0, 4).map((pUrl, idx) => (
+                    <Image
+                      key={idx}
+                      source={{ uri: pUrl }}
+                      style={styles.topMomentMiniCell}
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: latestMoment.photoUrl }}
+                style={styles.topMomentThumb}
+                resizeMode="cover"
+              />
+            )}
           </View>
         </Pressable>
       )}
@@ -385,7 +405,25 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
         ]}
       >
         <View style={styles.pullUpThumbWrapper}>
-          {latestMoment?.photoUrl ? (
+          {latestMoment?.stripPhotos && latestMoment.stripPhotos.length > 1 ? (
+            <View
+              style={[
+                styles.pullUpStripThumb,
+                { backgroundColor: latestMoment.frameColor || '#FF8FC7' },
+              ]}
+            >
+              <View style={styles.pullUpMiniGrid}>
+                {latestMoment.stripPhotos.slice(0, 4).map((pUrl, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: pUrl }}
+                    style={styles.pullUpMiniCell}
+                    resizeMode="cover"
+                  />
+                ))}
+              </View>
+            </View>
+          ) : latestMoment?.photoUrl ? (
             <Image source={{ uri: latestMoment.photoUrl }} style={styles.pullUpThumb} />
           ) : (
             <View style={styles.pullUpThumbPlaceholder}>
@@ -420,7 +458,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111317', // Tối giản studio matte dark
+    backgroundColor: colors.darkBg, // Midnight OLED pure dark
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg,
   },
@@ -442,52 +480,52 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   friendsPill: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   friendsPillText: {
     fontSize: 13,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   switchViewPill: {
-    backgroundColor: '#FFE600',
+    backgroundColor: colors.accentYellow,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   switchViewPillText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.ink,
   },
   topLatestMomentPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 10,
     paddingVertical: 6,
     marginBottom: 8,
     gap: 8,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   topMomentAvatarCircle: {
     width: 28,
     height: 28,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -507,13 +545,13 @@ const styles = StyleSheet.create({
   topMomentSenderName: {
     fontSize: 12,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   topMomentTimeBadge: {
-    backgroundColor: '#FFE600',
+    backgroundColor: colors.accentYellow,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
@@ -525,7 +563,7 @@ const styles = StyleSheet.create({
   topMomentCaption: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4B5563',
+    color: colors.textSecondary,
     marginTop: 1,
   },
   topMomentThumbBox: {
@@ -533,13 +571,34 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.darkSurfaceElevated,
   },
   topMomentThumb: {
     width: '100%',
     height: '100%',
+  },
+  topMomentStripThumb: {
+    width: '100%',
+    height: '100%',
+    padding: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topMomentMiniGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 1.5,
+    width: 27,
+    height: 27,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topMomentMiniCell: {
+    width: 12,
+    height: 12,
+    borderRadius: 2,
   },
   viewfinderContainer: {
     alignItems: 'center',
@@ -549,19 +608,19 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: 26,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#111111',
-    ...theme.shadows.hard,
+    backgroundColor: '#000000',
+    ...theme.shadows.darkSoft,
   },
   cameraView: {
     flex: 1,
   },
   simulatedCamera: {
     flex: 1,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#111319',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -584,12 +643,12 @@ const styles = StyleSheet.create({
     top: 14,
     zIndex: 5,
     borderRadius: 18,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    backgroundColor: 'rgba(18, 20, 26, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   flashButton: {
     left: 14,
@@ -597,7 +656,8 @@ const styles = StyleSheet.create({
     height: 36,
   },
   flashButtonActive: {
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.accentYellow,
+    borderColor: colors.accentYellow,
   },
   cameraTopButtonText: {
     fontSize: 16,
@@ -610,7 +670,7 @@ const styles = StyleSheet.create({
   zoomText: {
     fontSize: 13,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   captionInputWrapper: {
     position: 'absolute',
@@ -620,16 +680,16 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   captionInput: {
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(18, 20, 26, 0.88)',
     borderRadius: 22,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
     fontWeight: '700',
-    color: colors.ink,
-    ...theme.shadows.hardSmall,
+    color: colors.textPrimary,
+    ...theme.shadows.darkSoft,
   },
   toastCard: {
     position: 'absolute',
@@ -659,19 +719,19 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.white,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   galleryIcon: {
     width: 28,
     height: 28,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     backgroundColor: '#FFCC80',
     overflow: 'hidden',
     position: 'relative',
@@ -699,7 +759,7 @@ const styles = StyleSheet.create({
     height: 86,
     borderRadius: 43,
     borderWidth: 4,
-    borderColor: colors.white,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
@@ -708,10 +768,10 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: colors.lime,
+    backgroundColor: colors.accentYellow,
     borderWidth: 2.5,
-    borderColor: colors.ink,
-    ...theme.shadows.hardSmall,
+    borderColor: '#FFFFFF',
+    ...theme.shadows.darkSoft,
   },
   flipCameraIcon: {
     fontSize: 22,
@@ -738,21 +798,22 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   recipientSelected: {
-    backgroundColor: colors.lime,
+    backgroundColor: colors.accentYellow,
   },
   recipientUnselected: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
   },
   recipientCircleActive: {
-    borderWidth: 3.5,
+    borderWidth: 2.5,
+    borderColor: '#FFE600',
   },
   checkmarkIcon: {
     fontSize: 22,
@@ -762,7 +823,7 @@ const styles = StyleSheet.create({
   friendLetter: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   smallBadgeCheck: {
     position: 'absolute',
@@ -771,7 +832,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.lime,
+    backgroundColor: colors.accentYellow,
     borderWidth: 1.5,
     borderColor: colors.ink,
     alignItems: 'center',
@@ -786,12 +847,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    borderWidth: 2,
-    borderColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   addFriendPlus: {
     fontSize: 22,
@@ -801,7 +862,7 @@ const styles = StyleSheet.create({
   recipientName: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.white,
+    color: colors.textSecondary,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -812,16 +873,16 @@ const styles = StyleSheet.create({
   locketPullUpBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: 24,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 6,
     marginBottom: 2,
     gap: 12,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   pullUpThumbWrapper: {
     position: 'relative',
@@ -830,16 +891,41 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+  },
+  pullUpStripThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    padding: 2.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  pullUpMiniGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 2,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pullUpMiniCell: {
+    width: 16,
+    height: 16,
+    borderRadius: 3,
   },
   pullUpThumbPlaceholder: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#FFE600',
-    borderWidth: 2,
-    borderColor: colors.ink,
+    backgroundColor: colors.accentYellow,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -852,7 +938,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#FF4F8B',
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: colors.darkBg,
   },
   pullUpTextCol: {
     flex: 1,
@@ -865,13 +951,13 @@ const styles = StyleSheet.create({
   pullUpTitle: {
     fontSize: 14,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   pullUpCountBadge: {
-    backgroundColor: '#FFE600',
+    backgroundColor: colors.accentYellow,
     borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 6,
     paddingVertical: 1,
   },
@@ -883,22 +969,22 @@ const styles = StyleSheet.create({
   pullUpSubtitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4B5563',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   pullUpArrowBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.darkSurfaceElevated,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pullUpArrowIcon: {
     fontSize: 13,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
 });

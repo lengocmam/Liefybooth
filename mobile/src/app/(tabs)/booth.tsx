@@ -51,7 +51,7 @@ export default function BoothScreen() {
               onPress={() => router.push('/(tabs)/studio' as any)}
               style={({ pressed }) => [
                 styles.shortcutPill,
-                { backgroundColor: colors.white, transform: [{ scale: pressed ? 0.96 : 1 }] },
+                { backgroundColor: colors.darkSurfaceElevated, transform: [{ scale: pressed ? 0.96 : 1 }] },
               ]}
             >
               <Text style={styles.shortcutEmoji}>🎨</Text>
@@ -62,7 +62,7 @@ export default function BoothScreen() {
               onPress={() => router.push('/widget-guide' as any)}
               style={({ pressed }) => [
                 styles.shortcutPill,
-                { backgroundColor: colors.white, transform: [{ scale: pressed ? 0.96 : 1 }] },
+                { backgroundColor: colors.darkSurfaceElevated, transform: [{ scale: pressed ? 0.96 : 1 }] },
               ]}
             >
               <Text style={styles.shortcutEmoji}>📱</Text>
@@ -139,6 +139,8 @@ export default function BoothScreen() {
                   key={cf.id}
                   onPress={() => {
                     resetBooth();
+                    // Nạp sẵn khung vào StudioStore để luôn đồng bộ
+                    useStudioStore.getState().loadSavedFrame(cf.id);
                     selectBackdrop({
                       id: cf.id,
                       name: cf.name,
@@ -209,7 +211,7 @@ export default function BoothScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF9F6', // Nền giấy kem studio ấm áp, tinh tế, không lòe loẹt
+    backgroundColor: colors.darkBg, // Midnight Dark Studio
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.xl,
@@ -220,50 +222,50 @@ const styles = StyleSheet.create({
   mainTitle: {
     fontSize: 44,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
     letterSpacing: -1,
   },
   subtitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#4B5563',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   featuredCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   featuredLeft: {
     flex: 1,
     alignItems: 'flex-start',
   },
   nearDatePill: {
-    backgroundColor: '#FFE600',
-    borderWidth: 2,
-    borderColor: colors.ink,
+    backgroundColor: colors.accentYellow,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 4,
     marginBottom: 10,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   nearDateText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.ink,
   },
   featuredTitle: {
     fontSize: 40,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     lineHeight: 42,
     letterSpacing: -0.5,
     marginBottom: 14,
@@ -279,21 +281,21 @@ const styles = StyleSheet.create({
   },
   featuredStrip: {
     width: 80,
-    backgroundColor: colors.white,
+    backgroundColor: '#FF7A3D',
     borderRadius: 10,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 2,
+    borderColor: colors.darkBorder,
     padding: 6,
     gap: 6,
     transform: [{ rotate: '4deg' }],
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   featuredStripBox: {
     height: 38,
     backgroundColor: '#FFCC80',
     borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.2)',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -311,37 +313,35 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    color: colors.ink,
+    fontWeight: '900',
+    color: colors.textPrimary,
   },
   diyFrameBanner: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 24,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   diyBannerIconBox: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFE600',
-    borderWidth: 2,
-    borderColor: colors.ink,
+    backgroundColor: colors.accentYellow,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   diyBannerBadge: {
     backgroundColor: '#FF4F8B',
     borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
     paddingHorizontal: 8,
     paddingVertical: 2,
     alignSelf: 'flex-start',
@@ -355,19 +355,19 @@ const styles = StyleSheet.create({
   diyBannerTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   diyBannerDesc: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4B5563',
+    color: colors.textSecondary,
     marginTop: 2,
     lineHeight: 15,
   },
   diyBannerArrow: {
     fontSize: 22,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   customFrameCard: {
     width: 120,
@@ -377,9 +377,8 @@ const styles = StyleSheet.create({
   customFrameSubText: {
     fontSize: 10,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textSecondary,
     marginTop: 2,
-    opacity: 0.8,
   },
   grid: {
     flexDirection: 'row',
@@ -396,23 +395,23 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 160,
     borderRadius: 16,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 2,
+    borderColor: colors.darkBorder,
     padding: 10,
     gap: 6,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   thumbnailSlot: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
     borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.15)',
   },
   backdropName: {
     fontSize: 15,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginTop: 8,
     textAlign: 'center',
   },
@@ -429,10 +428,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: theme.borders.radius.full,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     gap: 6,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   shortcutEmoji: {
     fontSize: 16,
@@ -440,6 +439,6 @@ const styles = StyleSheet.create({
   shortcutText: {
     fontSize: 13,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
 });

@@ -58,6 +58,22 @@ export default function WidgetGuideScreen() {
     setDemoIndex((prev) => (prev + 1) % Math.max(1, moments.length));
   };
 
+  const getFilterImgStyle = (f?: string) => {
+    if (f === 'bw') return { opacity: 0.9, tintColor: '#6B7280' as any };
+    if (f === 'warm' || f === 'cool' || f === 'vintage' || f === 'pastel') return { opacity: 0.95 };
+    return {};
+  };
+
+  const renderFilterOverlay = (f?: string) => {
+    switch (f) {
+      case 'warm': return <View style={styles.widgetFilterWarm} pointerEvents="none" />;
+      case 'cool': return <View style={styles.widgetFilterCool} pointerEvents="none" />;
+      case 'vintage': return <View style={styles.widgetFilterVintage} pointerEvents="none" />;
+      case 'pastel': return <View style={styles.widgetFilterPastel} pointerEvents="none" />;
+      default: return null;
+    }
+  };
+
   return (
     <View
       style={[
@@ -151,30 +167,87 @@ export default function WidgetGuideScreen() {
                   <Text style={styles.widgetTime}>{currentMoment.timeAgo || 'Vừa xong'}</Text>
                 </View>
 
-                <View
-                  style={[
-                    styles.boothWidgetFrame,
-                    { backgroundColor: currentMoment.frameColor || '#FF8FC7' },
-                  ]}
-                >
-                  <View style={styles.boothWidgetGrid}>
-                    {(currentMoment.stripPhotos || [
-                      'https://picsum.photos/seed/cut1/200/200',
-                      'https://picsum.photos/seed/cut2/200/200',
-                      'https://picsum.photos/seed/cut3/200/200',
-                      'https://picsum.photos/seed/cut4/200/200',
-                    ]).slice(0, 4).map((pUrl, pIdx) => (
-                      <View key={pIdx} style={styles.boothWidgetPhotoBox}>
-                        <Image source={{ uri: pUrl }} style={styles.boothWidgetImg} resizeMode="cover" />
-                      </View>
-                    ))}
-                  </View>
+                {currentMoment.layout === 'grid' || currentMoment.layout === 'grid_4' ? (
+                  /* Bố cục Lưới 2x2 */
+                  <View
+                    style={[
+                      styles.boothWidgetFrame,
+                      { backgroundColor: currentMoment.frameColor || '#FF8FC7' },
+                      currentMoment.edgeStyle === 'film_perforated' && styles.widgetFilmBorder,
+                    ]}
+                  >
+                    <View style={styles.boothWidgetGrid}>
+                      {(currentMoment.stripPhotos || [
+                        'https://picsum.photos/seed/cut1/200/200',
+                        'https://picsum.photos/seed/cut2/200/200',
+                        'https://picsum.photos/seed/cut3/200/200',
+                        'https://picsum.photos/seed/cut4/200/200',
+                      ]).slice(0, 4).map((pUrl, pIdx) => (
+                        <View key={pIdx} style={styles.boothWidgetPhotoBox}>
+                          <Image
+                            source={{ uri: pUrl }}
+                            style={[styles.boothWidgetImg, getFilterImgStyle(currentMoment.filter)]}
+                            resizeMode="cover"
+                          />
+                          {renderFilterOverlay(currentMoment.filter)}
+                        </View>
+                      ))}
+                    </View>
 
-                  <View style={styles.boothWidgetFooter}>
-                    <Text style={styles.boothWidgetAuthor}>{currentMoment.senderName}: </Text>
-                    <Text style={styles.boothWidgetCaption} numberOfLines={1}>{currentMoment.caption}</Text>
+                    <View style={styles.boothWidgetFooter}>
+                      <Text style={styles.boothWidgetAuthor}>{currentMoment.senderName}: </Text>
+                      <Text style={styles.boothWidgetCaption} numberOfLines={1}>{currentMoment.caption}</Text>
+                    </View>
                   </View>
-                </View>
+                ) : (
+                  /* Bố cục Dải Dọc 4 Ô Chuẩn */
+                  <View
+                    style={[
+                      styles.boothWidgetFrameVertical,
+                      { backgroundColor: currentMoment.frameColor || '#FF8FC7' },
+                      currentMoment.edgeStyle === 'film_perforated' && styles.widgetFilmBorder,
+                    ]}
+                  >
+                    {/* Hiệu ứng viền cuộn phim nếu có */}
+                    {currentMoment.edgeStyle === 'film_perforated' && (
+                      <>
+                        <View style={styles.widgetFilmSprocketsLeft} pointerEvents="none">
+                          {[0, 1, 2, 3, 4].map((k) => (
+                            <View key={k} style={styles.widgetFilmHole} />
+                          ))}
+                        </View>
+                        <View style={styles.widgetFilmSprocketsRight} pointerEvents="none">
+                          {[0, 1, 2, 3, 4].map((k) => (
+                            <View key={k} style={styles.widgetFilmHole} />
+                          ))}
+                        </View>
+                      </>
+                    )}
+
+                    <View style={styles.boothWidgetVerticalPhotos}>
+                      {(currentMoment.stripPhotos || [
+                        'https://picsum.photos/seed/cut1/200/200',
+                        'https://picsum.photos/seed/cut2/200/200',
+                        'https://picsum.photos/seed/cut3/200/200',
+                        'https://picsum.photos/seed/cut4/200/200',
+                      ]).slice(0, 4).map((pUrl, pIdx) => (
+                        <View key={pIdx} style={styles.boothWidgetVerticalSlot}>
+                          <Image
+                            source={{ uri: pUrl }}
+                            style={[styles.boothWidgetImg, getFilterImgStyle(currentMoment.filter)]}
+                            resizeMode="cover"
+                          />
+                          {renderFilterOverlay(currentMoment.filter)}
+                        </View>
+                      ))}
+                    </View>
+
+                    <View style={styles.boothWidgetFooter}>
+                      <Text style={styles.boothWidgetAuthor}>{currentMoment.senderName}: </Text>
+                      <Text style={styles.boothWidgetCaption} numberOfLines={1}>{currentMoment.caption}</Text>
+                    </View>
+                  </View>
+                )}
               </View>
             ) : widgetTab === 'square' ? (
               /* Small Widget (Vuông Locket 1:1) */
@@ -185,11 +258,34 @@ export default function WidgetGuideScreen() {
                     <Text style={styles.widgetTime}>{currentMoment.timeAgo || 'Vừa xong'}</Text>
                   </View>
 
-                  <View style={styles.widgetPhotoFrame}>
-                    <Image
-                      source={{ uri: currentMoment.photoUrl }}
-                      style={styles.widgetImg}
-                    />
+                  <View
+                    style={[
+                      styles.widgetPhotoFrame,
+                      currentMoment.stripPhotos && currentMoment.stripPhotos.length > 1 && {
+                        backgroundColor: currentMoment.frameColor || '#FF8FC7',
+                        padding: 4,
+                      },
+                    ]}
+                  >
+                    {currentMoment.stripPhotos && currentMoment.stripPhotos.length > 1 ? (
+                      <View style={styles.widgetSmallStripGrid}>
+                        {currentMoment.stripPhotos.slice(0, 4).map((pUrl, pIdx) => (
+                          <View key={pIdx} style={styles.widgetSmallStripCell}>
+                            <Image
+                              source={{ uri: pUrl }}
+                              style={[styles.widgetImg, getFilterImgStyle(currentMoment.filter)]}
+                              resizeMode="cover"
+                            />
+                            {renderFilterOverlay(currentMoment.filter)}
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <Image
+                        source={{ uri: currentMoment.photoUrl }}
+                        style={[styles.widgetImg, getFilterImgStyle(currentMoment.filter)]}
+                      />
+                    )}
                     <View style={styles.widgetCaptionOverlay}>
                       <Text style={styles.widgetAuthor}>{currentMoment.senderName}</Text>
                       <Text style={styles.widgetCaption}>{currentMoment.caption}</Text>
@@ -329,7 +425,7 @@ export default function WidgetGuideScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.sky,
+    backgroundColor: colors.darkBg, // Pure Midnight OLED Dark
   },
   header: {
     flexDirection: 'row',
@@ -342,22 +438,22 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.white,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   backArrow: {
     fontSize: 22,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -371,34 +467,35 @@ const styles = StyleSheet.create({
   tabPill: {
     flex: 1,
     paddingVertical: 8,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   tabPillActive: {
-    backgroundColor: colors.yellow,
-    borderColor: colors.ink,
+    backgroundColor: colors.accentYellow,
+    borderColor: colors.accentYellow,
   },
   tabPillText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   tabPillTextActive: {
     color: colors.ink,
     fontWeight: '900',
   },
   boothWidgetCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: 24,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 12,
     marginBottom: 8,
+    ...theme.shadows.darkSoft,
   },
   boothWidgetFrame: {
     borderRadius: 16,
@@ -406,6 +503,98 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     padding: 8,
     alignItems: 'center',
+  },
+  boothWidgetFrameVertical: {
+    width: '100%',
+    maxWidth: 210,
+    alignSelf: 'center',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    padding: 8,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  boothWidgetVerticalPhotos: {
+    width: '100%',
+    gap: 5,
+  },
+  boothWidgetVerticalSlot: {
+    width: '100%',
+    aspectRatio: 1.35,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+    position: 'relative',
+  },
+  widgetFilmBorder: {
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderColor: '#111827',
+  },
+  widgetFilmSprocketsLeft: {
+    position: 'absolute',
+    left: -8,
+    top: 8,
+    bottom: 8,
+    width: 6,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  widgetFilmSprocketsRight: {
+    position: 'absolute',
+    right: -8,
+    top: 8,
+    bottom: 8,
+    width: 6,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  widgetFilmHole: {
+    width: 4,
+    height: 6,
+    borderRadius: 1,
+    backgroundColor: colors.white,
+    marginVertical: 3,
+  },
+  widgetFilterWarm: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(234,88,12,0.14)',
+  },
+  widgetFilterCool: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(2,132,199,0.12)',
+  },
+  widgetFilterVintage: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(120,53,15,0.18)',
+  },
+  widgetFilterPastel: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(244,63,94,0.12)',
+  },
+  widgetSmallStripGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 3,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  widgetSmallStripCell: {
+    width: '47%',
+    height: '47%',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.ink,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+    position: 'relative',
   },
   boothWidgetGrid: {
     flexDirection: 'row',
@@ -591,17 +780,17 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   guideCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 20,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   guideCardTitle: {
     fontSize: 17,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   stepItem: {
@@ -615,8 +804,8 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.lime,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -631,12 +820,12 @@ const styles = StyleSheet.create({
   stepHeading: {
     fontSize: 14,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   stepDesc: {
     fontSize: 12,
-    color: '#4B5563',
+    color: colors.textSecondary,
     lineHeight: 17,
   },
   demoControlRow: {
@@ -645,13 +834,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   demoCycleBtn: {
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.accentYellow,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    ...theme.shadows.hardSmall,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
   },
   demoCycleBtnText: {
     fontSize: 13,

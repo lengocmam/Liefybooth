@@ -229,7 +229,7 @@ export default function FriendsScreen() {
                   onPress={() => setSelectedFriend(f)}
                   style={({ pressed }) => [
                     styles.friendItem,
-                    { backgroundColor: pressed ? '#F9FAFB' : colors.white },
+                    { backgroundColor: pressed ? colors.darkSurfaceHighlight : colors.darkSurface },
                   ]}
                 >
                   <View style={styles.friendLeft}>
@@ -344,7 +344,7 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.sky,
+    backgroundColor: colors.darkBg, // Pure Midnight OLED Dark
   },
   header: {
     flexDirection: 'row',
@@ -357,34 +357,34 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.white,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   backArrow: {
     fontSize: 22,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
   limitCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 18,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
     marginBottom: 16,
   },
   limitHeader: {
@@ -519,12 +519,12 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   requestCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 14,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
     marginBottom: 10,
   },
   requestLeft: {
@@ -537,8 +537,8 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -550,11 +550,11 @@ const styles = StyleSheet.create({
   requestName: {
     fontSize: 16,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   requestUsername: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   requestActions: {
@@ -563,13 +563,13 @@ const styles = StyleSheet.create({
   },
   acceptBtn: {
     flex: 1,
-    backgroundColor: colors.lime,
+    backgroundColor: colors.accentYellow,
     paddingVertical: 10,
     borderRadius: theme.borders.radius.full,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   acceptBtnText: {
     fontSize: 13,
@@ -578,27 +578,27 @@ const styles = StyleSheet.create({
   },
   declineBtn: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.darkSurfaceElevated,
     paddingVertical: 10,
     borderRadius: theme.borders.radius.full,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
   },
   declineBtnText: {
     fontSize: 13,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textSecondary,
   },
   friendsSection: {
     marginBottom: 20,
   },
   friendsCardList: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
-    ...theme.shadows.hard,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
     overflow: 'hidden',
   },
   friendItem: {
@@ -617,8 +617,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -630,22 +630,22 @@ const styles = StyleSheet.create({
   friendName: {
     fontSize: 15,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   friendUsername: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   friendActionDot: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     paddingHorizontal: 8,
   },
   friendDivider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginHorizontal: 14,
   },
   modalOverlay: {

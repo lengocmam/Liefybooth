@@ -111,14 +111,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.white,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    backgroundColor: 'rgba(20, 22, 29, 0.94)', // Frosted Midnight Floating Dock
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     borderRadius: 36,
     paddingHorizontal: 10,
     paddingVertical: 8,
     width: '100%',
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   tabItem: {
     flexDirection: 'row',
@@ -129,22 +129,23 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   tabItemActive: {
-    backgroundColor: colors.lime,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    backgroundColor: colors.accentYellow,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 16,
   },
   tabIcon: {
     fontSize: 20,
-    color: colors.ink,
+    color: colors.textSecondary,
   },
   tabIconActive: {
     fontSize: 18,
     marginRight: 6,
+    color: colors.ink,
   },
   tabLabelActive: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.ink,
   },
 });

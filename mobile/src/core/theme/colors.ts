@@ -25,6 +25,18 @@ export const colors = {
   grayBorder: '#E5E7EB',
   error: '#EF4444',
   success: '#10B981',
+
+  // Midnight OLED Dark Theme tokens (Chuẩn Locket & Photobooth Studio)
+  darkBg: '#0A0A0C',              // Nền đen sâu nhất (Camera & App background)
+  darkSurface: '#14161D',         // Nền thẻ card, bottom sheet
+  darkSurfaceElevated: '#1E222B', // Nền nút phụ, pill, ô input
+  darkSurfaceHighlight: '#2A2F3D',// Nền khi bấm, hover
+  darkBorder: 'rgba(255, 255, 255, 0.12)', // Viền mờ tinh tế
+  darkBorderSubtle: 'rgba(255, 255, 255, 0.08)',
+  textPrimary: '#FFFFFF',         // Chữ chính sáng rõ
+  textSecondary: '#9CA3AF',       // Chữ phụ, time ago
+  textMuted: '#6B7280',           // Chữ chú thích nhỏ
+  accentYellow: '#FFE600',        // Vàng Locket rực rỡ
 } as const;
 
 export type ColorToken = keyof typeof colors;

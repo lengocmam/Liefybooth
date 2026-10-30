@@ -110,7 +110,10 @@ export default function BoothCustomizeScreen() {
               </View>
             ))}
           </View>
-          <Text style={styles.stripTitleText}>{stripTitle}</Text>
+          {/* Dòng chữ ở đáy dải ảnh (chỉ hiển thị nếu người dùng tự nhập) */}
+          {stripTitle && stripTitle.trim().length > 0 ? (
+            <Text style={styles.stripTitleText}>{stripTitle}</Text>
+          ) : null}
         </View>
       </View>
 
@@ -209,9 +212,6 @@ export default function BoothCustomizeScreen() {
             onPress={() => {
               useStudioStore.getState().setSlotPhotos(displayPhotos);
               useStudioStore.getState().setBackgroundColor(frameColor);
-              if (stripTitle) {
-                useStudioStore.getState().setCustomText(stripTitle);
-              }
               router.push('/studio' as any);
             }}
             style={({ pressed }) => [

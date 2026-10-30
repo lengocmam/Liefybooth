@@ -32,6 +32,13 @@ export const theme = {
       shadowRadius: 0,
       elevation: 2,
     } as ViewStyle,
+    darkSoft: {
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.55,
+      shadowRadius: 16,
+      elevation: 8,
+    } as ViewStyle,
   },
 
   // Kích thước chuẩn

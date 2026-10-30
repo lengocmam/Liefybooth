@@ -1223,6 +1223,11 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
       stripPhotos: slotPhotos.map((p, idx) => p || `https://picsum.photos/seed/slot_${idx}/400/400`),
       frameColor: effectiveBgColor,
       frameName: frameName || 'Photobooth Strip',
+      layout: frameLayout,
+      filter: photoFilter,
+      edgeStyle: frameEdgeStyle,
+      stickers: stickers.map((s) => ({ emoji: s.emoji, x: s.x, y: s.y, size: s.size, rotation: s.rotation })),
+      customText: customText,
       recipientIds: isSendAllFriends ? [] : selectedRecipientIds,
     });
 
@@ -1402,25 +1407,32 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               isInteractive && pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] },
             ]}
           >
-            <Text style={styles.duoNoteTitle}>💌 Lời nhắn kỷ niệm: {isInteractive ? '✎' : ''}</Text>
-            <Text style={styles.duoNoteContent}>{customText || 'Mãi bên nhau bạn nhé! 🌿✨'}</Text>
-            <Text style={styles.duoNoteFooter}>— {creatorName || 'Leafy Creator'} · {timestampText || '2026'}</Text>
+            {customText && customText.trim().length > 0 ? (
+              <Text style={styles.duoNoteContent}>{customText}</Text>
+            ) : null}
+            {creatorName || timestampText ? (
+              <Text style={styles.duoNoteFooter}>
+                {[creatorName, timestampText].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
           </Pressable>
         </View>
       ) : frameLayout === 'polaroid_1' ? (
         <View style={styles.polaroidContainer}>
           {renderSinglePhotoSlot(1, isInteractive, styles.polaroidSlot)}
-          <Pressable
-            onPress={isInteractive ? () => { setTextTab('banner'); setActiveSheet('text'); } : undefined}
-            style={({ pressed }) => [
-              styles.polaroidFooterArea,
-              isInteractive && pressed && { opacity: 0.88 },
-            ]}
-          >
-            <Text style={[styles.polaroidCaptionText, { color: textColor }]}>
-              {customText || 'Khoảnh khắc đáng nhớ 🌸'}
-            </Text>
-          </Pressable>
+          {customText && customText.trim().length > 0 ? (
+            <Pressable
+              onPress={isInteractive ? () => { setTextTab('banner'); setActiveSheet('text'); } : undefined}
+              style={({ pressed }) => [
+                styles.polaroidFooterArea,
+                isInteractive && pressed && { opacity: 0.88 },
+              ]}
+            >
+              <Text style={[styles.polaroidCaptionText, { color: textColor }]}>
+                {customText}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : (
         /* strip_4 (mặc định) */
@@ -1470,15 +1482,19 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
         </View>
       )}
 
-      {/* Dấu ấn tác giả & Serial code Limited Edition */}
-      <View style={styles.signatureFooter}>
-        <Text style={[styles.signatureText, { color: textColor }]} numberOfLines={1}>
-          ✦ Designed by {creatorName || 'Leafy Creator'} ✦
-        </Text>
-        <Text style={[styles.signatureSerial, { color: textColor }]}>
-          Limited Edition {serialNumber || '#LB-902'}
-        </Text>
-      </View>
+      {/* Dấu ấn tác giả & Serial code Limited Edition (chỉ hiển thị khi người dùng tự nhập tên) */}
+      {creatorName && creatorName.trim().length > 0 ? (
+        <View style={styles.signatureFooter}>
+          <Text style={[styles.signatureText, { color: textColor }]} numberOfLines={1}>
+            ✦ Designed by {creatorName} ✦
+          </Text>
+          {serialNumber ? (
+            <Text style={[styles.signatureSerial, { color: textColor }]}>
+              Limited Edition {serialNumber}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* Hiệu ứng viền cuộn phim nhựa 35mm nếu chọn film_perforated */}
       {frameEdgeStyle === 'film_perforated' && (
@@ -1666,7 +1682,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
         {
           paddingTop: Math.max(insets.top, 8),
           paddingBottom: Math.max(insets.bottom, 10),
-          backgroundColor: '#F3F4F6',
+          backgroundColor: colors.darkBg,
         },
       ]}
     >
@@ -2286,6 +2302,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                     applyPreset(preset);
                                     setAppliedTemplateId(preset.id);
                                     playShutterSound();
+                                    closeActiveSheet();
                                   }}
                                   style={({ pressed }) => [
                                     styles.templatePresetCard,
@@ -2338,7 +2355,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                           isCurrentApplied && styles.templateApplyTextActive,
                                         ]}
                                       >
-                                        {isCurrentApplied ? '✓ Đang chọn' : 'Áp dụng ➔'}
+                                        {isCurrentApplied ? '✓ Đang chọn' : 'Chạm để dùng ➔'}
                                       </Text>
                                     </View>
                                   </View>
@@ -2383,11 +2400,18 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                 const isCurrentApplied =
                                   appliedTemplateId === frame.id || frameName === frame.name;
                                 return (
-                                  <View
+                                  <Pressable
                                     key={frame.id}
-                                    style={[
+                                    onPress={() => {
+                                      loadSavedFrame(frame.id);
+                                      setAppliedTemplateId(frame.id);
+                                      playShutterSound();
+                                      closeActiveSheet();
+                                    }}
+                                    style={({ pressed }) => [
                                       styles.templatePresetCard,
                                       isCurrentApplied && styles.templatePresetCardActive,
+                                      { transform: [{ scale: pressed ? 0.96 : 1 }] },
                                     ]}
                                   >
                                     {/* Preview banner */}
@@ -2426,7 +2450,8 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                           {frame.name}
                                         </Text>
                                         <Pressable
-                                          onPress={() => {
+                                          onPress={(e) => {
+                                            e.stopPropagation();
                                             Alert.alert(
                                               'Xóa khung mẫu? 🗑️',
                                               `Bạn có chắc chắn muốn xóa mẫu khung "${frame.name}" không?`,
@@ -2443,7 +2468,8 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                               ]
                                             );
                                           }}
-                                          hitSlop={8}
+                                          hitSlop={10}
+                                          style={{ padding: 4 }}
                                         >
                                           <Text style={{ fontSize: 13, color: '#9CA3AF' }}>🗑️</Text>
                                         </Pressable>
@@ -2454,18 +2480,12 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                       </Text>
 
                                       <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-                                        {/* Nút dùng mẫu */}
-                                        <Pressable
-                                          onPress={() => {
-                                            loadSavedFrame(frame.id);
-                                            setAppliedTemplateId(frame.id);
-                                            playShutterSound();
-                                            Alert.alert('Đã áp dụng! 🎨', `Đã tải mẫu khung "${frame.name}" vào Studio.`);
-                                          }}
-                                          style={({ pressed }) => [
+                                        {/* Status badge: Đang dùng / Chạm để dùng */}
+                                        <View
+                                          style={[
                                             styles.templateApplyPill,
                                             isCurrentApplied && styles.templateApplyPillActive,
-                                            { flex: 1, paddingVertical: 6, transform: [{ scale: pressed ? 0.95 : 1 }] },
+                                            { flex: 1, paddingVertical: 6 },
                                           ]}
                                         >
                                           <Text
@@ -2475,13 +2495,14 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                               { fontSize: 10 },
                                             ]}
                                           >
-                                            {isCurrentApplied ? '✓ Đang dùng' : '🎨 Dùng'}
+                                            {isCurrentApplied ? '✓ Đang dùng' : '🎨 Chạm để dùng'}
                                           </Text>
-                                        </Pressable>
+                                        </View>
 
                                         {/* Nút chụp với khung này */}
                                         <Pressable
-                                          onPress={() => {
+                                          onPress={(e) => {
+                                            e.stopPropagation();
                                             loadSavedFrame(frame.id);
                                             useBoothStore.getState().setActiveCustomFrame({
                                               id: frame.id,
@@ -2490,16 +2511,13 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                               edgeStyle: frame.frameEdgeStyle,
                                             });
                                             useBoothStore.getState().setFrameColor(frame.backgroundColor);
-                                            if (frame.customText || frame.name) {
-                                              useBoothStore.getState().setStripTitle(frame.customText || frame.name);
-                                            }
                                             closeActiveSheet();
                                             router.push('/booth/camera' as any);
                                           }}
                                           style={({ pressed }) => [
                                             styles.templateApplyPill,
                                             {
-                                              flex: 1,
+                                              paddingHorizontal: 8,
                                               paddingVertical: 6,
                                               backgroundColor: '#FFD93D',
                                               borderColor: colors.ink,
@@ -2512,7 +2530,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                         </Pressable>
                                       </View>
                                     </View>
-                                  </View>
+                                  </Pressable>
                                 );
                               })}
                             </View>
@@ -3479,7 +3497,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.darkBg,
   },
   header: {
     flexDirection: 'row',
@@ -5721,7 +5739,7 @@ const styles = StyleSheet.create({
   },
   igStudioMainContainer: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.darkBg,
   },
   igTopBar: {
     flexDirection: 'row',
@@ -5729,32 +5747,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 2,
-    borderBottomColor: colors.ink,
+    backgroundColor: colors.darkSurface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.darkBorder,
   },
   igTopIconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
   igTopIconText: {
     fontSize: 16,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   igTitlePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 18,
@@ -5766,7 +5784,7 @@ const styles = StyleSheet.create({
   igTitlePillText: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   igTitlePillEdit: {
     fontSize: 10,
@@ -5780,9 +5798,9 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -5792,7 +5810,7 @@ const styles = StyleSheet.create({
   igTopToolText: {
     fontSize: 13,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   igTopToolIcon: {
     fontSize: 15,
@@ -5841,31 +5859,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 2,
-    borderTopColor: colors.ink,
+    backgroundColor: colors.darkSurface,
+    borderTopWidth: 1,
+    borderTopColor: colors.darkBorder,
   },
   igBottomLeftBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
   },
   igBottomCenterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
   },
   igBottomBtnIcon: {
     fontSize: 15,
@@ -5873,7 +5891,7 @@ const styles = StyleSheet.create({
   igBottomBtnText: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   igNextBtn: {
     flexDirection: 'row',
@@ -6205,7 +6223,7 @@ const styles = StyleSheet.create({
   // --- LEAFYBOOTH SIGNATURE STUDIO STYLES (STICKER POP) ---
   leafyStudioContainer: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.darkBg,
   },
   studioHeader: {
     flexDirection: 'row',
@@ -6213,36 +6231,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 2,
-    borderBottomColor: colors.ink,
+    backgroundColor: colors.darkSurface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.darkBorder,
   },
   studioHeaderBtn: {
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    ...theme.shadows.hardSmall,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
   },
   studioHeaderBtnText: {
     fontSize: 13,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   studioTitlePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 22,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
     maxWidth: 130,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   studioTitleIcon: {
     fontSize: 14,
@@ -6250,7 +6268,7 @@ const styles = StyleSheet.create({
   studioTitleText: {
     fontSize: 13,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   studioTitleEditIcon: {
     fontSize: 11,
@@ -6553,23 +6571,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 2.5,
-    borderBottomColor: colors.ink,
+    backgroundColor: colors.darkSurface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.darkBorder,
   },
   showcaseBackBtn: {
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: 18,
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    ...theme.shadows.hardSmall,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
   },
   showcaseBackBtnText: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   showcaseTitleBadge: {
     backgroundColor: '#FEF08A',

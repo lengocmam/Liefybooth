@@ -155,10 +155,30 @@ export default function ProfileScreen() {
               ]}
             >
               <View style={styles.profileWidgetInner}>
-                <Image
-                  source={{ uri: latestMoment.photoUrl }}
-                  style={styles.profileWidgetImg}
-                />
+                {latestMoment.stripPhotos && latestMoment.stripPhotos.length > 1 ? (
+                  <View
+                    style={[
+                      styles.profileStripWidgetThumb,
+                      { backgroundColor: latestMoment.frameColor || '#FF8FC7' },
+                    ]}
+                  >
+                    <View style={styles.profileMiniGrid}>
+                      {latestMoment.stripPhotos.slice(0, 4).map((pUrl, idx) => (
+                        <Image
+                          key={idx}
+                          source={{ uri: pUrl }}
+                          style={styles.profileMiniCell}
+                          resizeMode="cover"
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Image
+                    source={{ uri: latestMoment.photoUrl }}
+                    style={styles.profileWidgetImg}
+                  />
+                )}
                 <View style={styles.profileWidgetInfo}>
                   <Text style={styles.profileWidgetAuthor}>{latestMoment.senderName} · {latestMoment.timeAgo}</Text>
                   <Text style={styles.profileWidgetCaption} numberOfLines={1}>{latestMoment.caption}</Text>
@@ -186,7 +206,7 @@ export default function ProfileScreen() {
             onPress={() => router.push('/friends' as any)}
             style={({ pressed }) => [
               styles.menuItem,
-              { backgroundColor: pressed ? '#F3F4F6' : colors.white },
+              { backgroundColor: pressed ? colors.darkSurfaceHighlight : colors.darkSurface },
             ]}
           >
             <View style={styles.menuItemLeft}>
@@ -210,7 +230,7 @@ export default function ProfileScreen() {
             onPress={() => setShowSettingsModal(true)}
             style={({ pressed }) => [
               styles.menuItem,
-              { backgroundColor: pressed ? '#F3F4F6' : colors.white },
+              { backgroundColor: pressed ? colors.darkSurfaceHighlight : colors.darkSurface },
             ]}
           >
             <View style={styles.menuItemLeft}>
@@ -227,7 +247,7 @@ export default function ProfileScreen() {
             onPress={() => setShowBlockedModal(true)}
             style={({ pressed }) => [
               styles.menuItem,
-              { backgroundColor: pressed ? '#F3F4F6' : colors.white },
+              { backgroundColor: pressed ? colors.darkSurfaceHighlight : colors.darkSurface },
             ]}
           >
             <View style={styles.menuItemLeft}>
@@ -249,7 +269,7 @@ export default function ProfileScreen() {
             onPress={() => setShowPrivacyModal(true)}
             style={({ pressed }) => [
               styles.menuItem,
-              { backgroundColor: pressed ? '#F3F4F6' : colors.white },
+              { backgroundColor: pressed ? colors.darkSurfaceHighlight : colors.darkSurface },
             ]}
           >
             <View style={styles.menuItemLeft}>
@@ -564,7 +584,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.sky,
+    backgroundColor: colors.darkBg, // Pure Midnight OLED Dark
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -575,18 +595,18 @@ const styles = StyleSheet.create({
   mainTitle: {
     fontSize: 32,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
     letterSpacing: -0.5,
   },
   profileCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     paddingVertical: 24,
     paddingHorizontal: 16,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
     marginBottom: 16,
   },
   avatarWrapper: {
@@ -598,8 +618,8 @@ const styles = StyleSheet.create({
     height: 86,
     borderRadius: 43,
     backgroundColor: colors.lime,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 2,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -615,9 +635,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -627,13 +647,13 @@ const styles = StyleSheet.create({
   displayName: {
     fontSize: 22,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   username: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   statsRow: {
     flexDirection: 'row',
@@ -642,32 +662,32 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingVertical: 14,
     alignItems: 'center',
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   statNumber: {
     fontSize: 20,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   widgetBanner: {
-    backgroundColor: colors.pink,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 18,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
     marginBottom: 16,
   },
   widgetBannerHeader: {
@@ -682,35 +702,34 @@ const styles = StyleSheet.create({
   widgetBannerTitle: {
     fontSize: 17,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     lineHeight: 22,
   },
   widgetBannerDesc: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#374151',
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 14,
   },
   widgetButton: {
-    backgroundColor: colors.lime,
+    backgroundColor: colors.accentYellow,
     borderRadius: theme.borders.radius.full,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingVertical: 10,
     paddingHorizontal: 16,
     alignItems: 'center',
     alignSelf: 'flex-start',
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   profileWidgetCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 10,
     marginBottom: 14,
-    ...theme.shadows.hardSmall,
   },
   profileWidgetInner: {
     flexDirection: 'row',
@@ -722,7 +741,32 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
+  },
+  profileStripWidgetThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    padding: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  profileMiniGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 2,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileMiniCell: {
+    width: 23,
+    height: 23,
+    borderRadius: 3,
   },
   profileWidgetInfo: {
     flex: 1,
@@ -730,31 +774,31 @@ const styles = StyleSheet.create({
   profileWidgetAuthor: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   profileWidgetCaption: {
     fontSize: 14,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   profileWidgetActionHint: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#D97706',
+    color: colors.accentYellow,
     marginTop: 4,
   },
   widgetButtonText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.ink,
   },
   menuContainer: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
-    ...theme.shadows.hard,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
     marginBottom: 20,
     overflow: 'hidden',
   },
@@ -776,7 +820,7 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: 15,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   menuItemRight: {
     flexDirection: 'row',
@@ -787,7 +831,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.pink,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     paddingVertical: 3,
     paddingHorizontal: 8,
   },
@@ -799,17 +843,17 @@ const styles = StyleSheet.create({
   blockedCount: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   menuArrow: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     marginLeft: 4,
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginHorizontal: 16,
   },
   deleteButton: {

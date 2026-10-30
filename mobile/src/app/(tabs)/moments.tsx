@@ -144,7 +144,7 @@ export default function MomentsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111317',
+    backgroundColor: colors.darkBg,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -157,12 +157,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#0D0E13',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     zIndex: 999,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
 });

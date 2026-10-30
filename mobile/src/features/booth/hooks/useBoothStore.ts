@@ -59,7 +59,7 @@ export const useBoothStore = create<BoothState>((set) => ({
     set({
       selectedBackdrop: backdrop,
       frameColor: backdrop.color,
-      stripTitle: `${backdrop.name} · ${new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}`,
+      stripTitle: '', // Trống để người dùng tự do thiết kế chữ!
     }),
 
   capturedPhotos: [],
@@ -83,7 +83,7 @@ export const useBoothStore = create<BoothState>((set) => ({
   frameColor: DEFAULT_BACKDROPS[0].color,
   layout: 'vertical',
   filter: 'original',
-  stripTitle: 'Halloween · 31/10',
+  stripTitle: '', // Trống để người dùng tự do thiết kế chữ!
   setFrameColor: (color) => set({ frameColor: color }),
   setLayout: (layout) => set({ layout }),
   setFilter: (filter) => set({ filter }),
@@ -94,7 +94,7 @@ export const useBoothStore = create<BoothState>((set) => ({
     set((state) => ({
       activeCustomFrame: frame,
       frameColor: frame?.color || state.frameColor,
-      stripTitle: frame ? `${frame.name} · ${new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}` : state.stripTitle,
+      stripTitle: '', // Trống để người dùng tự do thiết kế chữ!
     })),
 
   resetBooth: () =>
@@ -103,5 +103,6 @@ export const useBoothStore = create<BoothState>((set) => ({
       layout: 'vertical',
       filter: 'original',
       activeCustomFrame: null,
+      stripTitle: '',
     }),
 }));

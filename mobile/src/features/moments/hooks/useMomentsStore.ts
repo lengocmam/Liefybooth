@@ -39,6 +39,11 @@ export interface MomentItem {
   stripPhotos?: string[];
   frameColor?: string;
   frameName?: string;
+  layout?: 'vertical' | 'grid' | 'strip_4' | 'grid_4' | 'duo_note' | 'polaroid_1' | string;
+  filter?: 'original' | 'bw' | 'warm' | 'cool' | 'vintage' | 'pastel' | string;
+  edgeStyle?: string;
+  stickers?: Array<{ id?: string; emoji: string; x: number; y: number; size?: number; rotation?: number }>;
+  customText?: string;
   recipientIds?: string[];
   reactions: Record<string, number>;
   myReaction?: string;
@@ -82,6 +87,11 @@ interface MomentsState {
       stripPhotos?: string[];
       frameColor?: string;
       frameName?: string;
+      layout?: string;
+      filter?: string;
+      edgeStyle?: string;
+      stickers?: Array<{ id?: string; emoji: string; x: number; y: number; size?: number; rotation?: number }>;
+      customText?: string;
       recipientIds?: string[];
     }
   ) => void;
@@ -379,6 +389,11 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
         stripPhotos: extra?.stripPhotos,
         frameColor: extra?.frameColor,
         frameName: extra?.frameName,
+        layout: extra?.layout || (extra?.stripPhotos && extra.stripPhotos.length > 1 ? 'vertical' : undefined),
+        filter: extra?.filter || 'original',
+        edgeStyle: extra?.edgeStyle,
+        stickers: extra?.stickers,
+        customText: extra?.customText,
         recipientIds: extra?.recipientIds || state.selectedRecipientIds,
         reactions: {},
         userReactions: {},

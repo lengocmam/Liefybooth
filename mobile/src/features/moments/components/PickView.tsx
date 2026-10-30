@@ -396,6 +396,170 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
     });
   };
 
+  // Helper render dải ảnh Photobooth chuẩn kích thước dọc/lưới + giữ nguyên filter và hiệu ứng viền
+  const renderMomentStrip = (momentItem: MomentItem, isDetailModal = false) => {
+    const photos = (momentItem.stripPhotos || [momentItem.photoUrl]).slice(0, 4);
+    const isGrid = momentItem.layout === 'grid' || momentItem.layout === 'grid_4';
+    const filter = momentItem.filter || 'original';
+    const frameColor = momentItem.frameColor || '#FF8FC7';
+    const edgeStyle = momentItem.edgeStyle || 'classic';
+
+    const getFilterImgStyle = () => {
+      if (filter === 'bw') {
+        return { opacity: 0.9, tintColor: '#6B7280' as any };
+      }
+      if (filter === 'warm' || filter === 'cool' || filter === 'vintage' || filter === 'pastel') {
+        return { opacity: 0.95 };
+      }
+      return {};
+    };
+
+    const renderFilterOverlay = () => {
+      switch (filter) {
+        case 'warm':
+          return <View style={styles.feedFilterWarm} pointerEvents="none" />;
+        case 'cool':
+          return <View style={styles.feedFilterCool} pointerEvents="none" />;
+        case 'vintage':
+          return <View style={styles.feedFilterVintage} pointerEvents="none" />;
+        case 'pastel':
+          return <View style={styles.feedFilterPastel} pointerEvents="none" />;
+        default:
+          return null;
+      }
+    };
+
+    if (isGrid) {
+      return (
+        <View
+          style={[
+            styles.photoboothCardStripGrid,
+            { backgroundColor: frameColor },
+            edgeStyle === 'film_perforated' && styles.filmPerforatedBorder,
+            isDetailModal && { marginVertical: 10 },
+          ]}
+        >
+          <View style={styles.photoboothGridPhotos}>
+            {photos.map((imgUri, pIdx) => (
+              <View key={pIdx} style={styles.photoboothGridSlot}>
+                <Image
+                  source={{ uri: imgUri }}
+                  style={[styles.photoboothMiniImg, getFilterImgStyle()]}
+                  resizeMode="cover"
+                />
+                {renderFilterOverlay()}
+              </View>
+            ))}
+          </View>
+
+          {momentItem.customText ? (
+            <Text style={styles.photoboothCustomText} numberOfLines={2}>
+              {momentItem.customText}
+            </Text>
+          ) : momentItem.frameName ? (
+            <Text style={styles.photoboothFrameTitle} numberOfLines={1}>
+              {momentItem.frameName}
+            </Text>
+          ) : null}
+
+          {/* Floating stickers nếu có */}
+          {momentItem.stickers && momentItem.stickers.length > 0 && (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {momentItem.stickers.map((st, sIdx) => (
+                <Text
+                  key={sIdx}
+                  style={{
+                    position: 'absolute',
+                    left: `${Math.min(Math.max(st.x, 6), 84)}%`,
+                    top: `${Math.min(Math.max(st.y, 6), 88)}%`,
+                    fontSize: st.size ? Math.min(st.size * 0.65, 26) : 20,
+                    transform: [{ rotate: `${st.rotation || 0}deg` }],
+                  }}
+                >
+                  {st.emoji}
+                </Text>
+              ))}
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    // Classic Vertical 4-Cut Strip (Dải photobooth 4 ô dọc truyền thống)
+    return (
+      <View style={styles.photoboothVerticalCenterWrapper}>
+        <View
+          style={[
+            styles.photoboothCardStripVertical,
+            { backgroundColor: frameColor },
+            edgeStyle === 'film_perforated' && styles.filmPerforatedBorder,
+            isDetailModal && { width: '100%', maxWidth: 240, marginVertical: 8 },
+          ]}
+        >
+          {/* Lỗ cuộn phim nếu chọn film_perforated */}
+          {edgeStyle === 'film_perforated' && (
+            <>
+              <View style={styles.feedFilmSprocketsLeft} pointerEvents="none">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((k) => (
+                  <View key={k} style={styles.feedFilmHole} />
+                ))}
+              </View>
+              <View style={styles.feedFilmSprocketsRight} pointerEvents="none">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((k) => (
+                  <View key={k} style={styles.feedFilmHole} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* 4 ô ảnh xếp dọc */}
+          <View style={styles.photoboothVerticalCol}>
+            {photos.map((imgUri, pIdx) => (
+              <View key={pIdx} style={styles.photoboothVerticalSlot}>
+                <Image
+                  source={{ uri: imgUri }}
+                  style={[styles.photoboothMiniImg, getFilterImgStyle()]}
+                  resizeMode="cover"
+                />
+                {renderFilterOverlay()}
+              </View>
+            ))}
+          </View>
+
+          {momentItem.customText ? (
+            <Text style={styles.photoboothCustomText} numberOfLines={2}>
+              {momentItem.customText}
+            </Text>
+          ) : momentItem.frameName ? (
+            <Text style={styles.photoboothFrameTitle} numberOfLines={1}>
+              {momentItem.frameName}
+            </Text>
+          ) : null}
+
+          {/* Floating stickers nếu có */}
+          {momentItem.stickers && momentItem.stickers.length > 0 && (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {momentItem.stickers.map((st, sIdx) => (
+                <Text
+                  key={sIdx}
+                  style={{
+                    position: 'absolute',
+                    left: `${Math.min(Math.max(st.x, 8), 82)}%`,
+                    top: `${Math.min(Math.max(st.y, 6), 90)}%`,
+                    fontSize: st.size ? Math.min(st.size * 0.65, 26) : 20,
+                    transform: [{ rotate: `${st.rotation || 0}deg` }],
+                  }}
+                >
+                  {st.emoji}
+                </Text>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Locket Pull-Down Handle Bar (Thanh kéo xuống chuẩn Locket) */}
@@ -677,29 +841,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
                     style={styles.cardPhotoPressable}
                   >
                     {isStrip && moment.stripPhotos ? (
-                      <View
-                        style={[
-                          styles.photoboothCardStrip,
-                          { backgroundColor: moment.frameColor || '#FF8FC7' },
-                        ]}
-                      >
-                        <View style={styles.photoboothGridPhotos}>
-                          {moment.stripPhotos.slice(0, 4).map((imgUri, pIdx) => (
-                            <View key={pIdx} style={styles.photoboothMiniSlot}>
-                              <Image
-                                source={{ uri: imgUri }}
-                                style={styles.photoboothMiniImg}
-                                resizeMode="cover"
-                              />
-                            </View>
-                          ))}
-                        </View>
-                        {moment.frameName && (
-                          <Text style={styles.photoboothFrameTitle} numberOfLines={1}>
-                            🌿 {moment.frameName}
-                          </Text>
-                        )}
-                      </View>
+                      renderMomentStrip(moment)
                     ) : (
                       <View style={styles.photoContainer}>
                         <Image
@@ -1055,32 +1197,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
 
                 {/* Khung ảnh chi tiết */}
                 {selectedMemoryMoment.stripPhotos && selectedMemoryMoment.stripPhotos.length > 1 ? (
-                  <View
-                    style={[
-                      styles.photoboothCardStrip,
-                      {
-                        backgroundColor: selectedMemoryMoment.frameColor || '#FF8FC7',
-                        marginVertical: 10,
-                      },
-                    ]}
-                  >
-                    <View style={styles.photoboothGridPhotos}>
-                      {selectedMemoryMoment.stripPhotos.slice(0, 4).map((pUrl, idx) => (
-                        <View key={idx} style={styles.photoboothMiniSlot}>
-                          <Image
-                            source={{ uri: pUrl }}
-                            style={styles.photoboothMiniImg}
-                            resizeMode="cover"
-                          />
-                        </View>
-                      ))}
-                    </View>
-                    {selectedMemoryMoment.frameName && (
-                      <Text style={styles.photoboothFrameTitle} numberOfLines={1}>
-                        🌿 {selectedMemoryMoment.frameName}
-                      </Text>
-                    )}
-                  </View>
+                  renderMomentStrip(selectedMemoryMoment, true)
                 ) : (
                   <View style={[styles.photoContainer, { marginVertical: 10 }]}>
                     <Image
@@ -1208,7 +1325,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#0D0E13', // Midnight Dark Feed
     paddingHorizontal: 16,
   },
   pullDownHeader: {
@@ -1221,30 +1338,30 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#9CA3AF',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     marginBottom: 6,
   },
   pullDownHintBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.darkSurfaceElevated,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 3,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   pullDownHintIcon: {
     fontSize: 10,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   pullDownHintText: {
     fontSize: 11,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   scrollFeedContent: {
     flexGrow: 1,
@@ -1265,20 +1382,20 @@ const styles = StyleSheet.create({
   topTitle: {
     fontSize: 32,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
     letterSpacing: -1,
   },
   memoriesPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.accentYellow,
     borderRadius: 18,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   memoriesPillIcon: {
     fontSize: 13,
@@ -1291,11 +1408,11 @@ const styles = StyleSheet.create({
   switchCameraPill: {
     backgroundColor: colors.lime,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   switchCameraPillText: {
     fontSize: 13,
@@ -1330,16 +1447,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   senderAvatarRingActive: {
-    borderColor: colors.ink,
-    backgroundColor: colors.white,
-    ...theme.shadows.hardSmall,
+    borderColor: colors.accentYellow,
+    backgroundColor: colors.darkSurfaceElevated,
+    ...theme.shadows.darkSoft,
   },
   senderAvatarCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1352,7 +1469,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.accentYellow,
     borderRadius: 9,
     paddingHorizontal: 4,
     paddingVertical: 1,
@@ -1363,15 +1480,16 @@ const styles = StyleSheet.create({
   senderCountBadgeText: {
     fontSize: 9,
     fontWeight: '900',
-    color: colors.white,
+    color: colors.ink,
   },
   senderFilterName: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.ink,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   senderFilterNameActive: {
+    color: colors.white,
     fontWeight: '900',
   },
 
@@ -1381,12 +1499,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   feedCardWrapper: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface, // Midnight card surface
     borderRadius: 22,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 14,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   feedCardTopHeader: {
     flexDirection: 'row',
@@ -1404,7 +1522,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1416,12 +1534,12 @@ const styles = StyleSheet.create({
   feedSenderName: {
     fontSize: 13,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   senderPillTime: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginTop: 1,
   },
   feedCardActions: {
@@ -1430,10 +1548,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   newestBadge: {
-    backgroundColor: '#FFE600',
+    backgroundColor: colors.accentYellow,
     borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
@@ -1454,7 +1572,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1.5,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
 
   // Hero Polaroid Card Area
@@ -1607,6 +1725,109 @@ const styles = StyleSheet.create({
     marginTop: 6,
     ...theme.shadows.hardSmall,
   },
+  photoboothVerticalCenterWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  photoboothCardStripVertical: {
+    width: 220,
+    borderRadius: 14,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    padding: 9,
+    position: 'relative',
+    ...theme.shadows.hard,
+  },
+  photoboothCardStripGrid: {
+    width: '100%',
+    borderRadius: 14,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    padding: 8,
+    position: 'relative',
+    ...theme.shadows.hardSmall,
+  },
+  photoboothVerticalCol: {
+    gap: 7,
+  },
+  photoboothVerticalSlot: {
+    width: '100%',
+    aspectRatio: 1.35,
+    borderRadius: 6,
+    borderWidth: 1.8,
+    borderColor: colors.ink,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+    position: 'relative',
+  },
+  photoboothGridSlot: {
+    width: '48%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+    position: 'relative',
+  },
+  photoboothCustomText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  filmPerforatedBorder: {
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderColor: '#111827',
+  },
+  feedFilmSprocketsLeft: {
+    position: 'absolute',
+    left: -10,
+    top: 8,
+    bottom: 8,
+    width: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  feedFilmSprocketsRight: {
+    position: 'absolute',
+    right: -10,
+    top: 8,
+    bottom: 8,
+    width: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  feedFilmHole: {
+    width: 5,
+    height: 7,
+    borderRadius: 1.5,
+    backgroundColor: colors.white,
+    marginVertical: 4,
+  },
+  feedFilterWarm: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(234,88,12,0.14)',
+  },
+  feedFilterCool: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(2,132,199,0.12)',
+  },
+  feedFilterVintage: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(120,53,15,0.18)',
+  },
+  feedFilterPastel: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(244,63,94,0.12)',
+  },
   photoboothGridPhotos: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1629,14 +1850,14 @@ const styles = StyleSheet.create({
   photoboothFrameTitle: {
     fontSize: 11,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginTop: 6,
   },
   captionText: {
     fontSize: 16,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginTop: 10,
     marginBottom: 2,
     textAlign: 'center',
@@ -1644,7 +1865,7 @@ const styles = StyleSheet.create({
   photoIndexBadge: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -1671,23 +1892,23 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   paginationDotActive: {
     width: 16,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.accentYellow,
   },
 
   // Empty State Card
   emptyCard: {
     width: 280,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: 20,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 24,
     alignItems: 'center',
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   emptyCardEmoji: {
     fontSize: 48,
@@ -1696,13 +1917,13 @@ const styles = StyleSheet.create({
   emptyCardTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginBottom: 6,
     textAlign: 'center',
   },
   emptyCardDesc: {
     fontSize: 12,
-    color: '#4B5563',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 16,
@@ -1712,9 +1933,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    ...theme.shadows.hardSmall,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
   },
   emptyCardBtnText: {
     fontSize: 13,
@@ -1744,15 +1965,18 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    backgroundColor: colors.darkSurfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   reactionButtonActive: {
-    borderWidth: 3.5,
+    borderWidth: 2,
+    borderColor: colors.accentYellow,
+    backgroundColor: 'rgba(255, 230, 0, 0.15)',
   },
   reactionEmoji: {
     fontSize: 24,
@@ -1761,7 +1985,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -6,
     right: -6,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.accentYellow,
     borderRadius: 10,
     paddingHorizontal: 5,
     paddingVertical: 1,
@@ -1769,7 +1993,7 @@ const styles = StyleSheet.create({
   reactionCountText: {
     fontSize: 10,
     fontWeight: '900',
-    color: colors.white,
+    color: colors.ink,
   },
 
   // Recent Section
@@ -1786,12 +2010,12 @@ const styles = StyleSheet.create({
   recentSectionTitle: {
     fontSize: 14,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   viewAllHistoryLink: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.accentYellow,
     textDecorationLine: 'underline',
   },
   recentScroll: {
@@ -1801,18 +2025,18 @@ const styles = StyleSheet.create({
   },
   miniPolaroid: {
     width: 66,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 4,
     alignItems: 'center',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   miniPolaroidActive: {
-    borderColor: colors.ink,
-    borderWidth: 3,
-    backgroundColor: colors.lime,
+    borderColor: colors.accentYellow,
+    borderWidth: 2,
+    backgroundColor: colors.darkSurfaceElevated,
   },
   miniPhotoWrapper: {
     width: 54,
@@ -1829,12 +2053,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.accentYellow,
     borderRadius: 4,
     paddingHorizontal: 3,
     paddingVertical: 1,
     borderWidth: 1,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
   },
   miniStripBadgeText: {
     fontSize: 8,
@@ -1844,7 +2068,7 @@ const styles = StyleSheet.create({
   miniSenderText: {
     fontSize: 10,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textSecondary,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -1854,15 +2078,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     alignSelf: 'center',
-    backgroundColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 16,
     paddingVertical: 8,
     zIndex: 99,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   floatingToastText: {
-    color: colors.white,
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -1870,7 +2096,7 @@ const styles = StyleSheet.create({
   // MODAL KỶ NIỆM TOÀN DIỆN
   memoriesModalContainer: {
     flex: 1,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#0D0E13',
     paddingTop: 50,
   },
   memoriesHeader: {
@@ -1883,11 +2109,11 @@ const styles = StyleSheet.create({
   memoriesTitle: {
     fontSize: 22,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   memoriesSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginTop: 2,
     fontWeight: '600',
   },
@@ -1895,17 +2121,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   memoriesCloseText: {
     fontSize: 16,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   memoriesTabsRow: {
     flexDirection: 'row',
@@ -1916,23 +2142,23 @@ const styles = StyleSheet.create({
   memoryTabBtn: {
     flex: 1,
     paddingVertical: 8,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memoryTabBtnActive: {
-    backgroundColor: colors.lime,
-    borderColor: colors.ink,
-    borderWidth: 2,
-    ...theme.shadows.hardSmall,
+    backgroundColor: colors.accentYellow,
+    borderColor: colors.accentYellow,
+    borderWidth: 1.5,
+    ...theme.shadows.darkSoft,
   },
   memoryTabBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   memoryTabBtnTextActive: {
     color: colors.ink,
@@ -1947,16 +2173,16 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderColor: colors.darkBorder,
   },
   memorySubFilterChipActive: {
-    backgroundColor: colors.yellow,
-    borderColor: colors.ink,
-    borderWidth: 2,
-    ...theme.shadows.hardSmall,
+    backgroundColor: colors.accentYellow,
+    borderColor: colors.accentYellow,
+    borderWidth: 1.5,
+    ...theme.shadows.darkSoft,
   },
   memorySubDot: {
     width: 10,
@@ -1966,7 +2192,7 @@ const styles = StyleSheet.create({
   memorySubFilterText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   memorySubFilterTextActive: {
     color: colors.ink,
@@ -1984,13 +2210,13 @@ const styles = StyleSheet.create({
   gridItemCard: {
     width: '31%',
     aspectRatio: 0.95,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     overflow: 'hidden',
     position: 'relative',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   gridItemImg: {
     width: '100%',
@@ -2000,10 +2226,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     left: 4,
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.accentYellow,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 3,
     paddingVertical: 1,
   },
@@ -2018,7 +2244,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 4,
     paddingVertical: 3,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurfaceElevated,
   },
   gridAuthorCircle: {
     width: 14,
@@ -2035,7 +2261,7 @@ const styles = StyleSheet.create({
   gridAuthorText: {
     fontSize: 9,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
     flex: 1,
   },
   emptyGridArea: {
@@ -2046,19 +2272,19 @@ const styles = StyleSheet.create({
   emptyGridTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   emptyGridDesc: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 
   // Modal Chi Tiết Khoảnh Khắc
   detailBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -2066,12 +2292,12 @@ const styles = StyleSheet.create({
   detailCard: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: 24,
-    borderWidth: 3,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 16,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   detailHeader: {
     flexDirection: 'row',
@@ -2083,7 +2309,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2095,27 +2321,27 @@ const styles = StyleSheet.create({
   detailAuthorName: {
     fontSize: 14,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   detailTimeText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   detailCloseBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.darkSurfaceElevated,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   detailCaptionText: {
     fontSize: 15,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 14,
   },
@@ -2202,7 +2428,7 @@ const styles = StyleSheet.create({
   // Account Modal
   accountModalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26,26,26,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -2211,69 +2437,69 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 380,
     maxHeight: '80%',
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: 22,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 18,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   accountModalHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     paddingBottom: 10,
   },
   accountModalTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   accountModalSubtitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   accountModalCloseBtn: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.darkSurfaceElevated,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   accountModalCloseText: {
     fontSize: 14,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   accountItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     padding: 12,
     gap: 12,
   },
   accountItemRowActive: {
-    borderColor: colors.ink,
-    backgroundColor: '#FEF9C3',
-    ...theme.shadows.hardSmall,
+    borderColor: colors.accentYellow,
+    backgroundColor: 'rgba(255, 230, 0, 0.12)',
+    ...theme.shadows.darkSoft,
   },
   accountItemAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2288,10 +2514,10 @@ const styles = StyleSheet.create({
   accountItemName: {
     fontSize: 15,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   accountActiveBadge: {
-    backgroundColor: colors.ink,
+    backgroundColor: colors.accentYellow,
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -2299,17 +2525,17 @@ const styles = StyleSheet.create({
   accountActiveBadgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: colors.white,
+    color: colors.ink,
   },
   accountItemRole: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#4B5563',
+    color: colors.textSecondary,
     marginTop: 1,
   },
   accountItemMeta: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   accountItemAction: {

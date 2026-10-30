@@ -35,6 +35,7 @@ export default function BoothResultScreen() {
     layout,
     filter,
     stripTitle,
+    activeCustomFrame,
     resetBooth,
   } = useBoothStore();
 
@@ -82,12 +83,13 @@ export default function BoothResultScreen() {
 
   const handleOpenStudioWithPhotos = () => {
     useStudioStore.getState().setSlotPhotos(displayPhotos);
-    if (frameColor) {
+    // Nếu chụp bằng khung tùy tạo DIY, giữ nguyên khung đó khi vào Studio, không cần người dùng chọn lại
+    if (activeCustomFrame?.id) {
+      useStudioStore.getState().loadSavedFrame(activeCustomFrame.id);
+    } else if (frameColor) {
       useStudioStore.getState().setBackgroundColor(frameColor);
     }
-    if (stripTitle) {
-      useStudioStore.getState().setCustomText(stripTitle);
-    }
+    // Không chèn chữ mặc định để người dùng tự do thiết kế dải ảnh
     router.push('/studio' as any);
   };
 
@@ -111,6 +113,9 @@ export default function BoothResultScreen() {
       stripPhotos: displayPhotos,
       frameColor: frameColor || colors.pink,
       frameName: stripTitle || 'Photobooth Strip',
+      layout: layout || 'vertical',
+      filter: filter || 'original',
+      edgeStyle: activeCustomFrame?.edgeStyle,
     });
     setIsSendingToLocket(false);
 
@@ -208,8 +213,10 @@ export default function BoothResultScreen() {
               ))}
             </View>
 
-            {/* Dòng chữ ở đáy dải ảnh */}
-            <Text style={styles.stripTitleText}>{stripTitle}</Text>
+            {/* Dòng chữ ở đáy dải ảnh (chỉ hiển thị nếu người dùng tự nhập) */}
+            {stripTitle && stripTitle.trim().length > 0 ? (
+              <Text style={styles.stripTitleText}>{stripTitle}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -298,7 +305,7 @@ export default function BoothResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA', // Tone studio trắng kem êm dịu, không lòe loẹt
+    backgroundColor: colors.darkBg, // Pure Midnight OLED Dark
     paddingHorizontal: theme.spacing.lg,
   },
   headerRow: {
@@ -310,22 +317,22 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.white,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   closeIcon: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   title: {
     fontSize: 48,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
     lineHeight: 46,
     letterSpacing: -1,
     marginBottom: 8,
@@ -459,16 +466,16 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
   },
   locketInstantCtaButton: {
-    backgroundColor: '#FFD93D',
+    backgroundColor: colors.accentYellow,
     borderRadius: 16,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingVertical: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   locketInstantCtaIconBox: {
     width: 38,
@@ -499,43 +506,43 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   studioCtaButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.darkSurface,
     borderRadius: 16,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingVertical: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   studioCtaIconBox: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFE600',
+    backgroundColor: colors.darkSurfaceElevated,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   studioCtaTitle: {
     fontSize: 15,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     letterSpacing: -0.2,
   },
   studioCtaSubtitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4B5563',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   studioCtaArrow: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginLeft: 4,
   },
   buttonRow: {

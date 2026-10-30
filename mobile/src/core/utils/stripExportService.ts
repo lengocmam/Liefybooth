@@ -751,15 +751,17 @@ export async function exportStudioFrameToImage(options: {
         ctx.restore();
       }
 
-      // 8. Chân trang dấu ấn độc bản tác giả & Serial Code (Creator Watermark)
-      ctx.textAlign = 'center';
-      ctx.fillStyle = options.textColor || '#111111';
-      ctx.font = '800 10px monospace';
-      ctx.fillText(
-        `✦ Designed by ${options.creatorName || 'Leafy Creator'} · Limited Edition ${options.serialNumber || '#LB-902'} ✦`,
-        canvas.width / 2,
-        canvas.height - 18
-      );
+      // 8. Chân trang dấu ấn độc bản tác giả & Serial Code (chỉ vẽ nếu người dùng tự nhập tên)
+      if (options.creatorName && options.creatorName.trim().length > 0) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = options.textColor || '#111111';
+        ctx.font = '800 10px monospace';
+        ctx.fillText(
+          `✦ Designed by ${options.creatorName} · Limited Edition ${options.serialNumber || '#LB-902'} ✦`,
+          canvas.width / 2,
+          canvas.height - 18
+        );
+      }
 
       // 9. Vẽ các sticker tự do theo vị trí, cỡ và góc xoay
       for (const stk of options.stickers) {

@@ -2122,12 +2122,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         { id: 's2', emoji: '✨', x: 85, y: 15, size: 32, rotation: 15 },
         { id: 's3', emoji: '🎀', x: 75, y: 88, size: 38, rotation: 5 },
       ],
-      textItems: [
-        { id: 't1', text: 'Sweet Memories', x: 18, y: 92, fontSize: 13, fontStyleType: 'aesthetic_serif', color: '#111827' },
-      ],
-      customText: 'Sweet Memories',
+      textItems: [],
+      customText: '',
       photoFilter: 'none',
-      stickersCount: 4,
+      stickersCount: 3,
     },
     {
       id: 'my_frame_movie_ticket',
@@ -2147,12 +2145,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
         { id: 's5', emoji: '🎬', x: 80, y: 18, size: 32, rotation: 8 },
         { id: 's6', emoji: '🍿', x: 82, y: 86, size: 36, rotation: -6 },
       ],
-      textItems: [
-        { id: 't2', text: 'CINEMA ADMIT ONE', x: 14, y: 92, fontSize: 11, fontStyleType: 'typewriter', color: '#111827' },
-      ],
-      customText: 'CINEMA ADMIT ONE',
+      textItems: [],
+      customText: '',
       photoFilter: 'warm',
-      stickersCount: 4,
+      stickersCount: 3,
     },
   ],
 
