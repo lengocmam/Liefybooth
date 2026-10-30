@@ -194,6 +194,30 @@ export default function WidgetGuideScreen() {
                       ))}
                     </View>
 
+                    {/* Floating stickers & text nếu có trên khung */}
+                    {currentMoment.stickers && currentMoment.stickers.length > 0 && (
+                      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                        {currentMoment.stickers.map((st, sIdx) => {
+                          const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
+                          const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
+                          return (
+                            <Text
+                              key={sIdx}
+                              style={{
+                                position: 'absolute',
+                                left: leftPos as any,
+                                top: topPos as any,
+                                fontSize: st.size ? Math.min(st.size * 0.55, 18) : 16,
+                                transform: [{ rotate: `${st.rotation || 0}deg` }],
+                              }}
+                            >
+                              {st.emoji}
+                            </Text>
+                          );
+                        })}
+                      </View>
+                    )}
+
                     <View style={styles.boothWidgetFooter}>
                       <Text style={styles.boothWidgetAuthor}>{currentMoment.senderName}: </Text>
                       <Text style={styles.boothWidgetCaption} numberOfLines={1}>{currentMoment.caption}</Text>
@@ -241,6 +265,30 @@ export default function WidgetGuideScreen() {
                         </View>
                       ))}
                     </View>
+
+                    {/* Floating stickers & text nếu có trên khung */}
+                    {currentMoment.stickers && currentMoment.stickers.length > 0 && (
+                      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                        {currentMoment.stickers.map((st, sIdx) => {
+                          const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
+                          const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
+                          return (
+                            <Text
+                              key={sIdx}
+                              style={{
+                                position: 'absolute',
+                                left: leftPos as any,
+                                top: topPos as any,
+                                fontSize: st.size ? Math.min(st.size * 0.55, 18) : 16,
+                                transform: [{ rotate: `${st.rotation || 0}deg` }],
+                              }}
+                            >
+                              {st.emoji}
+                            </Text>
+                          );
+                        })}
+                      </View>
+                    )}
 
                     <View style={styles.boothWidgetFooter}>
                       <Text style={styles.boothWidgetAuthor}>{currentMoment.senderName}: </Text>

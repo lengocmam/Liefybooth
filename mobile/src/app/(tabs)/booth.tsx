@@ -152,7 +152,19 @@ export default function BoothScreen() {
                       name: cf.name,
                       color: cf.backgroundColor,
                       edgeStyle: cf.frameEdgeStyle,
+                      stickers: cf.stickers ? cf.stickers.map((s) => ({ ...s })) : [],
+                      textItems: cf.textItems ? cf.textItems.map((t) => ({ ...t })) : [],
+                      customText: cf.customText || '',
+                      frameLayout: cf.frameLayout,
+                      pattern: cf.pattern,
+                      sealStamp: cf.sealStamp,
+                      washiTapeStyle: cf.washiTapeStyle,
+                      gradientTheme: cf.gradientTheme,
                     });
+                    useBoothStore.getState().setLayout(cf.frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                    if (cf.customText || cf.name) {
+                      useBoothStore.getState().setStripTitle(cf.customText || cf.name);
+                    }
                     router.push('/booth/camera' as any);
                   }}
                   style={({ pressed }) => [

@@ -1223,11 +1223,16 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
       stripPhotos: slotPhotos.map((p, idx) => p || `https://picsum.photos/seed/slot_${idx}/400/400`),
       frameColor: effectiveBgColor,
       frameName: frameName || 'Photobooth Strip',
-      layout: frameLayout,
+      layout: frameLayout === 'grid_4' ? 'grid' : 'vertical',
       filter: photoFilter,
       edgeStyle: frameEdgeStyle,
       stickers: stickers.map((s) => ({ emoji: s.emoji, x: s.x, y: s.y, size: s.size, rotation: s.rotation })),
       customText: customText,
+      textItems: textItems.map((t) => ({ ...t })),
+      pattern: pattern,
+      sealStamp: sealStamp,
+      washiTapeStyle: washiTapeStyle,
+      gradientTheme: gradientTheme,
       recipientIds: isSendAllFriends ? [] : selectedRecipientIds,
     });
 
@@ -1242,7 +1247,10 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
           text: 'Xem Locket Feed 💛',
           onPress: () => {
             useMomentsStore.getState().setViewMode('pick');
-            router.push('/(tabs)/moments' as any);
+            if (router.canDismiss()) {
+              router.dismissAll();
+            }
+            router.navigate('/(tabs)/moments' as any);
           },
         },
         {
@@ -1869,7 +1877,28 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     'Các chỉnh sửa chưa lưu sẽ bị hủy.',
                     [
                       { text: 'Ở lại tiếp tục', style: 'cancel' },
-                      { text: 'Thoát', style: 'destructive', onPress: () => router.back() },
+                      {
+                        text: 'Về màn hình chính 🏠',
+                        onPress: () => {
+                          if (router.canDismiss()) {
+                            router.dismissAll();
+                          }
+                          router.navigate('/(tabs)/moments' as any);
+                        },
+                      },
+                      {
+                        text: 'Quay lại ‹',
+                        onPress: () => {
+                          if (router.canGoBack()) {
+                            router.back();
+                          } else {
+                            if (router.canDismiss()) {
+                              router.dismissAll();
+                            }
+                            router.navigate('/(tabs)/booth' as any);
+                          }
+                        },
+                      },
                     ]
                   );
                 }
@@ -1951,14 +1980,23 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               <Pressable
                 onPress={() => {
                   saveCurrentFrame();
-                  // Đồng bộ khung sang Booth
+                  // Đồng bộ toàn bộ chi tiết khung sang Booth (màu, sticker, text, viền, seal, pattern)
                   useBoothStore.getState().setActiveCustomFrame({
-                    id: 'current_studio_frame',
+                    id: appliedTemplateId || 'current_studio_frame',
                     name: frameName || 'Khung của tôi',
                     color: effectiveBgColor,
                     edgeStyle: frameEdgeStyle,
+                    stickers: stickers.map((s) => ({ ...s })),
+                    textItems: textItems.map((t) => ({ ...t })),
+                    customText: customText,
+                    frameLayout: frameLayout,
+                    pattern: pattern,
+                    sealStamp: sealStamp,
+                    washiTapeStyle: washiTapeStyle,
+                    gradientTheme: gradientTheme,
                   });
                   useBoothStore.getState().setFrameColor(effectiveBgColor);
+                  useBoothStore.getState().setLayout(frameLayout === 'grid_4' ? 'grid' : 'vertical');
                   if (customText || frameName) {
                     useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
                   }

@@ -210,11 +210,27 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
                 </View>
               </View>
             ) : (
-              <Image
-                source={{ uri: latestMoment.photoUrl }}
-                style={styles.topMomentThumb}
-                resizeMode="cover"
-              />
+              <View
+                style={[
+                  styles.topMomentThumb,
+                  Boolean(latestMoment.frameColor) && {
+                    backgroundColor: latestMoment.frameColor,
+                    padding: 2,
+                    borderRadius: 14,
+                    overflow: 'hidden',
+                  },
+                ]}
+              >
+                <Image
+                  source={{ uri: latestMoment.photoUrl }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: Boolean(latestMoment.frameColor) ? 12 : 14,
+                  }}
+                  resizeMode="cover"
+                />
+              </View>
             )}
           </View>
         </Pressable>
@@ -424,7 +440,26 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
               </View>
             </View>
           ) : latestMoment?.photoUrl ? (
-            <Image source={{ uri: latestMoment.photoUrl }} style={styles.pullUpThumb} />
+            <View
+              style={[
+                styles.pullUpThumb,
+                Boolean(latestMoment.frameColor) && {
+                  backgroundColor: latestMoment.frameColor,
+                  padding: 2,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                },
+              ]}
+            >
+              <Image
+                source={{ uri: latestMoment.photoUrl }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: Boolean(latestMoment.frameColor) ? 10 : 12,
+                }}
+              />
+            </View>
           ) : (
             <View style={styles.pullUpThumbPlaceholder}>
               <Text style={{ fontSize: 16 }}>💛</Text>

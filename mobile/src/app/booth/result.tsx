@@ -102,20 +102,52 @@ export default function BoothResultScreen() {
     router.push('/booth/customize' as any);
   };
 
+  const handleExitToHome = () => {
+    resetBooth();
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.navigate('/(tabs)/moments' as any);
+  };
+
+  const handleExitToBooth = () => {
+    resetBooth();
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.navigate('/(tabs)/booth' as any);
+  };
+
   const handleClose = () => {
-    router.replace('/(tabs)/booth');
+    handleExitToHome();
   };
 
   const handleSendToLocket = () => {
     setIsSendingToLocket(true);
     playShutterSound();
-    sendMoment(displayPhotos[0], stripTitle || 'Photobooth 4 ô tụi mình vừa chụp ✨', {
+
+    const effectiveEdgeStyle = activeCustomFrame?.edgeStyle || 'classic';
+    const effectiveStickers = activeCustomFrame?.stickers || [];
+    const effectiveTextItems = activeCustomFrame?.textItems || [];
+    const effectivePattern = activeCustomFrame?.pattern;
+    const effectiveSealStamp = activeCustomFrame?.sealStamp;
+    const effectiveWashiTapeStyle = activeCustomFrame?.washiTapeStyle;
+    const effectiveGradientTheme = activeCustomFrame?.gradientTheme;
+
+    sendMoment(displayPhotos[0], stripTitle || activeCustomFrame?.name || 'Photobooth 4 ô tụi mình vừa chụp ✨', {
       stripPhotos: displayPhotos,
-      frameColor: frameColor || colors.pink,
-      frameName: stripTitle || 'Photobooth Strip',
-      layout: layout || 'vertical',
+      frameColor: frameColor || activeCustomFrame?.color || colors.pink,
+      frameName: stripTitle || activeCustomFrame?.name || 'Photobooth Strip',
+      layout: layout || (activeCustomFrame?.frameLayout === 'grid_4' ? 'grid' : 'vertical'),
       filter: filter || 'original',
-      edgeStyle: activeCustomFrame?.edgeStyle,
+      edgeStyle: effectiveEdgeStyle,
+      stickers: effectiveStickers,
+      textItems: effectiveTextItems,
+      customText: stripTitle || activeCustomFrame?.customText,
+      pattern: effectivePattern,
+      sealStamp: effectiveSealStamp,
+      washiTapeStyle: effectiveWashiTapeStyle,
+      gradientTheme: effectiveGradientTheme,
     });
     setIsSendingToLocket(false);
 
@@ -127,7 +159,7 @@ export default function BoothResultScreen() {
           text: 'Xem trên Locket Feed 💛',
           onPress: () => {
             useMomentsStore.getState().setViewMode('pick');
-            router.replace('/(tabs)/moments' as any);
+            handleExitToHome();
           },
         },
         {
@@ -156,13 +188,24 @@ export default function BoothResultScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <Pressable
-          onPress={handleClose}
+          onPress={handleExitToHome}
           style={({ pressed }) => [
             styles.closeButton,
             { transform: [{ scale: pressed ? 0.95 : 1 }] },
           ]}
         >
           <Text style={styles.closeIcon}>✕</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleExitToHome}
+          style={({ pressed }) => [
+            styles.homeHeaderPill,
+            { transform: [{ scale: pressed ? 0.95 : 1 }] },
+          ]}
+        >
+          <Text style={styles.homeHeaderIcon}>🏠</Text>
+          <Text style={styles.homeHeaderText}>Màn hình chính</Text>
         </Pressable>
       </View>
 
@@ -191,8 +234,25 @@ export default function BoothResultScreen() {
               styles.photoboothStrip,
               { backgroundColor: frameColor || colors.pink },
               layout === 'grid' && styles.gridStrip,
+              activeCustomFrame?.edgeStyle === 'film_perforated' && styles.filmPerforatedBorder,
             ]}
           >
+            {/* Lỗ cuộn phim nếu là film_perforated */}
+            {activeCustomFrame?.edgeStyle === 'film_perforated' && (
+              <>
+                <View style={styles.resultFilmHolesLeft} pointerEvents="none">
+                  {[0, 1, 2, 3, 4, 5, 6].map((k) => (
+                    <View key={k} style={styles.resultFilmHole} />
+                  ))}
+                </View>
+                <View style={styles.resultFilmHolesRight} pointerEvents="none">
+                  {[0, 1, 2, 3, 4, 5, 6].map((k) => (
+                    <View key={k} style={styles.resultFilmHole} />
+                  ))}
+                </View>
+              </>
+            )}
+
             <View style={layout === 'grid' ? styles.gridPhotoContainer : styles.verticalPhotoContainer}>
               {displayPhotos.map((uri, idx) => (
                 <View
@@ -213,10 +273,34 @@ export default function BoothResultScreen() {
               ))}
             </View>
 
-            {/* Dòng chữ ở đáy dải ảnh (chỉ hiển thị nếu người dùng tự nhập) */}
+            {/* Dòng chữ ở đáy dải ảnh */}
             {stripTitle && stripTitle.trim().length > 0 ? (
               <Text style={styles.stripTitleText}>{stripTitle}</Text>
             ) : null}
+
+            {/* Floating stickers của khung DIY */}
+            {activeCustomFrame?.stickers && activeCustomFrame.stickers.length > 0 && (
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                {activeCustomFrame.stickers.map((st, sIdx) => {
+                  const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
+                  const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
+                  return (
+                    <Text
+                      key={sIdx}
+                      style={{
+                        position: 'absolute',
+                        left: leftPos as any,
+                        top: topPos as any,
+                        fontSize: st.size ? Math.min(st.size * 0.7, 26) : 22,
+                        transform: [{ rotate: `${st.rotation || 0}deg` }],
+                      }}
+                    >
+                      {st.emoji}
+                    </Text>
+                  );
+                })}
+              </View>
+            )}
           </View>
         </View>
 
@@ -290,11 +374,15 @@ export default function BoothResultScreen() {
         {/* Text Actions */}
         <View style={styles.textActionsRow}>
           <Pressable onPress={handleCustomize}>
-            <Text style={styles.linkText}>Tùy chỉnh bố cục dải ảnh</Text>
+            <Text style={styles.linkText}>🎨 Tùy chỉnh bố cục</Text>
           </Pressable>
           <Text style={styles.dotSeparator}>·</Text>
-          <Pressable onPress={handleClose}>
-            <Text style={styles.linkText}>Về màn hình chính</Text>
+          <Pressable onPress={handleExitToBooth}>
+            <Text style={styles.linkText}>📸 Sảnh Booth</Text>
+          </Pressable>
+          <Text style={styles.dotSeparator}>·</Text>
+          <Pressable onPress={handleExitToHome}>
+            <Text style={styles.linkTextBold}>🏠 Về màn hình chính</Text>
           </Pressable>
         </View>
       </View>
@@ -310,8 +398,29 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
+  },
+  homeHeaderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 22,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
+  },
+  homeHeaderIcon: {
+    fontSize: 14,
+  },
+  homeHeaderText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textPrimary,
   },
   closeButton: {
     width: 44,
@@ -357,6 +466,36 @@ const styles = StyleSheet.create({
   },
   gridStrip: {
     width: 250,
+  },
+  filmPerforatedBorder: {
+    borderLeftWidth: 14,
+    borderRightWidth: 14,
+    borderColor: '#111111',
+    borderStyle: 'solid',
+  },
+  resultFilmHolesLeft: {
+    position: 'absolute',
+    left: -11,
+    top: 10,
+    bottom: 10,
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  resultFilmHolesRight: {
+    position: 'absolute',
+    right: -11,
+    top: 10,
+    bottom: 10,
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  resultFilmHole: {
+    width: 7,
+    height: 7,
+    borderRadius: 2,
+    backgroundColor: '#FAF9F6',
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   verticalPhotoContainer: {
     gap: 8,
@@ -560,14 +699,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   linkText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  linkTextBold: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.accentYellow,
     textDecorationLine: 'underline',
   },
   dotSeparator: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textMuted,
   },
 });

@@ -44,6 +44,11 @@ export interface MomentItem {
   edgeStyle?: string;
   stickers?: Array<{ id?: string; emoji: string; x: number; y: number; size?: number; rotation?: number }>;
   customText?: string;
+  textItems?: Array<{ id: string; text: string; x: number; y: number; fontSize?: number; rotation?: number; color?: string; bgColor?: string }>;
+  pattern?: string;
+  sealStamp?: string;
+  washiTapeStyle?: string;
+  gradientTheme?: string;
   recipientIds?: string[];
   reactions: Record<string, number>;
   myReaction?: string;
@@ -92,6 +97,11 @@ interface MomentsState {
       edgeStyle?: string;
       stickers?: Array<{ id?: string; emoji: string; x: number; y: number; size?: number; rotation?: number }>;
       customText?: string;
+      textItems?: Array<{ id: string; text: string; x: number; y: number; fontSize?: number; rotation?: number; color?: string; bgColor?: string }>;
+      pattern?: string;
+      sealStamp?: string;
+      washiTapeStyle?: string;
+      gradientTheme?: string;
       recipientIds?: string[];
     }
   ) => void;
@@ -394,6 +404,11 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
         edgeStyle: extra?.edgeStyle,
         stickers: extra?.stickers,
         customText: extra?.customText,
+        textItems: extra?.textItems,
+        pattern: extra?.pattern,
+        sealStamp: extra?.sealStamp,
+        washiTapeStyle: extra?.washiTapeStyle,
+        gradientTheme: extra?.gradientTheme,
         recipientIds: extra?.recipientIds || state.selectedRecipientIds,
         reactions: {},
         userReactions: {},

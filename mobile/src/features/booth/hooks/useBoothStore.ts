@@ -12,6 +12,21 @@ export interface BackdropItem {
   color: string;
 }
 
+export interface ActiveCustomFrameData {
+  id: string;
+  name: string;
+  color: string;
+  edgeStyle?: string;
+  stickers?: Array<{ id?: string; emoji: string; x: number; y: number; size?: number; rotation?: number }>;
+  textItems?: Array<{ id: string; text: string; x: number; y: number; fontSize?: number; rotation?: number; color?: string; bgColor?: string }>;
+  customText?: string;
+  frameLayout?: string;
+  pattern?: string;
+  sealStamp?: string;
+  washiTapeStyle?: string;
+  gradientTheme?: string;
+}
+
 interface BoothState {
   // Nền được chọn
   selectedBackdrop: BackdropItem;
@@ -41,13 +56,8 @@ interface BoothState {
   setStripTitle: (title: string) => void;
 
   // Khung tùy biến đang kích hoạt từ Studio
-  activeCustomFrame: {
-    id: string;
-    name: string;
-    color: string;
-    edgeStyle?: string;
-  } | null;
-  setActiveCustomFrame: (frame: { id: string; name: string; color: string; edgeStyle?: string } | null) => void;
+  activeCustomFrame: ActiveCustomFrameData | null;
+  setActiveCustomFrame: (frame: ActiveCustomFrameData | null) => void;
 
   // Reset toàn bộ phiên chụp
   resetBooth: () => void;
@@ -94,7 +104,8 @@ export const useBoothStore = create<BoothState>((set) => ({
     set((state) => ({
       activeCustomFrame: frame,
       frameColor: frame?.color || state.frameColor,
-      stripTitle: '', // Trống để người dùng tự do thiết kế chữ!
+      layout: frame?.frameLayout === 'grid_4' ? 'grid' : (frame?.frameLayout ? 'vertical' : state.layout),
+      stripTitle: frame?.customText || frame?.name || '',
     })),
 
   resetBooth: () =>

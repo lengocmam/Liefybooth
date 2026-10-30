@@ -398,7 +398,9 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
 
   // Helper render dải ảnh Photobooth chuẩn kích thước dọc/lưới + giữ nguyên filter và hiệu ứng viền
   const renderMomentStrip = (momentItem: MomentItem, isDetailModal = false) => {
-    const photos = (momentItem.stripPhotos || [momentItem.photoUrl]).slice(0, 4);
+    const photos = (momentItem.stripPhotos && momentItem.stripPhotos.length > 0
+      ? momentItem.stripPhotos
+      : [momentItem.photoUrl]).slice(0, 4);
     const isGrid = momentItem.layout === 'grid' || momentItem.layout === 'grid_4';
     const filter = momentItem.filter || 'original';
     const frameColor = momentItem.frameColor || '#FF8FC7';
@@ -465,20 +467,71 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           {/* Floating stickers nếu có */}
           {momentItem.stickers && momentItem.stickers.length > 0 && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              {momentItem.stickers.map((st, sIdx) => (
-                <Text
-                  key={sIdx}
-                  style={{
-                    position: 'absolute',
-                    left: `${Math.min(Math.max(st.x, 6), 84)}%`,
-                    top: `${Math.min(Math.max(st.y, 6), 88)}%`,
-                    fontSize: st.size ? Math.min(st.size * 0.65, 26) : 20,
-                    transform: [{ rotate: `${st.rotation || 0}deg` }],
-                  }}
-                >
-                  {st.emoji}
-                </Text>
-              ))}
+              {momentItem.stickers.map((st, sIdx) => {
+                const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
+                const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
+                return (
+                  <Text
+                    key={sIdx}
+                    style={{
+                      position: 'absolute',
+                      left: leftPos as any,
+                      top: topPos as any,
+                      fontSize: st.size ? Math.min(st.size * 0.7, 26) : 22,
+                      transform: [{ rotate: `${st.rotation || 0}deg` }],
+                    }}
+                  >
+                    {st.emoji}
+                  </Text>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Chữ tự do trên khung nếu có */}
+          {momentItem.textItems && momentItem.textItems.length > 0 && (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {momentItem.textItems.map((ti, tIdx) => {
+                const tLeft = ti.x > 1 ? `${Math.min(Math.max((ti.x / 200) * 100, 6), 84)}%` : `${Math.min(Math.max(ti.x, 6), 84)}%`;
+                const tTop = ti.y > 1 ? `${Math.min(Math.max((ti.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(ti.y, 4), 92)}%`;
+                return (
+                  <View
+                    key={tIdx}
+                    style={{
+                      position: 'absolute',
+                      left: tLeft as any,
+                      top: tTop as any,
+                      backgroundColor: ti.bgColor || 'rgba(0,0,0,0.65)',
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                      transform: [{ rotate: `${ti.rotation || 0}deg` }],
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: ti.fontSize ? Math.min(ti.fontSize * 0.75, 16) : 11,
+                        fontWeight: '900',
+                        color: ti.color || '#FFFFFF',
+                      }}
+                    >
+                      {ti.text}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Con dấu niêm phong nếu có */}
+          {momentItem.sealStamp && momentItem.sealStamp !== 'none' && (
+            <View style={styles.feedSealStampBadge} pointerEvents="none">
+              <Text style={styles.feedSealStampText}>
+                {momentItem.sealStamp === 'leafy_certified' ? '🌿 LEAFY' :
+                 momentItem.sealStamp === 'special_edition' ? '⭐ VIP' :
+                 momentItem.sealStamp === 'besties' ? '👯 BFF' :
+                 momentItem.sealStamp === 'love_wax' ? '💌 LOVE' : '✨ SEAL'}
+              </Text>
             </View>
           )}
         </View>
@@ -539,20 +592,71 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           {/* Floating stickers nếu có */}
           {momentItem.stickers && momentItem.stickers.length > 0 && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              {momentItem.stickers.map((st, sIdx) => (
-                <Text
-                  key={sIdx}
-                  style={{
-                    position: 'absolute',
-                    left: `${Math.min(Math.max(st.x, 8), 82)}%`,
-                    top: `${Math.min(Math.max(st.y, 6), 90)}%`,
-                    fontSize: st.size ? Math.min(st.size * 0.65, 26) : 20,
-                    transform: [{ rotate: `${st.rotation || 0}deg` }],
-                  }}
-                >
-                  {st.emoji}
-                </Text>
-              ))}
+              {momentItem.stickers.map((st, sIdx) => {
+                const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
+                const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
+                return (
+                  <Text
+                    key={sIdx}
+                    style={{
+                      position: 'absolute',
+                      left: leftPos as any,
+                      top: topPos as any,
+                      fontSize: st.size ? Math.min(st.size * 0.7, 26) : 22,
+                      transform: [{ rotate: `${st.rotation || 0}deg` }],
+                    }}
+                  >
+                    {st.emoji}
+                  </Text>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Chữ tự do trên khung nếu có */}
+          {momentItem.textItems && momentItem.textItems.length > 0 && (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {momentItem.textItems.map((ti, tIdx) => {
+                const tLeft = ti.x > 1 ? `${Math.min(Math.max((ti.x / 200) * 100, 6), 84)}%` : `${Math.min(Math.max(ti.x, 6), 84)}%`;
+                const tTop = ti.y > 1 ? `${Math.min(Math.max((ti.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(ti.y, 4), 92)}%`;
+                return (
+                  <View
+                    key={tIdx}
+                    style={{
+                      position: 'absolute',
+                      left: tLeft as any,
+                      top: tTop as any,
+                      backgroundColor: ti.bgColor || 'rgba(0,0,0,0.65)',
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                      transform: [{ rotate: `${ti.rotation || 0}deg` }],
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: ti.fontSize ? Math.min(ti.fontSize * 0.75, 16) : 11,
+                        fontWeight: '900',
+                        color: ti.color || '#FFFFFF',
+                      }}
+                    >
+                      {ti.text}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Con dấu niêm phong nếu có */}
+          {momentItem.sealStamp && momentItem.sealStamp !== 'none' && (
+            <View style={styles.feedSealStampBadge} pointerEvents="none">
+              <Text style={styles.feedSealStampText}>
+                {momentItem.sealStamp === 'leafy_certified' ? '🌿 LEAFY' :
+                 momentItem.sealStamp === 'special_edition' ? '⭐ VIP' :
+                 momentItem.sealStamp === 'besties' ? '👯 BFF' :
+                 momentItem.sealStamp === 'love_wax' ? '💌 LOVE' : '✨ SEAL'}
+              </Text>
             </View>
           )}
         </View>
@@ -789,7 +893,13 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           {filteredMoments.length > 0 ? (
             filteredMoments.map((moment, idx) => {
               const isFirst = idx === 0;
-              const isStrip = moment.stripPhotos && moment.stripPhotos.length > 1;
+              const isFramed = Boolean(
+                (moment.stripPhotos && moment.stripPhotos.length > 0) ||
+                moment.frameColor ||
+                moment.frameName ||
+                (moment.stickers && moment.stickers.length > 0) ||
+                moment.layout
+              );
 
               return (
                 <View key={moment.id} style={styles.feedCardWrapper}>
@@ -840,7 +950,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
                     onPress={() => handlePhotoDoubleTapOnCard(moment.id)}
                     style={styles.cardPhotoPressable}
                   >
-                    {isStrip && moment.stripPhotos ? (
+                    {isFramed ? (
                       renderMomentStrip(moment)
                     ) : (
                       <View style={styles.photoContainer}>
@@ -1095,7 +1205,13 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             {memoriesList.length > 0 ? (
               <View style={styles.memoriesGrid}>
                 {memoriesList.map((item) => {
-                  const isStrip = item.stripPhotos && item.stripPhotos.length > 1;
+                  const isFramed = Boolean(
+                    (item.stripPhotos && item.stripPhotos.length > 0) ||
+                    item.frameColor ||
+                    item.frameName ||
+                    (item.stickers && item.stickers.length > 0) ||
+                    item.layout
+                  );
                   return (
                     <Pressable
                       key={item.id}
@@ -1107,15 +1223,17 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
                     >
                       <Image
                         source={{
-                          uri: isStrip && item.stripPhotos ? item.stripPhotos[0] : item.photoUrl,
+                          uri: item.stripPhotos && item.stripPhotos.length > 0 ? item.stripPhotos[0] : item.photoUrl,
                         }}
                         style={styles.gridItemImg}
                       />
 
-                      {/* Badge photobooth nếu là dải 4 ô */}
-                      {isStrip && (
+                      {/* Badge photobooth nếu là dải hoặc khung */}
+                      {isFramed && (
                         <View style={styles.gridStripBadge}>
-                          <Text style={styles.gridStripBadgeText}>🎞️ 4-Cut</Text>
+                          <Text style={styles.gridStripBadgeText}>
+                            {item.layout === 'grid' || item.layout === 'grid_4' ? '🎞️ Grid' : '🎞️ Booth'}
+                          </Text>
                         </View>
                       )}
 
@@ -1196,7 +1314,13 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
                 </View>
 
                 {/* Khung ảnh chi tiết */}
-                {selectedMemoryMoment.stripPhotos && selectedMemoryMoment.stripPhotos.length > 1 ? (
+                {Boolean(
+                  (selectedMemoryMoment.stripPhotos && selectedMemoryMoment.stripPhotos.length > 0) ||
+                  selectedMemoryMoment.frameColor ||
+                  selectedMemoryMoment.frameName ||
+                  (selectedMemoryMoment.stickers && selectedMemoryMoment.stickers.length > 0) ||
+                  selectedMemoryMoment.layout
+                ) ? (
                   renderMomentStrip(selectedMemoryMoment, true)
                 ) : (
                   <View style={[styles.photoContainer, { marginVertical: 10 }]}>
@@ -1827,6 +1951,23 @@ const styles = StyleSheet.create({
   feedFilterPastel: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(244,63,94,0.12)',
+  },
+  feedSealStampBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: '#FFE600',
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    zIndex: 15,
+  },
+  feedSealStampText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
   },
   photoboothGridPhotos: {
     flexDirection: 'row',

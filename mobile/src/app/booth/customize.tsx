@@ -46,6 +46,22 @@ export default function BoothCustomizeScreen() {
     setFilter,
   } = useBoothStore();
 
+  const handleDoneCustomize = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/booth/result' as any);
+    }
+  };
+
+  const handleExitToHome = () => {
+    useBoothStore.getState().resetBooth();
+    if (router.canDismiss()) {
+      router.dismissAll();
+    }
+    router.navigate('/(tabs)/moments' as any);
+  };
+
   const displayPhotos = [
     capturedPhotos[0] || 'https://picsum.photos/seed/p1/400/400',
     capturedPhotos[1] || 'https://picsum.photos/seed/p2/400/400',
@@ -80,7 +96,15 @@ export default function BoothCustomizeScreen() {
           <Text style={styles.backIcon}>←</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Dải ảnh của bạn</Text>
-        <View style={{ width: 44 }} />
+        <Pressable
+          onPress={handleExitToHome}
+          style={({ pressed }) => [
+            styles.closeHeaderBtn,
+            { transform: [{ scale: pressed ? 0.95 : 1 }] },
+          ]}
+        >
+          <Text style={styles.closeHeaderIcon}>✕</Text>
+        </Pressable>
       </View>
 
       {/* Preview Strip */}
@@ -232,18 +256,25 @@ export default function BoothCustomizeScreen() {
           {/* Bottom Action Buttons */}
           <View style={styles.actionRow}>
             <PillButton
-              title="Lưu vào máy"
-              onPress={() => router.replace('/booth/result' as any)}
+              title="Xem dải ảnh"
+              onPress={handleDoneCustomize}
               variant="white"
               style={styles.halfBtn}
             />
             <PillButton
-              title="Xong"
-              onPress={() => router.replace('/booth/result' as any)}
+              title="Xong ✓"
+              onPress={handleDoneCustomize}
               variant="secondary"
               style={styles.halfBtn}
             />
           </View>
+
+          <Pressable
+            onPress={handleExitToHome}
+            style={styles.exitToHomeRow}
+          >
+            <Text style={styles.exitToHomeText}>🏠 Về màn hình chính</Text>
+          </Pressable>
         </ScrollView>
       </View>
     </View>
@@ -253,7 +284,7 @@ export default function BoothCustomizeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.darkBg,
   },
   header: {
     flexDirection: 'row',
@@ -266,22 +297,38 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.white,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.hardSmall,
+    ...theme.shadows.darkSoft,
   },
   backIcon: {
     fontSize: 22,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
+  },
+  closeHeaderBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.darkSoft,
+  },
+  closeHeaderIcon: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.textPrimary,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   previewArea: {
     alignItems: 'center',
@@ -343,19 +390,19 @@ const styles = StyleSheet.create({
   },
   optionsSheet: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   optionSectionTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
     marginBottom: 10,
     marginTop: 6,
   },
@@ -454,58 +501,71 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.ink,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   filterLabelSelected: {
     fontWeight: '900',
+    color: colors.textPrimary,
   },
   studioBanner: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 16,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingVertical: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
-    ...theme.shadows.hard,
+    ...theme.shadows.darkSoft,
   },
   studioBannerIconBox: {
     width: 38,
     height: 38,
     borderRadius: 19,
     backgroundColor: '#FFE600',
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   studioBannerTitle: {
     fontSize: 14,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   studioBannerDesc: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4B5563',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   studioBannerArrow: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   actionRow: {
     flexDirection: 'row',
     gap: 12,
     paddingVertical: 12,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   halfBtn: {
     flex: 1,
+  },
+  exitToHomeRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  exitToHomeText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.accentYellow,
+    textDecorationLine: 'underline',
   },
 });
