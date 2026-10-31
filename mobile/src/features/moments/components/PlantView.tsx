@@ -9,8 +9,10 @@ import {
   ScrollView,
   Image,
   PanResponder,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useRouter } from 'expo-router';
 import { colors } from '../../../core/theme/colors';
 import { theme } from '../../../core/theme/theme';
 import { useMomentsStore } from '../hooks/useMomentsStore';
@@ -22,6 +24,7 @@ interface PlantViewProps {
 }
 
 export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanResponder }) => {
+  const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
 
@@ -43,6 +46,10 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
   const [flash, setFlash] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sentToast, setSentToast] = useState(false);
+
+  // Review & Approval states before posting to Locket widget
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
+  const [isPhotoMirrored, setIsPhotoMirrored] = useState(false);
 
   const flashAnim = useRef(new Animated.Value(0)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
@@ -98,9 +105,9 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
     }).start();
   };
 
-  const handleCaptureAndSend = async () => {
+  // Bước 1: Chụp ảnh dừng lại xem trước (KHÔNG đăng ngay lập tức)
+  const handleCapturePhoto = async () => {
     if (isSending) return;
-    setIsSending(true);
     triggerScreenFlash();
     playShutterSound();
 
@@ -108,7 +115,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
     try {
       if (cameraRef.current && permission?.granted) {
         const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
+          quality: 0.85,
           skipProcessing: true,
         });
         photoUri = photo?.uri || '';
@@ -118,17 +125,74 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
     }
 
     if (!photoUri) {
-      photoUri = `https://picsum.photos/seed/moment_${Date.now()}/500/500`;
+      photoUri = `https://picsum.photos/seed/moment_${Date.now()}/600/600`;
     }
 
-    sendMoment(photoUri, caption);
+    // Lưu ảnh chụp vào preview review & mặc định lật gương nếu dùng camera trước
+    setCapturedPhotoUri(photoUri);
+    setIsPhotoMirrored(facing === 'front');
+  };
+
+  // Nút đổi hướng lật gương thủ công 🪞
+  const togglePhotoMirror = () => {
+    playShutterSound();
+    setIsPhotoMirrored((prev) => !prev);
+  };
+
+  // Nút Chụp lại ↺
+  const handleRetake = () => {
+    playShutterSound();
+    setCapturedPhotoUri(null);
+    setIsPhotoMirrored(false);
+  };
+
+  // Bước 2: Duyệt ảnh và Đăng lên Widget Locket
+  const handleApproveAndSend = async () => {
+    if (!capturedPhotoUri || isSending) return;
+    setIsSending(true);
+    playShutterSound();
+
+    sendMoment(capturedPhotoUri, caption, { isMirrored: isPhotoMirrored });
     setCaption('');
+    setCapturedPhotoUri(null);
+    setIsPhotoMirrored(false);
     setSentToast(true);
 
     setTimeout(() => {
       setSentToast(false);
       setIsSending(false);
-    }, 2000);
+      if (onOpenFeed) onOpenFeed();
+      else setViewMode('pick');
+    }, 1200);
+  };
+
+  const handlePickFromGallery = () => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const dataUrl = ev.target?.result as string;
+            if (dataUrl) {
+              playShutterSound();
+              setCapturedPhotoUri(dataUrl);
+              setIsPhotoMirrored(false);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+    } else {
+      // Fallback ảnh mẫu từ thư viện
+      playShutterSound();
+      setCapturedPhotoUri(`https://picsum.photos/seed/gallery_${Date.now()}/600/600`);
+      setIsPhotoMirrored(false);
+    }
   };
 
   const toggleFacing = () => {
@@ -145,9 +209,34 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
       <View style={styles.topBar}>
         <Text style={styles.topTitle}>Khoảnh khắc</Text>
         <View style={styles.topRightRow}>
-          <View style={styles.friendsPill}>
-            <Text style={styles.friendsPillText}>12/20 bạn</Text>
-          </View>
+          {/* Nút Chuyển sang Tạo Khung Studio */}
+          <Pressable
+            onPress={() => {
+              playShutterSound();
+              router.push('/studio' as any);
+            }}
+            style={({ pressed }) => [
+              styles.topStudioBtn,
+              { transform: [{ scale: pressed ? 0.94 : 1 }] },
+            ]}
+          >
+            <Text style={styles.topStudioBtnText}>🎨 Tạo khung</Text>
+          </Pressable>
+
+          {/* Nút Bạn bè */}
+          <Pressable
+            onPress={() => {
+              playShutterSound();
+              router.push('/friends' as any);
+            }}
+            style={({ pressed }) => [
+              styles.friendsPill,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            ]}
+          >
+            <Text style={styles.friendsPillText}>👥 {friends.length}/20 bạn</Text>
+          </Pressable>
+
           <Pressable
             onPress={onOpenFeed || (() => setViewMode('pick'))}
             style={({ pressed }) => [
@@ -160,134 +249,104 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
         </View>
       </View>
 
-      {/* Widget Ảnh bạn bè mới nhất hiện lên trên đầu theo thời gian (Leafy Top Live Pill) */}
-      {latestMoment && (
-        <Pressable
-          onPress={onOpenFeed || (() => setViewMode('pick'))}
-          style={({ pressed }) => [
-            styles.topLatestMomentPill,
-            { transform: [{ scale: pressed ? 0.98 : 1 }] },
-          ]}
-        >
-          <View
-            style={[
-              styles.topMomentAvatarCircle,
-              { backgroundColor: latestMoment.senderColor },
-            ]}
-          >
-            <Text style={styles.topMomentAvatarLetter}>{latestMoment.senderLetter}</Text>
-          </View>
-
-          <View style={styles.topMomentContentCol}>
-            <View style={styles.topMomentSenderRow}>
-              <Text style={styles.topMomentSenderName}>{latestMoment.senderName}</Text>
-              <View style={styles.topMomentTimeBadge}>
-                <Text style={styles.topMomentTimeText}>{latestMoment.timeAgo}</Text>
-              </View>
-            </View>
-            <Text style={styles.topMomentCaption} numberOfLines={1}>
-              {latestMoment.caption}
-            </Text>
-          </View>
-
-          <View style={styles.topMomentThumbBox}>
-            {latestMoment.stripPhotos && latestMoment.stripPhotos.length > 1 ? (
-              <View
-                style={[
-                  styles.topMomentStripThumb,
-                  { backgroundColor: latestMoment.frameColor || '#FF8FC7' },
-                ]}
-              >
-                <View style={styles.topMomentMiniGrid}>
-                  {latestMoment.stripPhotos.slice(0, 4).map((pUrl, idx) => (
-                    <Image
-                      key={idx}
-                      source={{ uri: pUrl }}
-                      style={styles.topMomentMiniCell}
-                      resizeMode="cover"
-                    />
-                  ))}
-                </View>
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.topMomentThumb,
-                  Boolean(latestMoment.frameColor) && {
-                    backgroundColor: latestMoment.frameColor,
-                    padding: 2,
-                    borderRadius: 14,
-                    overflow: 'hidden',
-                  },
-                ]}
-              >
-                <Image
-                  source={{ uri: latestMoment.photoUrl }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: Boolean(latestMoment.frameColor) ? 12 : 14,
-                  }}
-                  resizeMode="cover"
-                />
-              </View>
-            )}
-          </View>
-        </Pressable>
-      )}
-
       {/* 1:1 Camera Viewfinder có hỗ trợ cử chỉ vuốt kéo lên */}
       <View
         {...swipeUpResponder.panHandlers}
         style={styles.viewfinderContainer}
       >
         <View style={styles.viewfinder}>
-          {permission?.granted ? (
-            <CameraView
-              ref={cameraRef}
-              style={[
-                styles.cameraView,
-                facing === 'front' && { transform: [{ scaleX: -1 }] },
-              ]}
-              facing={facing}
-            />
+          {capturedPhotoUri ? (
+            <>
+              {/* Ảnh vừa chụp hiển thị tĩnh để người dùng xem trước và duyệt */}
+              <Image
+                source={{ uri: capturedPhotoUri }}
+                style={[
+                  styles.cameraView,
+                  isPhotoMirrored && { transform: [{ scaleX: -1 }] },
+                ]}
+                resizeMode="cover"
+              />
+
+              {/* Nút lật gương ảnh thủ công 🪞 */}
+              <Pressable
+                onPress={togglePhotoMirror}
+                style={({ pressed }) => [
+                  styles.reviewMirrorBtn,
+                  { transform: [{ scale: pressed ? 0.92 : 1 }] },
+                ]}
+              >
+                <Text style={styles.reviewMirrorText}>
+                  {isPhotoMirrored ? '🪞 Đang lật gương' : '🪞 Lật ảnh'}
+                </Text>
+              </Pressable>
+
+              {/* Huy hiệu chế độ xem trước */}
+              <View style={styles.reviewStatusBadge} pointerEvents="none">
+                <Text style={styles.reviewStatusBadgeText}>👀 Xem trước ảnh Locket</Text>
+              </View>
+
+              {/* Ô nhập chú thích nổi ở đáy ảnh xem trước */}
+              <View style={styles.captionInputWrapper}>
+                <TextInput
+                  style={styles.captionInput}
+                  placeholder="Viết chú thích cho ảnh..."
+                  placeholderTextColor="#8E8E93"
+                  value={caption}
+                  onChangeText={setCaption}
+                  maxLength={80}
+                />
+              </View>
+            </>
           ) : (
-            <View style={styles.simulatedCamera}>
-              <Text style={styles.cameraIcon}>🌿</Text>
-              <Text style={styles.simulatedNotice}>Camera Plant vuông 1:1</Text>
-            </View>
+            <>
+              {permission?.granted ? (
+                <CameraView
+                  ref={cameraRef}
+                  style={[
+                    styles.cameraView,
+                    facing === 'front' && { transform: [{ scaleX: -1 }] },
+                  ]}
+                  facing={facing}
+                />
+              ) : (
+                <View style={styles.simulatedCamera}>
+                  <Text style={styles.cameraIcon}>🌿</Text>
+                  <Text style={styles.simulatedNotice}>Camera Plant vuông 1:1</Text>
+                </View>
+              )}
+
+              {/* Flash chớp sáng */}
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.flashOverlay, { opacity: flashAnim }]}
+              />
+
+              {/* Icon Flash trên góc trái */}
+              <Pressable
+                onPress={toggleFlashState}
+                style={[styles.cameraTopButton, styles.flashButton, flash && styles.flashButtonActive]}
+              >
+                <Text style={styles.cameraTopButtonText}>{flash ? '⚡' : '🌩'}</Text>
+              </Pressable>
+
+              {/* Zoom 1x góc phải */}
+              <View style={[styles.cameraTopButton, styles.zoomPill]}>
+                <Text style={styles.zoomText}>1×</Text>
+              </View>
+
+              {/* Ô nhập chú thích nổi ở đáy khung ngắm */}
+              <View style={styles.captionInputWrapper}>
+                <TextInput
+                  style={styles.captionInput}
+                  placeholder="Thêm vài chữ..."
+                  placeholderTextColor="#6B7280"
+                  value={caption}
+                  onChangeText={setCaption}
+                  maxLength={80}
+                />
+              </View>
+            </>
           )}
-
-          {/* Flash chớp sáng */}
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.flashOverlay, { opacity: flashAnim }]}
-          />
-
-          {/* Icon Flash trên góc trái */}
-          <Pressable
-            onPress={toggleFlashState}
-            style={[styles.cameraTopButton, styles.flashButton, flash && styles.flashButtonActive]}
-          >
-            <Text style={styles.cameraTopButtonText}>{flash ? '⚡' : '🌩'}</Text>
-          </Pressable>
-
-          {/* Zoom 1x góc phải */}
-          <View style={[styles.cameraTopButton, styles.zoomPill]}>
-            <Text style={styles.zoomText}>1×</Text>
-          </View>
-
-          {/* Ô nhập chú thích nổi ở đáy khung ngắm */}
-          <View style={styles.captionInputWrapper}>
-            <TextInput
-              style={styles.captionInput}
-              placeholder="Thêm vài chữ..."
-              placeholderTextColor="#6B7280"
-              value={caption}
-              onChangeText={setCaption}
-              maxLength={80}
-            />
-          </View>
         </View>
 
         {/* Thông báo gửi thành công */}
@@ -300,44 +359,74 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
         )}
       </View>
 
-      {/* Shutter & Camera Controls Row */}
-      <View style={styles.shutterRow}>
-        {/* Nút Thư viện */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.sideActionButton,
-            { transform: [{ scale: pressed ? 0.95 : 1 }] },
-          ]}
-        >
-          <View style={styles.galleryIcon}>
-            <View style={styles.miniSun} />
-            <View style={styles.miniWave} />
-          </View>
-        </Pressable>
+      {/* Điều khiển Chụp & Duyệt ảnh: Nếu đã chụp thì dừng lại để xem và duyệt, ngược lại hiển thị nút chụp */}
+      {capturedPhotoUri ? (
+        <View style={styles.reviewActionRow}>
+          {/* Nút Chụp lại ↺ */}
+          <Pressable
+            onPress={handleRetake}
+            style={({ pressed }) => [
+              styles.reviewRetakeBtn,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            ]}
+          >
+            <Text style={styles.reviewRetakeIcon}>↺</Text>
+            <Text style={styles.reviewRetakeText}>Chụp lại</Text>
+          </Pressable>
 
-        {/* Nút chụp to tròn chính giữa */}
-        <Pressable
-          onPress={handleCaptureAndSend}
-          disabled={isSending}
-          style={({ pressed }) => [
-            styles.shutterOuterRing,
-            { transform: [{ scale: pressed ? 0.92 : 1 }] },
-          ]}
-        >
-          <View style={styles.shutterInnerButton} />
-        </Pressable>
+          {/* Nút Duyệt & Đăng lên Widget Locket ✓ */}
+          <Pressable
+            onPress={handleApproveAndSend}
+            disabled={isSending}
+            style={({ pressed }) => [
+              styles.reviewApproveBtn,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            ]}
+          >
+            <Text style={styles.reviewApproveIcon}>✓</Text>
+            <Text style={styles.reviewApproveText}>Duyệt & Đăng Widget 🌿</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.shutterRow}>
+          {/* Nút Thư viện */}
+          <Pressable
+            onPress={handlePickFromGallery}
+            style={({ pressed }) => [
+              styles.sideActionButton,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            ]}
+          >
+            <View style={styles.galleryIcon}>
+              <View style={styles.miniSun} />
+              <View style={styles.miniWave} />
+            </View>
+          </Pressable>
 
-        {/* Nút Đổi camera */}
-        <Pressable
-          onPress={toggleFacing}
-          style={({ pressed }) => [
-            styles.sideActionButton,
-            { transform: [{ scale: pressed ? 0.95 : 1 }] },
-          ]}
-        >
-          <Text style={styles.flipCameraIcon}>🔄</Text>
-        </Pressable>
-      </View>
+          {/* Nút chụp to tròn chính giữa */}
+          <Pressable
+            onPress={handleCapturePhoto}
+            disabled={isSending}
+            style={({ pressed }) => [
+              styles.shutterOuterRing,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+          >
+            <View style={styles.shutterInnerButton} />
+          </Pressable>
+
+          {/* Nút Đổi camera */}
+          <Pressable
+            onPress={toggleFacing}
+            style={({ pressed }) => [
+              styles.sideActionButton,
+              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            ]}
+          >
+            <Text style={styles.flipCameraIcon}>🔄</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Gửi cho (Recipients Row) */}
       <View style={styles.recipientsSection}>
@@ -513,6 +602,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  topStudioBtn: {
+    backgroundColor: 'rgba(200, 241, 53, 0.15)',
+    borderWidth: 1.5,
+    borderColor: colors.accentYellow,
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    ...theme.shadows.darkSoft,
+  },
+  topStudioBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.accentYellow,
   },
   friendsPill: {
     backgroundColor: colors.darkSurfaceElevated,
@@ -741,6 +844,99 @@ const styles = StyleSheet.create({
   toastText: {
     fontSize: 14,
     fontWeight: '800',
+    color: colors.ink,
+  },
+  // Review & Mirror Preview styles
+  reviewMirrorBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    zIndex: 10,
+    backgroundColor: 'rgba(10, 10, 12, 0.82)',
+    borderWidth: 1.5,
+    borderColor: colors.accentYellow,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    ...theme.shadows.darkSoft,
+  },
+  reviewMirrorText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.accentYellow,
+  },
+  reviewStatusBadge: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    zIndex: 10,
+    backgroundColor: 'rgba(10, 10, 12, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  reviewStatusBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#F3F4F6',
+  },
+  reviewActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 6,
+    marginVertical: 10,
+  },
+  reviewRetakeBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#1E2028',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    ...theme.shadows.darkSoft,
+  },
+  reviewRetakeIcon: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  reviewRetakeText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  reviewApproveBtn: {
+    flex: 1.5,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.accentYellow,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    ...theme.shadows.hard,
+  },
+  reviewApproveIcon: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  reviewApproveText: {
+    fontSize: 15,
+    fontWeight: '900',
     color: colors.ink,
   },
   shutterRow: {

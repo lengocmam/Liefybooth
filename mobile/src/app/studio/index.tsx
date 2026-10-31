@@ -2038,6 +2038,33 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               {/* Quick action chips under canvas */}
               <View style={styles.canvasQuickBar}>
                 <Pressable
+                  onPress={() => {
+                    Alert.alert(
+                      'Tạo khung mới? 🎨',
+                      'Làm mới dải ảnh về khung trắng tinh để bạn tự do sáng tạo từ đầu.',
+                      [
+                        { text: 'Hủy', style: 'cancel' },
+                        {
+                          text: 'Tạo mới 🎨',
+                          onPress: () => {
+                            createNewBlankFrame();
+                            setAppliedTemplateId(null);
+                            playShutterSound();
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  style={({ pressed }) => [
+                    styles.canvasActionPill,
+                    styles.canvasActionPillNew,
+                    { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                  ]}
+                >
+                  <Text style={[styles.canvasActionPillText, { color: '#065F46', fontWeight: '900' }]}>➕ Tạo Khung Mới</Text>
+                </Pressable>
+
+                <Pressable
                   onPress={() => setActiveSheet('template')}
                   style={({ pressed }) => [
                     styles.canvasActionPill,
@@ -2130,6 +2157,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                 contentContainerStyle={styles.studioDockScroll}
               >
                 {[
+                  { id: 'create_new', label: 'Tạo mới', icon: '➕' },
                   { id: 'template', label: 'Mẫu khung', icon: '🪄' },
                   { id: 'layout', label: 'Bố cục', icon: '📐' },
                   { id: 'color', label: 'Phối màu', icon: '🎨' },
@@ -2143,11 +2171,30 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   return (
                     <Pressable
                       key={item.id}
-                      onPress={() =>
-                        setActiveSheet(activeSheet === item.id ? 'none' : (item.id as ActiveSheet))
-                      }
+                      onPress={() => {
+                        if (item.id === 'create_new') {
+                          Alert.alert(
+                            'Tạo khung mới? 🎨',
+                            'Làm mới dải ảnh về khung trắng tinh để bạn tự do sáng tạo từ đầu.',
+                            [
+                              { text: 'Hủy', style: 'cancel' },
+                              {
+                                text: 'Tạo mới 🎨',
+                                onPress: () => {
+                                  createNewBlankFrame();
+                                  setAppliedTemplateId(null);
+                                  playShutterSound();
+                                },
+                              },
+                            ]
+                          );
+                          return;
+                        }
+                        setActiveSheet(activeSheet === item.id ? 'none' : (item.id as ActiveSheet));
+                      }}
                       style={({ pressed }) => [
                         styles.dockItemBtn,
+                        item.id === 'create_new' && styles.dockItemBtnNew,
                         isActive && styles.dockItemBtnActive,
                         { transform: [{ scale: pressed ? 0.92 : 1 }] },
                       ]}
@@ -2156,6 +2203,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                       <Text
                         style={[
                           styles.dockItemLabel,
+                          item.id === 'create_new' && styles.dockItemLabelNew,
                           isActive && styles.dockItemLabelActive,
                         ]}
                       >
@@ -2277,6 +2325,8 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                               onPress={() => {
                                 createNewBlankFrame();
                                 setAppliedTemplateId(null);
+                                closeActiveSheet();
+                                playShutterSound();
                                 Alert.alert('Khung Trắng 🌿', 'Đã chuyển về khung trắng sạch sẽ để bạn tự do sáng tạo!');
                               }}
                               style={({ pressed }) => [
@@ -2285,7 +2335,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                               ]}
                             >
                               <Text style={styles.templateBlankIcon}>➕</Text>
-                              <Text style={styles.templateBlankText}>Bắt đầu từ khung trắng (Làm lại)</Text>
+                              <Text style={styles.templateBlankText}>Bắt đầu từ khung trắng (Tự tạo mới)</Text>
                             </Pressable>
                           </View>
 
@@ -2405,6 +2455,26 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                       ) : (
                         /* TAB: KHUNG CỦA TÔI */
                         <View style={styles.myFramesContainer}>
+                          {/* Nút hành động nhanh: Tạo khung trắng mới từ đầu */}
+                          <View style={[styles.templateQuickActionRow, { marginBottom: 12 }]}>
+                            <Pressable
+                              onPress={() => {
+                                createNewBlankFrame();
+                                setAppliedTemplateId(null);
+                                closeActiveSheet();
+                                playShutterSound();
+                                Alert.alert('Khung Trắng 🌿', 'Đã chuyển về khung trắng sạch sẽ để bạn tự do sáng tạo!');
+                              }}
+                              style={({ pressed }) => [
+                                styles.templateBlankBtn,
+                                { transform: [{ scale: pressed ? 0.98 : 1 }] },
+                              ]}
+                            >
+                              <Text style={styles.templateBlankIcon}>➕</Text>
+                              <Text style={styles.templateBlankText}>Bắt đầu từ khung trắng (Tự tạo mới)</Text>
+                            </Pressable>
+                          </View>
+
                           {/* Banner lưu thiết kế hiện tại */}
                           <View style={styles.myFramesHeaderCard}>
                             <View style={styles.myFramesHeaderContent}>
@@ -6386,6 +6456,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.ink,
   },
+  dockItemBtnNew: {
+    backgroundColor: '#D1FAE5',
+    borderWidth: 1.5,
+    borderColor: '#059669',
+  },
   dockItemIcon: {
     fontSize: 20,
     marginBottom: 2,
@@ -6394,6 +6469,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: '#4B5563',
+  },
+  dockItemLabelNew: {
+    color: '#065F46',
+    fontWeight: '900',
   },
   dockItemLabelActive: {
     color: colors.ink,

@@ -170,12 +170,36 @@ export default function BoothCameraScreen() {
           <Text style={styles.circleButtonText}>✕</Text>
         </Pressable>
 
-        {/* Nền đang chọn Pill */}
-        <View style={[styles.backdropPill, activeCustomFrame && { backgroundColor: colors.yellow }]}>
-          <Text style={styles.backdropPillText} numberOfLines={1}>
+        {/* Nền đang chọn Pill (Bấm để đổi nền hoặc vào Studio chỉnh sửa) */}
+        <Pressable
+          onPress={() => router.push('/studio' as any)}
+          style={({ pressed }) => [
+            styles.backdropPill,
+            activeCustomFrame && { backgroundColor: colors.yellow },
+            { transform: [{ scale: pressed ? 0.95 : 1 }] },
+          ]}
+        >
+          <Text
+            style={[styles.backdropPillText, activeCustomFrame && { color: colors.ink }]}
+            numberOfLines={1}
+          >
             {activeCustomFrame ? `🎨 ${activeCustomFrame.name}` : `Nền ${selectedBackdrop.name}`}
           </Text>
-        </View>
+        </Pressable>
+
+        {/* Nút chuyển nhanh sang Tạo Khung mới trong Frame Studio */}
+        <Pressable
+          onPress={() => {
+            playShutterSound();
+            router.push('/studio' as any);
+          }}
+          style={({ pressed }) => [
+            styles.boothStudioShortcutBtn,
+            { transform: [{ scale: pressed ? 0.94 : 1 }] },
+          ]}
+        >
+          <Text style={styles.boothStudioShortcutText}>🎨 Tạo khung</Text>
+        </Pressable>
 
         {/* Cụm nút phụ: Lật gương + Bật/Tắt âm thanh */}
         <View style={styles.topActionGroup}>
@@ -413,6 +437,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: colors.textPrimary,
+  },
+  boothStudioShortcutBtn: {
+    backgroundColor: 'rgba(200, 241, 53, 0.15)',
+    borderWidth: 1.5,
+    borderColor: colors.yellow,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    ...theme.shadows.darkSoft,
+  },
+  boothStudioShortcutText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.yellow,
   },
   viewfinderWrapper: {
     flex: 1,

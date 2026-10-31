@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,30 +16,52 @@ import { theme } from '../../core/theme/theme';
 import { PillButton } from '../../core/components/PillButton';
 import { QRCodeView } from '../../core/components/QRCodeView';
 import { useFriendsStore, FriendUser } from '../../features/friends/hooks/useFriendsStore';
+import { useAuthStore, formatPhoneNumber } from '../../features/auth/hooks/useAuthStore';
+import { playShutterSound } from '../../features/booth/services/soundService';
+import { useChatStore } from '../../features/chat/hooks/useChatStore';
+import { ChatModal } from '../../features/chat/components/ChatModal';
 
 export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const currentUser = useAuthStore((s) => s.currentUser);
 
   const {
     friends,
     requests,
+    directoryUsers,
     maxFriends,
     acceptRequest,
     declineRequest,
     sendRequest,
+    searchFriendsAndDirectory,
     removeFriend,
     blockUser,
   } = useFriendsStore();
 
-  const [searchUsername, setSearchUsername] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<FriendUser | null>(null);
 
-  const handleSendFriendRequest = () => {
-    if (!searchUsername.trim()) {
-      Alert.alert('Chưa nhập username', 'Vui lòng nhập @username của bạn bè để gửi lời mời.');
+  // Kết quả tìm kiếm trực tiếp theo số điện thoại hoặc @username
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return searchFriendsAndDirectory(searchQuery);
+  }, [searchQuery, searchFriendsAndDirectory]);
+
+  // Danh sách gợi ý từ danh bạ số điện thoại (chưa kết bạn)
+  const contactSuggestions = useMemo(() => {
+    return directoryUsers.filter((u) => !friends.some((f) => f.id === u.id));
+  }, [directoryUsers, friends]);
+
+  const handleSendFriendRequest = (identifier: string) => {
+    const target = identifier || searchQuery;
+    if (!target.trim()) {
+      Alert.alert(
+        'Chưa nhập thông tin',
+        'Vui lòng nhập số điện thoại hoặc @username để kết bạn.'
+      );
       return;
     }
 
@@ -51,19 +73,32 @@ export default function FriendsScreen() {
       return;
     }
 
-    const success = sendRequest(searchUsername);
+    playShutterSound();
+    const success = sendRequest(target);
     if (success) {
-      Alert.alert('Đã gửi lời mời', `Đã gửi lời mời kết bạn tới @${searchUsername.replace('@', '')}!`);
-      setSearchUsername('');
+      Alert.alert(
+        'Đã gửi lời mời 🌱',
+        `Đã gửi lời mời kết bạn tới "${target}". Khi họ chấp nhận, hai bạn có thể chia sẻ ảnh và gắn widget!`
+      );
+      setSearchQuery('');
     } else {
-      Alert.alert('Không thể gửi', 'Người này đã có trong danh sách bạn bè của bạn.');
+      Alert.alert('Thông báo', 'Người này đã có trong danh sách bạn bè của bạn.');
     }
   };
 
   const handleShareLink = () => {
+    playShutterSound();
     setCopiedToast(true);
     setTimeout(() => setCopiedToast(false), 2500);
   };
+
+  const handleAcceptRequestWithSound = (reqId: string, name: string) => {
+    playShutterSound();
+    acceptRequest(reqId);
+    Alert.alert('Đã kết bạn 🎉', `Bạn và ${name} đã trở thành bạn thân! Giờ hai bạn có thể gửi ảnh lên widget của nhau.`);
+  };
+
+  const userPhoneDisplay = currentUser?.phone ? formatPhoneNumber(currentUser.phone) : '0989 999 999';
 
   return (
     <View
@@ -83,19 +118,20 @@ export default function FriendsScreen() {
         >
           <Text style={styles.backArrow}>←</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Bạn bè và lời mời</Text>
+        <Text style={styles.headerTitle}>Bạn bè & Kết nối</Text>
         <View style={{ width: 44 }} />
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* Progress Card (12/20) */}
         <View style={styles.limitCard}>
           <View style={styles.limitHeader}>
             <Text style={styles.limitTitle}>
-              {friends.length} / {maxFriends} bạn
+              {friends.length} / {maxFriends} bạn thân
             </Text>
             <Text style={styles.limitBadge}>
               Còn {maxFriends - friends.length} chỗ
@@ -112,34 +148,98 @@ export default function FriendsScreen() {
             />
           </View>
           <Text style={styles.limitDesc}>
-            Giới hạn tối đa 20 người bạn thân để giữ trọn sự gắn kết và ấm cúng trên Leafybooth.
+            Giới hạn tối đa 20 người bạn thân để giữ trọn sự ấm cúng và an toàn trên màn hình chính của bạn.
           </Text>
         </View>
 
-        {/* Search / Add Friend by Username */}
+        {/* ==============================================================
+            SEARCH / ADD FRIEND BY PHONE OR USERNAME
+           ============================================================== */}
         <View style={styles.searchSection}>
-          <Text style={styles.sectionTitle}>Thêm bạn qua @username</Text>
+          <Text style={styles.sectionTitle}>🔍 Tìm bạn qua Số điện thoại hoặc @username</Text>
           <View style={styles.searchRow}>
             <TextInput
               style={styles.searchInput}
-              value={searchUsername}
-              onChangeText={setSearchUsername}
-              placeholder="Nhập @username..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Nhập 09x... hoặc @username..."
               placeholderTextColor="#9CA3AF"
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Pressable
-              onPress={handleSendFriendRequest}
-              style={({ pressed }) => [
-                styles.addBtn,
-                { transform: [{ scale: pressed ? 0.95 : 1 }] },
-              ]}
-            >
-              <Text style={styles.addBtnText}>Thêm</Text>
-            </Pressable>
+            {searchQuery.trim() ? (
+              <Pressable
+                onPress={() => handleSendFriendRequest(searchQuery)}
+                style={({ pressed }) => [
+                  styles.addBtn,
+                  { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                ]}
+              >
+                <Text style={styles.addBtnText}>Gửi</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
+
+        {/* LIVE SEARCH RESULTS LIST */}
+        {searchQuery.trim() !== '' && (
+          <View style={styles.searchResultsBox}>
+            <Text style={styles.searchResultsHeader}>
+              Kết quả tìm kiếm ({searchResults.length})
+            </Text>
+            {searchResults.length === 0 ? (
+              <View style={styles.emptySearchResult}>
+                <Text style={styles.emptySearchEmoji}>🔎</Text>
+                <Text style={styles.emptySearchTitle}>Chưa thấy trong danh bạ</Text>
+                <Text style={styles.emptySearchSub}>
+                  Bạn có thể gửi lời mời trực tiếp đến "{searchQuery}"
+                </Text>
+                <Pressable
+                  onPress={() => handleSendFriendRequest(searchQuery)}
+                  style={styles.inviteNewBtn}
+                >
+                  <Text style={styles.inviteNewBtnText}>+ Gửi lời mời kết bạn</Text>
+                </Pressable>
+              </View>
+            ) : (
+              searchResults.map((user) => (
+                <View key={user.id} style={styles.searchResultItem}>
+                  <View style={styles.searchResultLeft}>
+                    <View style={[styles.avatarCircleSmall, { backgroundColor: user.color }]}>
+                      <Text style={styles.avatarLetterSmall}>{user.letter}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.searchResultName}>{user.name}</Text>
+                      <Text style={styles.searchResultMeta}>
+                        @{user.username} · 📱 {formatPhoneNumber(user.phone)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {user.isFriend ? (
+                    <View style={styles.alreadyFriendBadge}>
+                      <Text style={styles.alreadyFriendText}>✓ Bạn bè</Text>
+                    </View>
+                  ) : user.hasPendingRequest ? (
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingText}>Đã gửi ⏳</Text>
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={() => handleSendFriendRequest(user.phone || user.username)}
+                      style={({ pressed }) => [
+                        styles.addFriendMiniBtn,
+                        { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                      ]}
+                    >
+                      <Text style={styles.addFriendMiniBtnText}>+ Kết bạn</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+        )}
 
         {/* QR & Share Row */}
         <View style={styles.quickShareRow}>
@@ -151,19 +251,19 @@ export default function FriendsScreen() {
             ]}
           >
             <Text style={styles.shareActionIcon}>📱</Text>
-            <Text style={styles.shareActionLabel}>Mã QR của tôi</Text>
+            <Text style={styles.shareActionLabel}>Mã QR & SĐT của tôi</Text>
           </Pressable>
 
           <Pressable
             onPress={handleShareLink}
             style={({ pressed }) => [
               styles.shareActionCard,
-              { backgroundColor: colors.yellow, transform: [{ scale: pressed ? 0.97 : 1 }] },
+              { backgroundColor: colors.accentYellow, transform: [{ scale: pressed ? 0.97 : 1 }] },
             ]}
           >
             <Text style={styles.shareActionIcon}>🔗</Text>
             <Text style={styles.shareActionLabel}>
-              {copiedToast ? 'Đã sao chép!' : 'Chia sẻ liên kết'}
+              {copiedToast ? 'Đã sao chép liên kết!' : 'Chia sẻ liên kết'}
             </Text>
           </Pressable>
         </View>
@@ -186,19 +286,22 @@ export default function FriendsScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.requestName}>{req.name}</Text>
-                    <Text style={styles.requestUsername}>@{req.username} · {req.sentAt}</Text>
+                    <Text style={styles.requestUsername}>
+                      @{req.username}
+                      {req.phone ? ` · 📱 ${formatPhoneNumber(req.phone)}` : ''} · {req.sentAt}
+                    </Text>
                   </View>
                 </View>
 
                 <View style={styles.requestActions}>
                   <Pressable
-                    onPress={() => acceptRequest(req.id)}
+                    onPress={() => handleAcceptRequestWithSound(req.id, req.name)}
                     style={({ pressed }) => [
                       styles.acceptBtn,
                       { transform: [{ scale: pressed ? 0.95 : 1 }] },
                     ]}
                   >
-                    <Text style={styles.acceptBtnText}>Nhận</Text>
+                    <Text style={styles.acceptBtnText}>Chấp nhận</Text>
                   </Pressable>
 
                   <Pressable
@@ -213,6 +316,47 @@ export default function FriendsScreen() {
                 </View>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* ==============================================================
+            GỢI Ý TỪ DANH BẠ SỐ ĐIỆN THOẠI (CONTACT SUGGESTIONS)
+           ============================================================== */}
+        {contactSuggestions.length > 0 && (
+          <View style={styles.suggestionsSection}>
+            <Text style={styles.sectionTitle}>
+              🌱 Gợi ý từ danh bạ số điện thoại ({contactSuggestions.length})
+            </Text>
+            <View style={styles.suggestionsCard}>
+              {contactSuggestions.map((user, idx) => (
+                <View key={user.id}>
+                  <View style={styles.suggestionRow}>
+                    <View style={styles.suggestionLeft}>
+                      <View style={[styles.avatarCircleSmall, { backgroundColor: user.color }]}>
+                        <Text style={styles.avatarLetterSmall}>{user.letter}</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.suggestionName}>{user.name}</Text>
+                        <Text style={styles.suggestionPhone}>
+                          📱 {user.phone ? formatPhoneNumber(user.phone) : ''} · @{user.username}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Pressable
+                      onPress={() => handleSendFriendRequest(user.phone || user.username)}
+                      style={({ pressed }) => [
+                        styles.addContactBtn,
+                        { transform: [{ scale: pressed ? 0.95 : 1 }] },
+                      ]}
+                    >
+                      <Text style={styles.addContactBtnText}>+ Kết bạn</Text>
+                    </Pressable>
+                  </View>
+                  {idx < contactSuggestions.length - 1 && <View style={styles.friendDivider} />}
+                </View>
+              ))}
+            </View>
           </View>
         )}
 
@@ -238,10 +382,24 @@ export default function FriendsScreen() {
                     </View>
                     <View>
                       <Text style={styles.friendName}>{f.name}</Text>
-                      <Text style={styles.friendUsername}>@{f.username}</Text>
+                      <Text style={styles.friendUsername}>
+                        @{f.username} {f.phone ? `· 📱 ${formatPhoneNumber(f.phone)}` : ''}
+                      </Text>
                     </View>
                   </View>
-                  <Text style={styles.friendActionDot}>⋮</Text>
+                  <View style={styles.friendRightActions}>
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        playShutterSound();
+                        useChatStore.getState().openChatWithFriend(f.id);
+                      }}
+                      style={styles.friendChatBtn}
+                    >
+                      <Text style={styles.friendChatBtnText}>💬</Text>
+                    </Pressable>
+                    <Text style={styles.friendActionDot}>⋮</Text>
+                  </View>
                 </Pressable>
                 {idx < friends.length - 1 && <View style={styles.friendDivider} />}
               </React.Fragment>
@@ -250,24 +408,32 @@ export default function FriendsScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL: QR Code kết bạn */}
+      {/* MODAL: QR Code & SĐT kết bạn */}
       <Modal visible={showQrModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.qrModalContent}>
             <Text style={styles.qrTitle}>Mã QR của bạn</Text>
-            <Text style={styles.qrSubtitle}>Quét để kết bạn ngay với @ten_ban</Text>
+            <Text style={styles.qrSubtitle}>
+              Quét hoặc tìm số điện thoại để kết bạn với @{currentUser?.username || 'ten_ban'}
+            </Text>
 
             {/* QR Pattern thật quét được */}
             <View style={{ marginVertical: 14 }}>
               <QRCodeView
-                value="https://leafybooth.app/u/ten_ban"
+                value={`https://leafybooth.app/u/${currentUser?.username || 'ten_ban'}`}
                 size={180}
                 centerEmoji="🌿"
               />
             </View>
 
+            {/* Khung hiển thị Số Điện Thoại & Liên Kết */}
+            <View style={styles.qrInfoBox}>
+              <Text style={styles.qrPhoneLabel}>📱 Số điện thoại của bạn:</Text>
+              <Text style={styles.qrPhoneNumber}>{userPhoneDisplay}</Text>
+            </View>
+
             <View style={styles.qrLinkPill}>
-              <Text style={styles.qrLinkText}>leafybooth.app/u/ten_ban</Text>
+              <Text style={styles.qrLinkText}>leafybooth.app/u/{currentUser?.username || 'ten_ban'}</Text>
             </View>
 
             <View style={{ width: '100%', gap: 10 }}>
@@ -295,8 +461,25 @@ export default function FriendsScreen() {
                 <Text style={styles.avatarLetter}>{selectedFriend?.letter}</Text>
               </View>
               <Text style={styles.actionFriendName}>{selectedFriend?.name}</Text>
-              <Text style={styles.actionFriendUser}>@{selectedFriend?.username}</Text>
+              <Text style={styles.actionFriendUser}>
+                @{selectedFriend?.username}
+                {selectedFriend?.phone ? ` · 📱 ${formatPhoneNumber(selectedFriend.phone)}` : ''}
+              </Text>
             </View>
+
+            <Pressable
+              onPress={() => {
+                if (selectedFriend) {
+                  const fid = selectedFriend.id;
+                  setSelectedFriend(null);
+                  playShutterSound();
+                  useChatStore.getState().openChatWithFriend(fid);
+                }
+              }}
+              style={styles.actionOptionChat}
+            >
+              <Text style={styles.actionOptionChatText}>💬 Nhắn tin ngay</Text>
+            </Pressable>
 
             <Pressable
               onPress={() => {
@@ -337,6 +520,8 @@ export default function FriendsScreen() {
           </View>
         </View>
       </Modal>
+      {/* MODAL TRÒ CHUYỆN / NHẮN TIN TRỰC TIẾP VỚI BẠN BÈ */}
+      <ChatModal />
     </View>
   );
 }
@@ -344,7 +529,7 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.darkBg, // Pure Midnight OLED Dark
+    backgroundColor: colors.darkBg, // Pure Midnight OLED Dark (#0D0F12)
   },
   header: {
     flexDirection: 'row',
@@ -396,7 +581,7 @@ const styles = StyleSheet.create({
   limitTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
   },
   limitBadge: {
     fontSize: 12,
@@ -411,10 +596,10 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     height: 14,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.darkSurfaceElevated,
     borderRadius: 7,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     overflow: 'hidden',
     marginBottom: 8,
   },
@@ -424,17 +609,17 @@ const styles = StyleSheet.create({
   },
   limitDesc: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontWeight: '500',
+    color: colors.textSecondary,
     lineHeight: 16,
   },
   searchSection: {
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
-    color: colors.ink,
+    color: colors.white,
     marginBottom: 8,
   },
   searchRow: {
@@ -444,22 +629,22 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 50,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     borderRadius: theme.borders.radius.full,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
     paddingHorizontal: 18,
     fontSize: 15,
     fontWeight: '700',
-    color: colors.ink,
-    ...theme.shadows.hard,
+    color: colors.white,
+    ...theme.shadows.darkSoft,
   },
   addBtn: {
     height: 50,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     backgroundColor: colors.lime,
     borderRadius: theme.borders.radius.full,
-    borderWidth: theme.borders.width,
+    borderWidth: 1.5,
     borderColor: colors.ink,
     justifyContent: 'center',
     alignItems: 'center',
@@ -467,6 +652,121 @@ const styles = StyleSheet.create({
   },
   addBtnText: {
     fontSize: 15,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  searchResultsBox: {
+    backgroundColor: colors.darkSurface,
+    borderRadius: theme.borders.radius.card,
+    borderWidth: 1.5,
+    borderColor: colors.lime,
+    padding: 14,
+    marginBottom: 16,
+    ...theme.shadows.darkSoft,
+  },
+  searchResultsHeader: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.accentYellow,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    letterSpacing: 0.5,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  searchResultLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  searchResultMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  alreadyFriendBadge: {
+    backgroundColor: 'rgba(200, 241, 53, 0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: colors.lime,
+  },
+  alreadyFriendText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.lime,
+  },
+  pendingBadge: {
+    backgroundColor: 'rgba(255, 217, 61, 0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: colors.accentYellow,
+  },
+  pendingText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.accentYellow,
+  },
+  addFriendMiniBtn: {
+    backgroundColor: colors.accentYellow,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    ...theme.shadows.hardSmall,
+  },
+  addFriendMiniBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  emptySearchResult: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 4,
+  },
+  emptySearchEmoji: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  emptySearchTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  emptySearchSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  inviteNewBtn: {
+    marginTop: 8,
+    backgroundColor: colors.lime,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  inviteNewBtnText: {
+    fontSize: 13,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -481,12 +781,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.white,
+    backgroundColor: colors.darkSurface,
     paddingVertical: 14,
     borderRadius: theme.borders.radius.card,
-    borderWidth: theme.borders.width,
-    borderColor: colors.ink,
-    ...theme.shadows.hard,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
   },
   shareActionIcon: {
     fontSize: 18,
@@ -494,7 +794,7 @@ const styles = StyleSheet.create({
   shareActionLabel: {
     fontSize: 13,
     fontWeight: '800',
-    color: colors.ink,
+    color: colors.textPrimary,
   },
   requestsSection: {
     marginBottom: 20,
@@ -590,6 +890,54 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.textSecondary,
   },
+  suggestionsSection: {
+    marginBottom: 20,
+  },
+  suggestionsCard: {
+    backgroundColor: colors.darkSurface,
+    borderRadius: theme.borders.radius.card,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    ...theme.shadows.darkSoft,
+    overflow: 'hidden',
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  suggestionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  suggestionName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  suggestionPhone: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  addContactBtn: {
+    backgroundColor: colors.lime,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+  },
+  addContactBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
+  },
   friendsSection: {
     marginBottom: 20,
   },
@@ -637,6 +985,24 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '600',
   },
+  friendRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  friendChatBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendChatBtnText: {
+    fontSize: 16,
+  },
   friendActionDot: {
     fontSize: 20,
     fontWeight: '800',
@@ -650,7 +1016,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -674,67 +1040,30 @@ const styles = StyleSheet.create({
   qrSubtitle: {
     fontSize: 13,
     color: '#4B5563',
-    marginBottom: 20,
-  },
-  qrBox: {
-    width: 200,
-    height: 200,
-    backgroundColor: '#FAFAFA',
-    borderWidth: 3,
-    borderColor: colors.ink,
-    borderRadius: 20,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 16,
+    textAlign: 'center',
   },
-  qrCornerTL: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    width: 38,
-    height: 38,
-    borderWidth: 5,
+  qrInfoBox: {
+    backgroundColor: '#FEF08A',
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: colors.ink,
-  },
-  qrCornerTR: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 38,
-    height: 38,
-    borderWidth: 5,
-    borderColor: colors.ink,
-  },
-  qrCornerBL: {
-    position: 'absolute',
-    bottom: 14,
-    left: 14,
-    width: 38,
-    height: 38,
-    borderWidth: 5,
-    borderColor: colors.ink,
-  },
-  qrCenterAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.lime,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    marginBottom: 12,
+    width: '100%',
   },
-  qrCenterLetter: {
-    fontSize: 22,
+  qrPhoneLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.ink,
   },
-  qrSimulatedText: {
-    position: 'absolute',
-    bottom: 14,
-    fontSize: 8,
-    fontWeight: '800',
-    color: '#9CA3AF',
-    letterSpacing: 1,
+  qrPhoneNumber: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.ink,
+    marginTop: 2,
   },
   qrLinkPill: {
     backgroundColor: '#F3F4F6',
@@ -773,6 +1102,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
     fontWeight: '600',
+  },
+  actionOptionChat: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    backgroundColor: colors.lime,
+    marginBottom: 10,
+    ...theme.shadows.hardSmall,
+  },
+  actionOptionChatText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.ink,
   },
   actionOption: {
     paddingVertical: 14,

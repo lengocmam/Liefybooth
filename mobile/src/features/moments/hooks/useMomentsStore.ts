@@ -54,6 +54,7 @@ export interface MomentItem {
   myReaction?: string;
   userReactions?: Record<string, string>;
   isSeen: boolean;
+  isMirrored?: boolean;
 }
 
 interface MomentsState {
@@ -103,6 +104,7 @@ interface MomentsState {
       washiTapeStyle?: string;
       gradientTheme?: string;
       recipientIds?: string[];
+      isMirrored?: boolean;
     }
   ) => void;
 }
@@ -413,6 +415,7 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
         reactions: {},
         userReactions: {},
         isSeen: true,
+        isMirrored: extra?.isMirrored,
       };
 
       return {

@@ -19,13 +19,34 @@ import { PillButton } from '../../core/components/PillButton';
 import { useFriendsStore } from '../../features/friends/hooks/useFriendsStore';
 import { useMomentsStore, TEST_ACCOUNTS, UserAccount } from '../../features/moments/hooks/useMomentsStore';
 import { STUDIO_PRESETS } from '../../features/studio/hooks/useStudioStore';
+import { useAuthStore, formatPhoneNumber } from '../../features/auth/hooks/useAuthStore';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { friends, requests, blockedUsers, unblockUser } = useFriendsStore();
   const { moments, currentUser, switchAccount } = useMomentsStore();
+  const authCurrentUser = useAuthStore((s) => s.currentUser);
+  const logout = useAuthStore((s) => s.logout);
   const latestMoment = moments[0];
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Đăng xuất tài khoản? 🚪',
+      'Bạn có thể đăng nhập lại bất cứ lúc nào bằng số điện thoại của mình.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đăng xuất',
+          style: 'destructive',
+          onPress: () => {
+            logout();
+            router.replace('/login' as any);
+          },
+        },
+      ]
+    );
+  };
 
   // Modals
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -87,6 +108,11 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.displayName}>{currentUser.name}</Text>
           <Text style={styles.username}>@{currentUser.username}</Text>
+          <View style={styles.phoneBadge}>
+            <Text style={styles.phoneBadgeText}>
+              📱 {authCurrentUser?.phone ? formatPhoneNumber(authCurrentUser.phone) : '0989 999 999'}
+            </Text>
+          </View>
 
           {/* Nút đổi tài khoản kiểm thử */}
           <Pressable
@@ -135,7 +161,7 @@ export default function ProfileScreen() {
           <View style={styles.widgetBannerHeader}>
             <Text style={styles.widgetBannerIcon}>📱</Text>
             <Text style={styles.widgetBannerTitle}>
-              Widget Màn Hình Chính{'\n'}(Đang hoạt động 🟢)
+              Widget Màn Hình Chính
             </Text>
           </View>
           <Text style={styles.widgetBannerDesc}>
@@ -279,6 +305,17 @@ export default function ProfileScreen() {
             <Text style={styles.menuArrow}>›</Text>
           </Pressable>
         </View>
+
+        {/* Logout Button */}
+        <Pressable
+          onPress={handleLogout}
+          style={({ pressed }) => [
+            styles.logoutButton,
+            { transform: [{ scale: pressed ? 0.98 : 1 }] },
+          ]}
+        >
+          <Text style={styles.logoutButtonText}>🚪 Đăng xuất tài khoản</Text>
+        </Pressable>
 
         {/* Delete Account Button (Apple & Google compliance) */}
         <Pressable
@@ -654,6 +691,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  phoneBadge: {
+    backgroundColor: colors.darkSurfaceElevated,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 2,
+  },
+  phoneBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.accentYellow,
   },
   statsRow: {
     flexDirection: 'row',
@@ -855,6 +907,21 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginHorizontal: 16,
+  },
+  logoutButton: {
+    backgroundColor: colors.darkSurface,
+    borderRadius: theme.borders.radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+    ...theme.shadows.darkSoft,
+  },
+  logoutButtonText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.textPrimary,
   },
   deleteButton: {
     paddingVertical: 14,

@@ -19,9 +19,12 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(SCREEN_WIDTH - 24, 380);
 import { colors } from '../../../core/theme/colors';
 import { theme } from '../../../core/theme/theme';
+import { useRouter } from 'expo-router';
 import { REACTION_ICONS } from '../../../core/constants';
 import { useMomentsStore, MomentItem, TEST_ACCOUNTS, UserAccount } from '../hooks/useMomentsStore';
 import { playShutterSound } from '../../booth/services/soundService';
+import { useChatStore } from '../../chat/hooks/useChatStore';
+import { ChatModal } from '../../chat/components/ChatModal';
 
 const REACTION_BG_COLORS: Record<string, string> = {
   '❤️': colors.yellow,
@@ -70,7 +73,9 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
     setViewMode,
   } = useMomentsStore();
 
+  const router = useRouter();
   const [showMemoriesModal, setShowMemoriesModal] = useState(false);
+  const [showFriendFilterModal, setShowFriendFilterModal] = useState(false);
   const [showAccountSwitchModal, setShowAccountSwitchModal] = useState(false);
   const [selectedMemoryMoment, setSelectedMemoryMoment] = useState<MomentItem | null>(null);
   const [memoriesTab, setMemoriesTab] = useState<'all' | 'me' | 'friends'>('all');
@@ -95,13 +100,26 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [reelHeight, setReelHeight] = useState<number>(SCREEN_HEIGHT - 120);
   const [replyInput, setReplyInput] = useState<{ [momentId: string]: string }>({});
+  const unreadChatCount = useChatStore((s) => s.totalUnreadCount());
 
   const handleSendReply = (moment: MomentItem) => {
     const text = replyInput[moment.id]?.trim();
     if (!text) return;
     playShutterSound();
-    showToast(`Đã gửi tin nhắn đến ${moment.senderName}: "${text}" 💌`);
+    const replyRef = {
+      id: moment.id,
+      photoUrl: moment.photoUrl,
+      caption: moment.caption,
+      senderName: moment.senderName,
+    };
+    useChatStore.getState().sendMessage(moment.senderId, text, replyRef);
     setReplyInput((prev) => ({ ...prev, [moment.id]: '' }));
+    showToast(`💬 Đã gửi tin nhắn đến ${moment.senderName}: "${text}"!`);
+
+    // Tự động mở khung chat sau 250ms để tiện xem tiếp
+    setTimeout(() => {
+      useChatStore.getState().openChatWithFriend(moment.senderId);
+    }, 250);
   };
 
   const formatLeafyDate = (timestamp: string, fallbackTimeAgo: string) => {
@@ -140,14 +158,20 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
     };
   }, []);
 
-  // Danh sách toàn bộ khoảnh khắc trên Feed (luôn sắp xếp thời gian mới nhất lên đầu)
+  // Danh sách khoảnh khắc trên Feed (lọc theo bạn bè nếu chọn, sắp xếp mới nhất lên đầu)
   const filteredMoments = useMemo(() => {
-    return [...moments].sort((a, b) => {
+    let list = [...moments];
+    if (activeSenderFilter === 'me') {
+      list = list.filter((m) => m.senderId === currentUser.id);
+    } else if (activeSenderFilter !== 'all') {
+      list = list.filter((m) => m.senderId === activeSenderFilter);
+    }
+    return list.sort((a, b) => {
       const timeA = new Date(a.timestamp).getTime();
       const timeB = new Date(b.timestamp).getTime();
       return timeB - timeA;
     });
-  }, [moments]);
+  }, [moments, activeSenderFilter, currentUser.id]);
 
   const [doubleTapMomentId, setDoubleTapMomentId] = useState<string | null>(null);
 
@@ -729,7 +753,10 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             <View style={styles.locketSinglePhotoSlot}>
               <Image
                 source={{ uri: moment.photoUrl }}
-                style={styles.locketSinglePhotoImg}
+                style={[
+                  styles.locketSinglePhotoImg,
+                  moment.isMirrored && { transform: [{ scaleX: -1 }] },
+                ]}
                 resizeMode="cover"
               />
             </View>
@@ -825,24 +852,31 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
 
   return (
     <View style={styles.container}>
-      {/* 1. TOP BAR CHUẨN LOCKET (📢 - Tất cả bạn bè ▾ - M 🌳) */}
+      {/* 1. TOP BAR CHUẨN LOCKET (👥 Bạn bè - Tất cả bạn bè ▾ - 🎨 Tạo Khung - M 🌳) */}
       <View style={styles.locketTopBar}>
-        {/* Nút 📢 Thông báo */}
+        {/* Nút 👥 Danh sách bạn bè */}
         <Pressable
-          onPress={() => showToast('🌿 Bức tường Leafy - Vuốt lên để xem thêm khoảnh khắc!')}
+          onPress={() => {
+            playShutterSound();
+            router.push('/friends' as any);
+          }}
           style={({ pressed }) => [
             styles.locketTopCircleBtn,
             { transform: [{ scale: pressed ? 0.92 : 1 }] },
           ]}
         >
-          <Text style={styles.locketTopIcon}>📢</Text>
+          <Text style={styles.locketTopIcon}>👥</Text>
         </Pressable>
 
-        {/* Nút Dropdown pill "Tất cả bạn bè ▾" */}
+        {/* Nút Dropdown pill "Tất cả bạn bè ▾" - Mở Modal Lọc Người Đăng */}
         <Pressable
-          onPress={() => setShowMemoriesModal(true)}
+          onPress={() => {
+            playShutterSound();
+            setShowFriendFilterModal(true);
+          }}
           style={({ pressed }) => [
             styles.locketTopPill,
+            activeSenderFilter !== 'all' && styles.locketTopPillFiltered,
             { transform: [{ scale: pressed ? 0.95 : 1 }] },
           ]}
         >
@@ -854,6 +888,20 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
               : friends.find((f) => f.id === activeSenderFilter)?.name || 'Bạn bè'}
           </Text>
           <Text style={styles.locketTopPillArrow}>▾</Text>
+        </Pressable>
+
+        {/* Nút Chuyển sang Tạo Khung Studio */}
+        <Pressable
+          onPress={() => {
+            playShutterSound();
+            router.push('/studio' as any);
+          }}
+          style={({ pressed }) => [
+            styles.locketTopStudioBtn,
+            { transform: [{ scale: pressed ? 0.94 : 1 }] },
+          ]}
+        >
+          <Text style={styles.locketTopStudioBtnText}>🎨 Tạo Khung</Text>
         </Pressable>
 
         {/* Nút Avatar tài khoản "M 🌳" */}
@@ -999,24 +1047,37 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           <View style={styles.locketShutterInner} />
         </Pressable>
 
-        {/* Nút ghim ảnh lên widget (📌) */}
+        {/* Nút Trò chuyện / Nhắn tin bạn bè chuẩn Locket (💬) với badge tin nhắn chưa đọc */}
         <Pressable
-          onPress={() => currentMoment && handlePinMoment(currentMoment)}
+          onPress={() => {
+            playShutterSound();
+            if (currentMoment && currentMoment.senderId !== currentUser.id) {
+              useChatStore.getState().openChatWithFriend(currentMoment.senderId);
+            } else {
+              useChatStore.getState().openInbox();
+            }
+          }}
           style={({ pressed }) => [
             styles.locketBottomIconBtn,
+            unreadChatCount > 0 && styles.locketBottomIconBtnActive,
             { transform: [{ scale: pressed ? 0.9 : 1 }] },
           ]}
         >
-          <Text style={styles.locketBottomIconText}>📌</Text>
+          <Text style={styles.locketBottomIconText}>💬</Text>
+          {unreadChatCount > 0 && (
+            <View style={styles.locketBottomChatBadge}>
+              <Text style={styles.locketBottomChatBadgeText}>{unreadChatCount}</Text>
+            </View>
+          )}
         </Pressable>
 
-        {/* Nút xóa (nếu là ảnh của mình) hoặc chia sẻ (🔗) */}
+        {/* Nút chia sẻ hoặc ghim ảnh lên widget (📌 / 🗑️) */}
         <Pressable
           onPress={() => {
             if (currentMoment?.senderId === currentUser.id) {
               handleDeleteMoment(currentMoment.id);
-            } else {
-              showToast('✓ Đã sao chép liên kết khoảnh khắc!');
+            } else if (currentMoment) {
+              handlePinMoment(currentMoment);
             }
           }}
           style={({ pressed }) => [
@@ -1025,7 +1086,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           ]}
         >
           <Text style={styles.locketBottomIconText}>
-            {currentMoment?.senderId === currentUser.id ? '🗑️' : '🔗'}
+            {currentMoment?.senderId === currentUser.id ? '🗑️' : '📌'}
           </Text>
         </Pressable>
       </View>
@@ -1060,6 +1121,30 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
               <Text style={styles.memoriesCloseText}>✕</Text>
             </Pressable>
           </View>
+
+          {/* Banner chuyển nhanh tới Studio Tạo Khung */}
+          <Pressable
+            onPress={() => {
+              setShowMemoriesModal(false);
+              playShutterSound();
+              router.push('/studio' as any);
+            }}
+            style={({ pressed }) => [
+              styles.memoriesStudioPromoBanner,
+              { transform: [{ scale: pressed ? 0.98 : 1 }] },
+            ]}
+          >
+            <View style={styles.memoriesStudioPromoIcon}>
+              <Text style={{ fontSize: 20 }}>🎨</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.memoriesStudioPromoTitle}>Tự thiết kế khung độc lạ ✨</Text>
+              <Text style={styles.memoriesStudioPromoDesc}>
+                Vào Frame Studio sáng tạo khung ảnh với 180+ sticker & font chữ
+              </Text>
+            </View>
+            <Text style={styles.memoriesStudioPromoArrow}>➔</Text>
+          </Pressable>
 
           {/* 3 Tab phân loại chính: Tất cả / Của tôi / Bạn bè */}
           <View style={styles.memoriesTabsRow}>
@@ -1441,6 +1526,127 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* 10. MODAL LỌC BẠN BÈ CHUẨN LOCKET (FRIEND FEED FILTER) */}
+      <Modal
+        visible={showFriendFilterModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFriendFilterModal(false)}
+      >
+        <Pressable
+          onPress={() => setShowFriendFilterModal(false)}
+          style={styles.friendFilterBackdrop}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={styles.friendFilterCard}
+          >
+            <View style={styles.friendFilterHeader}>
+              <View>
+                <Text style={styles.friendFilterTitle}>👥 Lọc khoảnh khắc Locket</Text>
+                <Text style={styles.friendFilterSubtitle}>Chọn người gửi để lọc ảnh hiển thị trên Feed</Text>
+              </View>
+              <Pressable
+                onPress={() => setShowFriendFilterModal(false)}
+                style={styles.friendFilterCloseBtn}
+              >
+                <Text style={styles.friendFilterCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 380 }}>
+              {/* Option 1: Tất cả bạn bè */}
+              <Pressable
+                onPress={() => {
+                  playShutterSound();
+                  setActiveSenderFilter('all');
+                  setActiveMomentIndex(0);
+                  setShowFriendFilterModal(false);
+                  showToast('🌟 Đang xem tất cả bạn bè');
+                }}
+                style={[
+                  styles.friendFilterItem,
+                  activeSenderFilter === 'all' && styles.friendFilterItemActive,
+                ]}
+              >
+                <View style={[styles.friendFilterAvatarCircle, { backgroundColor: colors.yellow }]}>
+                  <Text style={styles.friendFilterAvatarLetter}>🌟</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.friendFilterItemName}>Tất cả bạn bè</Text>
+                  <Text style={styles.friendFilterItemDesc}>{moments.length} khoảnh khắc trên Feed</Text>
+                </View>
+                {activeSenderFilter === 'all' && (
+                  <Text style={styles.friendFilterCheck}>✓</Text>
+                )}
+              </Pressable>
+
+              {/* Option 2: Của tôi */}
+              <Pressable
+                onPress={() => {
+                  playShutterSound();
+                  setActiveSenderFilter('me');
+                  setActiveMomentIndex(0);
+                  setShowFriendFilterModal(false);
+                  showToast(`👤 Đang xem khoảnh khắc của ${currentUser.name}`);
+                }}
+                style={[
+                  styles.friendFilterItem,
+                  activeSenderFilter === 'me' && styles.friendFilterItemActive,
+                ]}
+              >
+                <View style={[styles.friendFilterAvatarCircle, { backgroundColor: currentUser.avatarColor }]}>
+                  <Text style={styles.friendFilterAvatarLetter}>{currentUser.avatarLetter}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.friendFilterItemName}>Của tôi ({currentUser.name})</Text>
+                  <Text style={styles.friendFilterItemDesc}>{myMomentsCount} khoảnh khắc đã đăng</Text>
+                </View>
+                {activeSenderFilter === 'me' && (
+                  <Text style={styles.friendFilterCheck}>✓</Text>
+                )}
+              </Pressable>
+
+              {/* Từng bạn bè */}
+              {friends.map((f) => {
+                const isSelected = activeSenderFilter === f.id;
+                const count = friendCounts[f.id] || 0;
+                return (
+                  <Pressable
+                    key={f.id}
+                    onPress={() => {
+                      playShutterSound();
+                      setActiveSenderFilter(f.id);
+                      setActiveMomentIndex(0);
+                      setShowFriendFilterModal(false);
+                      showToast(`🌸 Đang xem ảnh của ${f.name}`);
+                    }}
+                    style={[
+                      styles.friendFilterItem,
+                      isSelected && styles.friendFilterItemActive,
+                    ]}
+                  >
+                    <View style={[styles.friendFilterAvatarCircle, { backgroundColor: f.avatarColor }]}>
+                      <Text style={styles.friendFilterAvatarLetter}>{f.avatarLetter}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.friendFilterItemName}>{f.name}</Text>
+                      <Text style={styles.friendFilterItemDesc}>{count} khoảnh khắc</Text>
+                    </View>
+                    {isSelected && (
+                      <Text style={styles.friendFilterCheck}>✓</Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* MODAL TRÒ CHUYỆN / NHẮN TIN TRỰC TIẾP VỚI BẠN BÈ */}
+      <ChatModal />
     </View>
   );
 };
@@ -1706,6 +1912,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 9,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  locketTopPillFiltered: {
+    borderColor: colors.yellow,
   },
   locketTopPillText: {
     fontSize: 15,
@@ -1716,6 +1927,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#8E8E93',
+  },
+  locketTopStudioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(200, 241, 53, 0.15)',
+    borderWidth: 1.5,
+    borderColor: colors.yellow,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  locketTopStudioBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.yellow,
   },
 
   // Locket Photo & Strip Viewport styles
@@ -1879,6 +2105,25 @@ const styles = StyleSheet.create({
   },
   locketBottomJumpBadgeText: {
     fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  locketBottomChatBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FFE600',
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    minWidth: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0A0A0C',
+  },
+  locketBottomChatBadgeText: {
+    fontSize: 10,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -2584,6 +2829,44 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.textPrimary,
   },
+  memoriesStudioPromoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(200, 241, 53, 0.12)',
+    borderWidth: 1.5,
+    borderColor: colors.yellow,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 10,
+    ...theme.shadows.darkSoft,
+  },
+  memoriesStudioPromoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(200, 241, 53, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memoriesStudioPromoTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.yellow,
+  },
+  memoriesStudioPromoDesc: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#D1D5DB',
+    marginTop: 1,
+  },
+  memoriesStudioPromoArrow: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.yellow,
+  },
   memoriesTabsRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -2874,6 +3157,103 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.ink,
     maxWidth: 80,
+  },
+
+  // Friend Filter Modal
+  friendFilterBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  friendFilterCard: {
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: '80%',
+    backgroundColor: '#16181F',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 18,
+    ...theme.shadows.darkSoft,
+  },
+  friendFilterHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    paddingBottom: 12,
+  },
+  friendFilterTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  friendFilterSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  friendFilterCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#242833',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendFilterCloseText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  friendFilterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E212B',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  friendFilterItemActive: {
+    borderColor: colors.yellow,
+    backgroundColor: 'rgba(200, 241, 53, 0.12)',
+  },
+  friendFilterAvatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendFilterAvatarLetter: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  friendFilterItemName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  friendFilterItemDesc: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  friendFilterCheck: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.yellow,
+    marginLeft: 6,
   },
 
   // Account Modal
