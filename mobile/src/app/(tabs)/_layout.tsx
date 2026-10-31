@@ -16,7 +16,7 @@ interface CustomTabBarProps {
 }
 
 const TAB_CONFIG: Record<string, { label: string; icon: string }> = {
-  moments: { label: 'Locket', icon: '💛' },
+  moments: { label: 'Leafy Wall', icon: '🌿' },
   studio: { label: 'Tạo Khung', icon: '🎨' },
   booth: { label: 'Chụp Booth', icon: '📸' },
   profile: { label: 'Widget & Bạn', icon: '📱' },
@@ -28,7 +28,7 @@ function StickerPopTabBar({ state, descriptors, navigation, navigateToTab, emitt
 
   const currentRouteName = state.routes[state.index]?.name;
   if (currentRouteName === 'moments' && viewMode === 'pick') {
-    return null; // Ẩn tab bar hoàn toàn khi đang lướt Locket Feed toàn màn hình
+    return null; // Ẩn tab bar khi đang xem Bức tường Leafy toàn màn hình
   }
 
   return (

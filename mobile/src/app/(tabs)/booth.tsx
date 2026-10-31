@@ -66,7 +66,7 @@ export default function BoothScreen() {
               ]}
             >
               <Text style={styles.shortcutEmoji}>📱</Text>
-              <Text style={styles.shortcutText}>Widget Locket</Text>
+              <Text style={styles.shortcutText}>Widget Leafy</Text>
             </Pressable>
           </View>
         </View>

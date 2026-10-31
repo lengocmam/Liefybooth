@@ -26,7 +26,7 @@ export const colors = {
   error: '#EF4444',
   success: '#10B981',
 
-  // Midnight OLED Dark Theme tokens (Chuẩn Locket & Photobooth Studio)
+  // Midnight OLED Dark Theme tokens (Chuẩn Leafybooth Studio)
   darkBg: '#0A0A0C',              // Nền đen sâu nhất (Camera & App background)
   darkSurface: '#14161D',         // Nền thẻ card, bottom sheet
   darkSurfaceElevated: '#1E222B', // Nền nút phụ, pill, ô input
@@ -36,7 +36,7 @@ export const colors = {
   textPrimary: '#FFFFFF',         // Chữ chính sáng rõ
   textSecondary: '#9CA3AF',       // Chữ phụ, time ago
   textMuted: '#6B7280',           // Chữ chú thích nhỏ
-  accentYellow: '#FFE600',        // Vàng Locket rực rỡ
+  accentYellow: '#FFE600',        // Vàng Leafy rực rỡ
 } as const;
 
 export type ColorToken = keyof typeof colors;

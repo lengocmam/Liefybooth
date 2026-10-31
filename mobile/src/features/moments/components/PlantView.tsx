@@ -160,7 +160,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
         </View>
       </View>
 
-      {/* Widget Ảnh bạn bè mới nhất hiện lên trên đầu theo thời gian (Locket Top Live Pill) */}
+      {/* Widget Ảnh bạn bè mới nhất hiện lên trên đầu theo thời gian (Leafy Top Live Pill) */}
       {latestMoment && (
         <Pressable
           onPress={onOpenFeed || (() => setViewMode('pick'))}
@@ -411,12 +411,12 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
         </ScrollView>
       </View>
 
-      {/* Thanh kéo lên Hộp ảnh như Locket (Locket Pull-Up Drawer Bar) */}
+      {/* Thanh kéo lên Bức tường ảnh Leafy (Leafy Pull-Up Drawer Bar) */}
       <Pressable
         {...(pullUpPanResponder ? pullUpPanResponder.panHandlers : {})}
         onPress={onOpenFeed || (() => setViewMode('pick'))}
         style={({ pressed }) => [
-          styles.locketPullUpBar,
+          styles.leafyPullUpBar,
           { transform: [{ scale: pressed ? 0.98 : 1 }] },
         ]}
       >
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
     color: '#FFE600',
     fontWeight: '900',
   },
-  locketPullUpBar: {
+  leafyPullUpBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.darkSurface,

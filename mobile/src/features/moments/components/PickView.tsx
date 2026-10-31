@@ -6,11 +6,17 @@ import {
   Pressable,
   Image,
   ScrollView,
+  FlatList,
+  Dimensions,
+  TextInput,
   Modal,
   Alert,
   Animated,
   PanResponder,
 } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CARD_WIDTH = Math.min(SCREEN_WIDTH - 24, 380);
 import { colors } from '../../../core/theme/colors';
 import { theme } from '../../../core/theme/theme';
 import { REACTION_ICONS } from '../../../core/constants';
@@ -24,6 +30,23 @@ const REACTION_BG_COLORS: Record<string, string> = {
   '⭐': colors.sky,
   '😮': colors.white,
 };
+
+const WASHI_COLORS = [
+  '#F472B6', // Pastel Pink
+  '#FBBF24', // Amber Yellow
+  '#34D399', // Mint Green
+  '#60A5FA', // Sky Blue
+  '#A78BFA', // Soft Lavender
+  '#FB923C', // Peach Orange
+];
+
+const LEAFY_STAMP_CONFIG = [
+  { emoji: '❤️', label: 'Yêu', color: '#FFE4E6', borderColor: '#F43F5E', text: '#BE123C' },
+  { emoji: '😊', label: 'Cười', color: '#DCFCE7', borderColor: '#22C55E', text: '#15803D' },
+  { emoji: '🔥', label: 'Cháy', color: '#FFEDD5', borderColor: '#F97316', text: '#C2410C' },
+  { emoji: '⭐', label: 'Sao', color: '#FEF9C3', borderColor: '#EAB308', text: '#A16207' },
+  { emoji: '😮', label: 'Wow', color: '#F3E8FF', borderColor: '#A855F7', text: '#7E22CE' },
+] as const;
 
 export interface PickViewProps {
   onCloseFeed?: () => void;
@@ -53,6 +76,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
   const [memoriesTab, setMemoriesTab] = useState<'all' | 'me' | 'friends'>('all');
   const [memoryFriendFilter, setMemoryFriendFilter] = useState<string>('all');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [wallViewMode, setWallViewMode] = useState<'wall' | 'scrapbook'>('wall');
 
   // Hiệu ứng hạt emoji bay lên khi thả reaction (Tactile reaction pop)
   const [poppingEmoji, setPoppingEmoji] = useState<{ emoji: string; id: number } | null>(null);
@@ -63,12 +87,46 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
   const doubleTapAnim = useRef(new Animated.Value(0)).current;
   const lastTapRef = useRef<number>(0);
 
-  // Hiệu ứng cử chỉ vuốt lướt ảnh mượt mà chuẩn Locket
+  // Hiệu ứng cử chỉ vuốt lướt ảnh mượt mà cho Bức tường Leafy
   const isSwipingRef = useRef(false);
   const panAnim = useRef(new Animated.Value(0)).current;
   const cardScaleAnim = useRef(new Animated.Value(1)).current;
-  const avatarScrollRef = useRef<any>(null);
+  const flatListRef = useRef<FlatList<MomentItem>>(null);
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [reelHeight, setReelHeight] = useState<number>(SCREEN_HEIGHT - 120);
+  const [replyInput, setReplyInput] = useState<{ [momentId: string]: string }>({});
+
+  const handleSendReply = (moment: MomentItem) => {
+    const text = replyInput[moment.id]?.trim();
+    if (!text) return;
+    playShutterSound();
+    showToast(`Đã gửi tin nhắn đến ${moment.senderName}: "${text}" 💌`);
+    setReplyInput((prev) => ({ ...prev, [moment.id]: '' }));
+  };
+
+  const formatLeafyDate = (timestamp: string, fallbackTimeAgo: string) => {
+    try {
+      const d = new Date(timestamp);
+      const now = new Date();
+      const isToday = d.toDateString() === now.toDateString();
+      if (isToday) return `Hôm nay · ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) {
+        return `Hôm qua · ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+      }
+      return `${d.getDate()}/${d.getMonth() + 1} · ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+    } catch {
+      return fallbackTimeAgo;
+    }
+  };
+
+  const handleScrollToMoment = (idx: number) => {
+    if (idx >= 0 && idx < filteredMoments.length && reelHeight > 0) {
+      setActiveMomentIndex(idx);
+      flatListRef.current?.scrollToOffset({ offset: idx * reelHeight, animated: true });
+    }
+  };
 
   const showToast = useCallback((msg: string) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -82,21 +140,14 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
     };
   }, []);
 
-  // Danh sách khoảnh khắc đã lọc theo người đăng trên Feed (luôn sắp xếp thời gian mới nhất lên đầu)
+  // Danh sách toàn bộ khoảnh khắc trên Feed (luôn sắp xếp thời gian mới nhất lên đầu)
   const filteredMoments = useMemo(() => {
-    let list = moments;
-    if (activeSenderFilter === 'me') {
-      list = moments.filter((m) => m.senderId === currentUser.id);
-    } else if (activeSenderFilter !== 'all') {
-      list = moments.filter((m) => m.senderId === activeSenderFilter);
-    }
-    // Sắp xếp giảm dần theo timestamp (mới nhất lên đầu)
-    return [...list].sort((a, b) => {
+    return [...moments].sort((a, b) => {
       const timeA = new Date(a.timestamp).getTime();
       const timeB = new Date(b.timestamp).getTime();
       return timeB - timeA;
     });
-  }, [moments, activeSenderFilter, currentUser.id]);
+  }, [moments]);
 
   const [doubleTapMomentId, setDoubleTapMomentId] = useState<string | null>(null);
 
@@ -355,16 +406,9 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
   };
 
   const handleOpenFromMemory = (moment: MomentItem) => {
-    if (moment.senderId === currentUser.id) {
-      setActiveSenderFilter('me');
-      const myMoments = moments.filter((m) => m.senderId === currentUser.id);
-      const myIdx = myMoments.findIndex((m) => m.id === moment.id);
-      setActiveMomentIndex(myIdx !== -1 ? myIdx : 0);
-    } else {
-      setActiveSenderFilter(moment.senderId);
-      const friendMoments = moments.filter((m) => m.senderId === moment.senderId);
-      const friendIdx = friendMoments.findIndex((m) => m.id === moment.id);
-      setActiveMomentIndex(friendIdx !== -1 ? friendIdx : 0);
+    const targetIdx = filteredMoments.findIndex((m) => m.id === moment.id);
+    if (targetIdx !== -1) {
+      handleScrollToMoment(targetIdx);
     }
     setSelectedMemoryMoment(null);
     setShowMemoriesModal(false);
@@ -384,15 +428,6 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
       useNativeDriver: true,
     }).start(() => {
       setPoppingEmoji(null);
-    });
-  };
-
-  const handleSelectFilter = (filterId: string, idx: number) => {
-    setActiveSenderFilter(filterId);
-    setActiveMomentIndex(0);
-    avatarScrollRef.current?.scrollTo({
-      x: Math.max(0, idx * 64 - 40),
-      animated: true,
     });
   };
 
@@ -664,386 +699,336 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
     );
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Locket Pull-Down Handle Bar (Thanh kéo xuống chuẩn Locket) */}
+  const renderMomentPage = ({ item: moment, index: idx }: { item: MomentItem; index: number }) => {
+    const isFirst = idx === 0;
+    const isFramed = Boolean(
+      (moment.stripPhotos && moment.stripPhotos.length > 0) ||
+      moment.frameColor ||
+      moment.frameName ||
+      (moment.stickers && moment.stickers.length > 0) ||
+      moment.layout
+    );
+
+    return (
       <View
-        {...(pullDownPanResponder ? pullDownPanResponder.panHandlers : {})}
-        style={styles.pullDownHeader}
+        style={[
+          styles.reelPageItem,
+          { width: SCREEN_WIDTH, height: reelHeight },
+        ]}
       >
-        <View style={styles.dragPillHandle} />
+        {/* 1. KHU VỰC ẢNH CHÍNH (CHUẨN LOCKET: GÓC BO TRÒN 36PX, KHÔNG KHUNG RỐI MẮT) */}
         <Pressable
-          onPress={onCloseFeed || (() => setViewMode('plant'))}
-          style={({ pressed }) => [
-            styles.pullDownHintBtn,
-            { transform: [{ scale: pressed ? 0.96 : 1 }] },
-          ]}
+          onPress={() => handlePhotoDoubleTapOnCard(moment.id)}
+          style={styles.locketPhotoPressable}
         >
-          <Text style={styles.pullDownHintIcon}>▼</Text>
-          <Text style={styles.pullDownHintText}>Kéo xuống để chụp ảnh</Text>
-        </Pressable>
-      </View>
-
-      {/* 1. TOP BAR CÓ NÚT ĐỔI TÀI KHOẢN (MULTI-ACCOUNT TESTER SWITCHER) */}
-      <View style={styles.topBar}>
-        <View style={styles.topLeftRow}>
-          <Text style={styles.topTitle}>Locket</Text>
-          {/* Nút chuyển đổi tài khoản */}
-          <Pressable
-            onPress={() => setShowAccountSwitchModal(true)}
-            style={({ pressed }) => [
-              styles.accountSwitchPill,
-              { backgroundColor: currentUser.avatarColor, transform: [{ scale: pressed ? 0.94 : 1 }] },
-            ]}
-          >
-            <View style={styles.accountSwitchLetterBox}>
-              <Text style={styles.accountSwitchLetter}>{currentUser.avatarLetter}</Text>
+          {isFramed ? (
+            <View style={styles.locketStripContainer}>
+              {renderMomentStrip(moment)}
             </View>
-            <Text style={styles.accountSwitchName} numberOfLines={1}>
-              {currentUser.name} ▾
-            </Text>
-          </Pressable>
-        </View>
+          ) : (
+            <View style={styles.locketSinglePhotoSlot}>
+              <Image
+                source={{ uri: moment.photoUrl }}
+                style={styles.locketSinglePhotoImg}
+                resizeMode="cover"
+              />
+            </View>
+          )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          {/* Nút mở hộp kỷ niệm */}
-          <Pressable
-            onPress={() => setShowMemoriesModal(true)}
-            style={({ pressed }) => [
-              styles.memoriesPillBtn,
-              { transform: [{ scale: pressed ? 0.94 : 1 }] },
-            ]}
-          >
-            <Text style={styles.memoriesPillIcon}>📖</Text>
-            <Text style={styles.memoriesPillText}>({moments.length})</Text>
-          </Pressable>
-
-          {/* Nút chụp nhanh camera */}
-          <Pressable
-            onPress={onCloseFeed || (() => setViewMode('plant'))}
-            style={({ pressed }) => [
-              styles.switchCameraPill,
-              { transform: [{ scale: pressed ? 0.94 : 1 }] },
-            ]}
-          >
-            <Text style={styles.switchCameraPillText}>📸</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollFeedContent}
-      >
-        {/* 2. DẢI AVATAR LỌC THEO NGƯỜI (TẤT CẢ / CỦA TÔI / TỪNG BẠN BÈ) */}
-        <View style={styles.senderFilterContainer}>
-          <ScrollView
-            ref={avatarScrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.senderFilterScroll}
-          >
-            {/* Tất cả */}
-            <Pressable
-              onPress={() => handleSelectFilter('all', 0)}
-              style={({ pressed }) => [
-                styles.senderFilterChip,
-                activeSenderFilter === 'all' && styles.senderFilterChipActive,
-                { transform: [{ scale: pressed ? 0.92 : activeSenderFilter === 'all' ? 1.05 : 1 }] },
-              ]}
-            >
-              <View
-                style={[
-                  styles.senderAvatarRing,
-                  activeSenderFilter === 'all' && styles.senderAvatarRingActive,
-                ]}
-              >
-                <View style={[styles.senderAvatarCircle, { backgroundColor: '#FFD93D' }]}>
-                  <Text style={{ fontSize: 15 }}>🌟</Text>
-                </View>
-                {moments.length > 0 && (
-                  <View style={styles.senderCountBadge}>
-                    <Text style={styles.senderCountBadgeText}>{moments.length}</Text>
-                  </View>
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.senderFilterName,
-                  activeSenderFilter === 'all' && styles.senderFilterNameActive,
-                ]}
-              >
-                Tất cả
+          {/* Lời nhắn / Caption nổi góc dưới bên trong ảnh chuẩn Locket */}
+          {moment.caption ? (
+            <View style={styles.locketPhotoCaptionBadge} pointerEvents="none">
+              <Text style={styles.locketPhotoCaptionText} numberOfLines={2}>
+                "{moment.caption}"
               </Text>
-            </Pressable>
+            </View>
+          ) : null}
 
-            {/* Của tôi (Ảnh mình đăng - hiển thị theo account đang active) */}
-            <Pressable
-              onPress={() => handleSelectFilter('me', 1)}
-              style={({ pressed }) => [
-                styles.senderFilterChip,
-                activeSenderFilter === 'me' && styles.senderFilterChipActive,
-                { transform: [{ scale: pressed ? 0.92 : activeSenderFilter === 'me' ? 1.05 : 1 }] },
-              ]}
-            >
-              <View
-                style={[
-                  styles.senderAvatarRing,
-                  activeSenderFilter === 'me' && styles.senderAvatarRingActive,
-                ]}
-              >
-                <View style={[styles.senderAvatarCircle, { backgroundColor: currentUser.avatarColor }]}>
-                  <Text style={styles.senderAvatarLetter}>{currentUser.avatarLetter}</Text>
-                </View>
-                {myMomentsCount > 0 && (
-                  <View style={styles.senderCountBadge}>
-                    <Text style={styles.senderCountBadgeText}>{myMomentsCount}</Text>
-                  </View>
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.senderFilterName,
-                  activeSenderFilter === 'me' && styles.senderFilterNameActive,
-                ]}
-                numberOfLines={1}
-              >
-                {currentUser.name}
-              </Text>
-            </Pressable>
-
-            {/* Từng bạn bè */}
-            {friends.map((friend, fIdx) => {
-              const count = friendCounts[friend.id] || 0;
-              const isSelected = activeSenderFilter === friend.id;
-              return (
-                <Pressable
-                  key={friend.id}
-                  onPress={() => handleSelectFilter(friend.id, fIdx + 2)}
-                  style={({ pressed }) => [
-                    styles.senderFilterChip,
-                    isSelected && styles.senderFilterChipActive,
-                    { transform: [{ scale: pressed ? 0.92 : isSelected ? 1.05 : 1 }] },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.senderAvatarRing,
-                      isSelected && styles.senderAvatarRingActive,
-                    ]}
-                  >
-                    <View style={[styles.senderAvatarCircle, { backgroundColor: friend.avatarColor }]}>
-                      <Text style={styles.senderAvatarLetter}>{friend.avatarLetter}</Text>
-                    </View>
-                    {count > 0 && (
-                      <View style={styles.senderCountBadge}>
-                        <Text style={styles.senderCountBadgeText}>{count}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.senderFilterName,
-                      isSelected && styles.senderFilterNameActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {friend.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* 3. DÒNG THỜI GIAN LƯỚT DỌC CHUẨN LOCKET (ẢNH MỚI NHẤT HIỆN LÊN TRÊN ĐẦU) */}
-        <View style={styles.verticalFeedContainer}>
-          {/* Floating Emoji Particle khi bấm thả reaction */}
-          {poppingEmoji && (
+          {/* Tim to nảy lên khi chạm đúp */}
+          {doubleTapMomentId === moment.id && (
             <Animated.View
               pointerEvents="none"
               style={[
-                styles.floatingPopEmojiContainer,
+                styles.doubleTapHeartOverlay,
                 {
-                  opacity: popAnim.interpolate({
-                    inputRange: [0, 0.7, 1],
-                    outputRange: [1, 1, 0],
-                  }),
+                  opacity: doubleTapAnim,
                   transform: [
                     {
-                      translateY: popAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -65],
-                      }),
-                    },
-                    {
-                      scale: popAnim.interpolate({
-                        inputRange: [0, 0.3, 1],
-                        outputRange: [0.6, 1.4, 1.8],
+                      scale: doubleTapAnim.interpolate({
+                        inputRange: [0, 0.4, 1],
+                        outputRange: [0.3, 1.4, 1.1],
                       }),
                     },
                   ],
                 },
               ]}
             >
-              <Text style={{ fontSize: 40 }}>{poppingEmoji.emoji}</Text>
+              <Text style={styles.doubleTapHeartText}>❤️</Text>
             </Animated.View>
           )}
+        </Pressable>
 
-          {filteredMoments.length > 0 ? (
-            filteredMoments.map((moment, idx) => {
-              const isFirst = idx === 0;
-              const isFramed = Boolean(
-                (moment.stripPhotos && moment.stripPhotos.length > 0) ||
-                moment.frameColor ||
-                moment.frameName ||
-                (moment.stickers && moment.stickers.length > 0) ||
-                moment.layout
-              );
+        {/* 2. THÔNG TIN NGƯỜI ĐĂNG (NẰM NGAY DƯỚI ẢNH, KHÔNG KHUNG BAO BỌC - CHUẨN LOCKET) */}
+        <View style={styles.locketSenderRow}>
+          <View style={[styles.locketSenderAvatar, { backgroundColor: moment.senderColor }]}>
+            <Text style={styles.locketSenderLetter}>{moment.senderLetter}</Text>
+          </View>
+          <Text style={styles.locketSenderName}>{moment.senderName}</Text>
+          <Text style={styles.locketSenderTime}>
+            {formatLeafyDate(moment.timestamp, moment.timeAgo)}
+          </Text>
+        </View>
 
-              return (
-                <View key={moment.id} style={styles.feedCardWrapper}>
-                  {/* Header thẻ: Tên người gửi + Thời gian + Badge Mới nhất */}
-                  <View style={styles.feedCardTopHeader}>
-                    <View style={styles.feedSenderRow}>
-                      <View
-                        style={[
-                          styles.feedSenderAvatar,
-                          { backgroundColor: moment.senderColor },
-                        ]}
-                      >
-                        <Text style={styles.feedSenderLetter}>{moment.senderLetter}</Text>
-                      </View>
-                      <View>
-                        <Text style={styles.feedSenderName}>{moment.senderName}</Text>
-                        <Text style={styles.senderPillTime}>⏱️ {moment.timeAgo}</Text>
-                      </View>
-                    </View>
+        {/* 3. THANH CAPSULE HỢP NHẤT: NHẮN TIN + 4 EMOJI CẢM XÚC TRONG CÙNG 1 KHỐI (CHUẨN LOCKET) */}
+        <View style={styles.locketCapsuleBar}>
+          <TextInput
+            placeholder="Gửi tin nhắn..."
+            placeholderTextColor="#8E8E93"
+            style={styles.locketCapsuleInput}
+            value={replyInput[moment.id] || ''}
+            onChangeText={(txt) => setReplyInput((prev) => ({ ...prev, [moment.id]: txt }))}
+            onSubmitEditing={() => handleSendReply(moment)}
+            returnKeyType="send"
+          />
 
-                    <View style={styles.feedCardActions}>
-                      {isFirst && (
-                        <View style={styles.newestBadge}>
-                          <Text style={styles.newestBadgeText}>✨ MỚI NHẤT</Text>
-                        </View>
-                      )}
-                      {moment.senderId === currentUser.id && (
-                        <Pressable
-                          hitSlop={10}
-                          onPress={() => handleDeleteMoment(moment.id)}
-                          style={styles.cardMiniActionBtn}
-                        >
-                          <Text style={{ fontSize: 13 }}>🗑️</Text>
-                        </Pressable>
-                      )}
-                      <Pressable
-                        hitSlop={10}
-                        onPress={() => handlePinMoment(moment)}
-                        style={[styles.cardMiniActionBtn, { backgroundColor: colors.yellow }]}
-                      >
-                        <Text style={{ fontSize: 13 }}>📌</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-
-                  {/* KHUNG ẢNH: DẢI PHOTOBOOTH 4 Ô HOẶC ẢNH VUÔNG LOCKET (CHẠM ĐÚP ĐỂ THẢ TIM ❤️) */}
-                  <Pressable
-                    onPress={() => handlePhotoDoubleTapOnCard(moment.id)}
-                    style={styles.cardPhotoPressable}
-                  >
-                    {isFramed ? (
-                      renderMomentStrip(moment)
-                    ) : (
-                      <View style={styles.photoContainer}>
-                        <Image
-                          source={{ uri: moment.photoUrl }}
-                          style={styles.photo}
-                          resizeMode="cover"
-                        />
-                      </View>
-                    )}
-
-                    {/* TIM TO KHI CHẠM ĐÚP */}
-                    {doubleTapMomentId === moment.id && (
-                      <Animated.View
-                        pointerEvents="none"
-                        style={[
-                          styles.doubleTapHeartOverlay,
-                          {
-                            opacity: doubleTapAnim,
-                            transform: [
-                              {
-                                scale: doubleTapAnim.interpolate({
-                                  inputRange: [0, 0.4, 1],
-                                  outputRange: [0.3, 1.4, 1.1],
-                                }),
-                              },
-                            ],
-                          },
-                        ]}
-                      >
-                        <Text style={styles.doubleTapHeartText}>❤️</Text>
-                      </Animated.View>
-                    )}
-                  </Pressable>
-
-                  {/* Lời nhắn / Caption */}
-                  {moment.caption ? (
-                    <Text style={styles.captionText}>{moment.caption}</Text>
-                  ) : null}
-
-                  {/* THANH 5 REACTION EMOJI */}
-                  <View style={styles.cardReactionsRow}>
-                    {REACTION_ICONS.map((emoji) => {
-                      const userReaction = moment.userReactions?.[currentUser.id] ||
-                        (currentUser.id === 'me' ? moment.myReaction : undefined);
-                      const isMyReaction = userReaction === emoji;
-                      const count = moment.reactions[emoji] || 0;
-                      const bgColor = REACTION_BG_COLORS[emoji] || colors.white;
-
-                      return (
-                        <Pressable
-                          key={emoji}
-                          onPress={() => handleEmojiPressOnCard(moment.id, emoji)}
-                          style={({ pressed }) => [
-                            styles.reactionButton,
-                            { backgroundColor: bgColor },
-                            isMyReaction && styles.reactionButtonActive,
-                            { transform: [{ scale: pressed ? 0.9 : isMyReaction ? 1.06 : 1 }] },
-                          ]}
-                        >
-                          <Text style={styles.reactionEmoji}>{emoji}</Text>
-                          {count > 0 && (
-                            <View style={styles.reactionCountBadge}>
-                              <Text style={styles.reactionCountText}>{count}</Text>
-                            </View>
-                          )}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              );
-            })
+          {Boolean(replyInput[moment.id]?.trim()) ? (
+            <Pressable
+              onPress={() => handleSendReply(moment)}
+              style={({ pressed }) => [
+                styles.locketCapsuleSendBtn,
+                { transform: [{ scale: pressed ? 0.9 : 1 }] },
+              ]}
+            >
+              <Text style={styles.locketCapsuleSendIcon}>➔</Text>
+            </Pressable>
           ) : (
-            /* EMPTY STATE KHI CHƯA CÓ ẢNH */
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardEmoji}>🌱</Text>
-              <Text style={styles.emptyCardTitle}>Chưa có ảnh từ {activeFilterName}</Text>
-              <Text style={styles.emptyCardDesc}>
-                {activeSenderFilter === 'me'
-                  ? 'Bạn chưa đăng ảnh nào lên Widget. Hãy chụp một bức ảnh hoặc tạo khung photobooth để gửi tặng bạn bè nhé!'
-                  : `${activeFilterName} chưa gửi ảnh nào cho bạn. Hãy gửi khoảnh khắc đầu tiên để rủ bạn ấy cùng chơi!`}
-              </Text>
-              <Pressable
-                onPress={onCloseFeed || (() => setViewMode('plant'))}
-                style={styles.emptyCardBtn}
-              >
-                <Text style={styles.emptyCardBtnText}>📸 Chụp & Gửi ngay</Text>
-              </Pressable>
+            <View style={styles.locketCapsuleEmojiRow}>
+              {['❤️', '🌿', '🔥', '⭐'].map((emoji) => (
+                <Pressable
+                  key={emoji}
+                  onPress={() => handleEmojiPressOnCard(moment.id, emoji)}
+                  hitSlop={6}
+                  style={({ pressed }) => [
+                    styles.locketCapsuleEmojiBtn,
+                    { transform: [{ scale: pressed ? 0.85 : 1 }] },
+                  ]}
+                >
+                  <Text style={styles.locketCapsuleEmoji}>{emoji}</Text>
+                </Pressable>
+              ))}
             </View>
           )}
         </View>
-      </ScrollView>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* 1. TOP BAR CHUẨN LOCKET (📢 - Tất cả bạn bè ▾ - M 🌳) */}
+      <View style={styles.locketTopBar}>
+        {/* Nút 📢 Thông báo */}
+        <Pressable
+          onPress={() => showToast('🌿 Bức tường Leafy - Vuốt lên để xem thêm khoảnh khắc!')}
+          style={({ pressed }) => [
+            styles.locketTopCircleBtn,
+            { transform: [{ scale: pressed ? 0.92 : 1 }] },
+          ]}
+        >
+          <Text style={styles.locketTopIcon}>📢</Text>
+        </Pressable>
+
+        {/* Nút Dropdown pill "Tất cả bạn bè ▾" */}
+        <Pressable
+          onPress={() => setShowMemoriesModal(true)}
+          style={({ pressed }) => [
+            styles.locketTopPill,
+            { transform: [{ scale: pressed ? 0.95 : 1 }] },
+          ]}
+        >
+          <Text style={styles.locketTopPillText}>
+            {activeSenderFilter === 'me'
+              ? `Của ${currentUser.name}`
+              : activeSenderFilter === 'all'
+              ? 'Tất cả bạn bè'
+              : friends.find((f) => f.id === activeSenderFilter)?.name || 'Bạn bè'}
+          </Text>
+          <Text style={styles.locketTopPillArrow}>▾</Text>
+        </Pressable>
+
+        {/* Nút Avatar tài khoản "M 🌳" */}
+        <Pressable
+          onPress={() => setShowAccountSwitchModal(true)}
+          style={({ pressed }) => [
+            styles.locketTopCircleBtn,
+            { backgroundColor: currentUser.avatarColor, transform: [{ scale: pressed ? 0.92 : 1 }] },
+          ]}
+        >
+          <Text style={styles.locketTopAvatarLetter}>{currentUser.avatarLetter}</Text>
+        </Pressable>
+      </View>
+
+      {/* TRÌNH CHIẾU DẢI ẢNH VUỐT DỌC (LEAFY VERTICAL REEL) */}
+      <View
+        style={styles.reelContainer}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 50 && Math.abs(h - reelHeight) > 1) {
+            setReelHeight(h);
+          }
+        }}
+      >
+        {/* Floating Emoji Particle */}
+        {poppingEmoji && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.floatingPopEmojiContainer,
+              {
+                opacity: popAnim.interpolate({
+                  inputRange: [0, 0.7, 1],
+                  outputRange: [1, 1, 0],
+                }),
+                transform: [
+                  {
+                    translateY: popAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -65],
+                    }),
+                  },
+                  {
+                    scale: popAnim.interpolate({
+                      inputRange: [0, 0.3, 1],
+                      outputRange: [0.6, 1.4, 1.8],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 40 }}>{poppingEmoji.emoji}</Text>
+          </Animated.View>
+        )}
+
+        {filteredMoments.length > 0 ? (
+          <View style={{ flex: 1, position: 'relative' }}>
+            <FlatList
+              ref={flatListRef}
+              data={filteredMoments}
+              horizontal={false}
+              pagingEnabled
+              showsVerticalScrollIndicator={false}
+              keyExtractor={(item) => item.id}
+              renderItem={renderMomentPage}
+              getItemLayout={reelHeight > 0 ? (_, index) => ({
+                length: reelHeight,
+                offset: reelHeight * index,
+                index,
+              }) : undefined}
+              snapToInterval={reelHeight > 0 ? reelHeight : undefined}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              onMomentumScrollEnd={(e) => {
+                if (reelHeight > 0) {
+                  const newIdx = Math.round(e.nativeEvent.contentOffset.y / reelHeight);
+                  if (newIdx !== activeMomentIndex && newIdx >= 0 && newIdx < filteredMoments.length) {
+                    setActiveMomentIndex(newIdx);
+                  }
+                }
+              }}
+              style={styles.reelFlatList}
+            />
+          </View>
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyCardEmoji}>🌱</Text>
+            <Text style={styles.emptyCardTitle}>Chưa có khoảnh khắc nào</Text>
+            <Text style={styles.emptyCardDesc}>
+              Hãy chụp photobooth hoặc tạo khung dải ảnh để chia sẻ khoảnh khắc đầu tiên nhé!
+            </Text>
+            <Pressable
+              onPress={onCloseFeed || (() => setViewMode('plant'))}
+              style={styles.emptyCardBtn}
+            >
+              <Text style={styles.emptyCardBtnText}>📸 Chụp & Chia Sẻ Ngay</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+
+      {/* 3. THANH ĐIỀU HƯỚNG DƯỚI ĐÁY CHUẨN LOCKET (BOTTOM NAVIGATION DOCK) */}
+      <View style={styles.locketBottomBar}>
+        {/* Nút xem lưới ảnh (田) */}
+        <Pressable
+          onPress={() => setShowMemoriesModal(true)}
+          style={({ pressed }) => [
+            styles.locketBottomIconBtn,
+            { transform: [{ scale: pressed ? 0.9 : 1 }] },
+          ]}
+        >
+          <Text style={styles.locketBottomIconText}>田</Text>
+        </Pressable>
+
+        {/* Nút nhảy lên ảnh đầu tiên (⚡) */}
+        <Pressable
+          onPress={() => handleScrollToMoment(0)}
+          style={({ pressed }) => [
+            styles.locketBottomIconBtn,
+            safeIndex > 0 && styles.locketBottomIconBtnActive,
+            { transform: [{ scale: pressed ? 0.9 : 1 }] },
+          ]}
+        >
+          <Text style={[styles.locketBottomIconText, safeIndex > 0 && { color: colors.accentYellow }]}>
+            {safeIndex > 0 ? '⚡' : '📅'}
+          </Text>
+          {safeIndex > 0 && (
+            <View style={styles.locketBottomJumpBadge}>
+              <Text style={styles.locketBottomJumpBadgeText}>{safeIndex + 1}</Text>
+            </View>
+          )}
+        </Pressable>
+
+        {/* NÚT CHỤP CAMERA TO TRÒN CHUẨN LOCKET (🟡) */}
+        <Pressable
+          onPress={onCloseFeed || (() => setViewMode('plant'))}
+          style={({ pressed }) => [
+            styles.locketShutterOuter,
+            { transform: [{ scale: pressed ? 0.92 : 1 }] },
+          ]}
+        >
+          <View style={styles.locketShutterInner} />
+        </Pressable>
+
+        {/* Nút ghim ảnh lên widget (📌) */}
+        <Pressable
+          onPress={() => currentMoment && handlePinMoment(currentMoment)}
+          style={({ pressed }) => [
+            styles.locketBottomIconBtn,
+            { transform: [{ scale: pressed ? 0.9 : 1 }] },
+          ]}
+        >
+          <Text style={styles.locketBottomIconText}>📌</Text>
+        </Pressable>
+
+        {/* Nút xóa (nếu là ảnh của mình) hoặc chia sẻ (🔗) */}
+        <Pressable
+          onPress={() => {
+            if (currentMoment?.senderId === currentUser.id) {
+              handleDeleteMoment(currentMoment.id);
+            } else {
+              showToast('✓ Đã sao chép liên kết khoảnh khắc!');
+            }
+          }}
+          style={({ pressed }) => [
+            styles.locketBottomIconBtn,
+            { transform: [{ scale: pressed ? 0.9 : 1 }] },
+          ]}
+        >
+          <Text style={styles.locketBottomIconText}>
+            {currentMoment?.senderId === currentUser.id ? '🗑️' : '🔗'}
+          </Text>
+        </Pressable>
+      </View>
 
       {/* 6. TOAST THÔNG BÁO GHIM WIDGET */}
       {toastMessage && (
@@ -1063,9 +1048,9 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           {/* Header */}
           <View style={styles.memoriesHeader}>
             <View>
-              <Text style={styles.memoriesTitle}>📖 Hộp Kỷ Niệm Locket</Text>
+              <Text style={styles.memoriesTitle}>📖 Sổ Lưu Niệm Leafybooth</Text>
               <Text style={styles.memoriesSubtitle}>
-                Xem lại toàn bộ ảnh bạn bè và bạn đã chia sẻ
+                Kho tàng dải ảnh photobooth & khoảnh khắc của tụi mình
               </Text>
             </View>
             <Pressable
@@ -1215,7 +1200,21 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
                   return (
                     <Pressable
                       key={item.id}
-                      onPress={() => setSelectedMemoryMoment(item)}
+                      onPress={() => {
+                        setShowMemoriesModal(false);
+                        const foundIdx = filteredMoments.findIndex((m) => m.id === item.id);
+                        if (foundIdx !== -1) {
+                          handleScrollToMoment(foundIdx);
+                        } else {
+                          setActiveSenderFilter('all');
+                          setTimeout(() => {
+                            const idxAll = moments.findIndex((m) => m.id === item.id);
+                            if (idxAll !== -1) {
+                              handleScrollToMoment(idxAll);
+                            }
+                          }, 150);
+                        }
+                      }}
                       style={({ pressed }) => [
                         styles.gridItemCard,
                         { transform: [{ scale: pressed ? 0.96 : 1 }] },
@@ -1449,8 +1448,8 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0E13', // Midnight Dark Feed
-    paddingHorizontal: 16,
+    backgroundColor: '#0A0A0C', // Locket Midnight OLED
+    paddingHorizontal: 0,
   },
   pullDownHeader: {
     alignItems: 'center',
@@ -1465,6 +1464,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     marginBottom: 6,
   },
+  pullDownActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   pullDownHintBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1474,8 +1478,33 @@ const styles = StyleSheet.create({
     borderColor: colors.darkBorder,
     borderRadius: 14,
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: 4,
     ...theme.shadows.darkSoft,
+  },
+  jumpToInitialBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.accentYellow,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    ...theme.shadows.hardSmall,
+  },
+  jumpToInitialIcon: {
+    fontSize: 12,
+  },
+  jumpToInitialText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  jumpToInitialArrow: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.ink,
   },
   pullDownHintIcon: {
     fontSize: 10,
@@ -1503,11 +1532,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  brandTitleContainer: {
+    justifyContent: 'center',
+  },
   topTitle: {
-    fontSize: 32,
+    fontSize: 22,
     fontWeight: '900',
     color: colors.white,
-    letterSpacing: -1,
+    letterSpacing: -0.5,
+  },
+  topSubtitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    letterSpacing: 0.2,
+    marginTop: 1,
   },
   memoriesPillBtn: {
     flexDirection: 'row',
@@ -1617,13 +1656,298 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 
-  // Vertical Locket Feed Styles
-  verticalFeedContainer: {
+  // Leafy Reel Full-screen Styles
+  reelContainer: {
+    flex: 1,
+    position: 'relative',
+    backgroundColor: '#0A0A0C',
+  },
+  reelFlatList: {
+    flex: 1,
+  },
+  reelScrollContent: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100%',
+  },
+  // Locket Top Bar styles
+  locketTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
+    height: 52,
+    backgroundColor: '#0A0A0C',
+  },
+  locketTopCircleBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1C1C1E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locketTopIcon: {
+    fontSize: 18,
+  },
+  locketTopAvatarLetter: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  locketTopPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1C1C1E',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+  },
+  locketTopPillText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  locketTopPillArrow: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#8E8E93',
+  },
+
+  // Locket Photo & Strip Viewport styles
+  locketPhotoPressable: {
+    width: CARD_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    borderRadius: 36,
+    overflow: 'hidden',
+  },
+  locketStripContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locketSinglePhotoSlot: {
+    width: CARD_WIDTH,
+    aspectRatio: 1,
+    borderRadius: 36,
+    overflow: 'hidden',
+    backgroundColor: '#161922',
+  },
+  locketSinglePhotoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  locketPhotoCaptionBadge: {
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    maxWidth: CARD_WIDTH - 40,
+  },
+  locketPhotoCaptionText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+
+  // Locket Minimal Sender Row directly below photo
+  locketSenderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  locketSenderAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locketSenderLetter: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  locketSenderName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  locketSenderTime: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8E8E93',
+  },
+
+  // Locket Unified Capsule Bar (Chat input + Reactions combined)
+  locketCapsuleBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: CARD_WIDTH,
+    height: 56,
+    backgroundColor: '#1C1C1E',
+    borderRadius: 28,
+    paddingHorizontal: 16,
+    marginTop: 14,
+    alignSelf: 'center',
+  },
+  locketCapsuleInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
     paddingVertical: 8,
-    gap: 16,
+  },
+  locketCapsuleSendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.accentYellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  locketCapsuleSendIcon: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  locketCapsuleEmojiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginLeft: 8,
+  },
+  locketCapsuleEmojiBtn: {
+    padding: 2,
+  },
+  locketCapsuleEmoji: {
+    fontSize: 22,
+  },
+
+  // Locket Bottom Bar styles
+  locketBottomBar: {
+    height: 76,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    backgroundColor: '#0A0A0C',
+  },
+  locketBottomIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1C1C1E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  locketBottomIconBtnActive: {
+    borderWidth: 1.5,
+    borderColor: colors.accentYellow,
+  },
+  locketBottomIconText: {
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
+  locketBottomJumpBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: colors.accentYellow,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    minWidth: 16,
+    alignItems: 'center',
+  },
+  locketBottomJumpBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  locketShutterOuter: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 4,
+    borderColor: '#FFE600',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locketShutterInner: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FFFFFF',
+  },
+  reelPageItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  reelVerticalNavFloating: {
+    position: 'absolute',
+    right: 12,
+    top: '40%',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(20, 22, 29, 0.88)',
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    zIndex: 20,
+    ...theme.shadows.darkSoft,
+  },
+  reelVerticalArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.darkSurfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reelVerticalArrowText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  reelVerticalCounterBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  reelVerticalCounterText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.accentYellow,
+  },
+
+  cardPhotoPressable: {
+    position: 'relative',
+    borderRadius: 14,
+    overflow: 'hidden',
   },
   feedCardWrapper: {
-    backgroundColor: colors.darkSurface, // Midnight card surface
+    backgroundColor: colors.darkSurface,
     borderRadius: 22,
     borderWidth: 1.5,
     borderColor: colors.darkBorder,
@@ -1683,20 +2007,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
     color: colors.ink,
-  },
-  cardPhotoPressable: {
-    position: 'relative',
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  cardReactionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1.5,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
 
   // Hero Polaroid Card Area
@@ -1853,34 +2163,34 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   photoboothCardStripVertical: {
-    width: 220,
-    borderRadius: 14,
-    borderWidth: 2.5,
+    width: Math.min(SCREEN_WIDTH - 36, 210),
+    borderRadius: 16,
+    borderWidth: 2,
     borderColor: colors.ink,
-    padding: 9,
+    padding: 6,
     position: 'relative',
     ...theme.shadows.hard,
   },
   photoboothCardStripGrid: {
-    width: '100%',
-    borderRadius: 14,
-    borderWidth: 2.5,
+    width: CARD_WIDTH,
+    borderRadius: 24,
+    borderWidth: 2,
     borderColor: colors.ink,
     padding: 8,
     position: 'relative',
     ...theme.shadows.hardSmall,
   },
   photoboothVerticalCol: {
-    gap: 7,
+    gap: 4,
   },
   photoboothVerticalSlot: {
     width: '100%',
-    aspectRatio: 1.35,
+    height: 86,
     borderRadius: 6,
-    borderWidth: 1.8,
+    borderWidth: 1.2,
     borderColor: colors.ink,
     overflow: 'hidden',
     backgroundColor: '#F3F4F6',
@@ -1889,20 +2199,20 @@ const styles = StyleSheet.create({
   photoboothGridSlot: {
     width: '48%',
     aspectRatio: 1,
-    borderRadius: 8,
-    borderWidth: 1.5,
+    borderRadius: 6,
+    borderWidth: 1.2,
     borderColor: colors.ink,
     overflow: 'hidden',
     backgroundColor: '#F3F4F6',
     position: 'relative',
   },
   photoboothCustomText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '900',
     color: colors.ink,
     textAlign: 'center',
-    marginTop: 8,
-    paddingHorizontal: 4,
+    marginTop: 4,
+    paddingHorizontal: 2,
   },
   filmPerforatedBorder: {
     borderLeftWidth: 12,

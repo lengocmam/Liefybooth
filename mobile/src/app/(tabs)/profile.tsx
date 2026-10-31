@@ -182,7 +182,7 @@ export default function ProfileScreen() {
                 <View style={styles.profileWidgetInfo}>
                   <Text style={styles.profileWidgetAuthor}>{latestMoment.senderName} · {latestMoment.timeAgo}</Text>
                   <Text style={styles.profileWidgetCaption} numberOfLines={1}>{latestMoment.caption}</Text>
-                  <Text style={styles.profileWidgetActionHint}>Chạm để xem trên Locket 💛 →</Text>
+                  <Text style={styles.profileWidgetActionHint}>Chạm để xem trên Bức tường Leafy 🌿 →</Text>
                 </View>
               </View>
             </Pressable>

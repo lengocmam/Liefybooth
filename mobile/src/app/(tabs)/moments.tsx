@@ -21,7 +21,7 @@ export default function MomentsScreen() {
   const viewMode = useMomentsStore((s) => s.viewMode);
   const setViewMode = useMomentsStore((s) => s.setViewMode);
 
-  // sheetY: 0 = mở toàn phần (Locket Feed), SCREEN_HEIGHT = thu gọn (Camera PlantView)
+  // sheetY: 0 = mở toàn phần (Bức tường Leafy Feed), SCREEN_HEIGHT = thu gọn (Camera PlantView)
   const sheetY = useRef(new Animated.Value(viewMode === 'pick' ? 0 : SCREEN_HEIGHT)).current;
   const isSheetOpenRef = useRef(viewMode === 'pick');
 
@@ -121,7 +121,7 @@ export default function MomentsScreen() {
         />
       </View>
 
-      {/* 2. LỚP TRƯỢT KÉO LÊN CHUẨN LOCKET: HỘP ẢNH FEED (PICKVIEW) */}
+      {/* 2. LỚP TRƯỢT KÉO LÊN: BỨC TƯỜNG ẢNH LEAFY (PICKVIEW) */}
       <Animated.View
         style={[
           styles.feedSheet,

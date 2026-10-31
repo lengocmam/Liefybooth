@@ -112,7 +112,7 @@ export default function FriendsScreen() {
             />
           </View>
           <Text style={styles.limitDesc}>
-            Giới hạn tối đa 20 người bạn để giữ trọn sự thân thiết và riêng tư như Locket.
+            Giới hạn tối đa 20 người bạn thân để giữ trọn sự gắn kết và ấm cúng trên Leafybooth.
           </Text>
         </View>
 

@@ -123,7 +123,7 @@ export default function WidgetGuideScreen() {
             ]}
           >
             <Text style={[styles.tabPillText, widgetTab === 'square' && styles.tabPillTextActive]}>
-              🖼️ Vuông Locket
+              🖼️ Khung Vuông Leafy
             </Text>
           </Pressable>
           <Pressable
@@ -298,7 +298,7 @@ export default function WidgetGuideScreen() {
                 )}
               </View>
             ) : widgetTab === 'square' ? (
-              /* Small Widget (Vuông Locket 1:1) */
+              /* Small Widget (Vuông Leafy 1:1) */
               <View style={styles.widgetsGrid}>
                 <View style={styles.smallWidget}>
                   <View style={styles.widgetHeaderRow}>

@@ -27,7 +27,7 @@ export default function BoothResultScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const { sendMoment } = useMomentsStore();
-  const [isSendingToLocket, setIsSendingToLocket] = useState(false);
+  const [isSendingToLeafy, setIsSendingToLeafy] = useState(false);
 
   const {
     capturedPhotos,
@@ -122,8 +122,8 @@ export default function BoothResultScreen() {
     handleExitToHome();
   };
 
-  const handleSendToLocket = () => {
-    setIsSendingToLocket(true);
+  const handleSendToLeafy = () => {
+    setIsSendingToLeafy(true);
     playShutterSound();
 
     const effectiveEdgeStyle = activeCustomFrame?.edgeStyle || 'classic';
@@ -149,14 +149,14 @@ export default function BoothResultScreen() {
       washiTapeStyle: effectiveWashiTapeStyle,
       gradientTheme: effectiveGradientTheme,
     });
-    setIsSendingToLocket(false);
+    setIsSendingToLeafy(false);
 
     Alert.alert(
-      'Đã đăng lên Locket! 💛🎉',
-      'Dải ảnh 4 ô vừa chụp đã được ghim thành công lên Widget & Feed của bạn bè!',
+      'Đã treo lên Bức tường Leafy! 🌿🎉',
+      'Dải ảnh 4 ô vừa chụp đã được ghim thành công lên Widget & Bức tường Leafybooth của bạn bè!',
       [
         {
-          text: 'Xem trên Locket Feed 💛',
+          text: 'Xem trên Bức tường Leafy 🌿',
           onPress: () => {
             useMomentsStore.getState().setViewMode('pick');
             handleExitToHome();
@@ -314,27 +314,27 @@ export default function BoothResultScreen() {
 
       {/* Action Buttons */}
       <View style={styles.actionSection}>
-        {/* Nút 1: ĐĂNG LÊN LOCKET NGAY 💛 (Tức thì lên Widget bạn bè & Feed) */}
+        {/* Nút 1: TREO LÊN BỨC TƯỜNG LEAFY (Tức thì lên Widget bạn bè & Bức tường Leafy) */}
         <Pressable
-          onPress={handleSendToLocket}
-          disabled={isSendingToLocket}
+          onPress={handleSendToLeafy}
+          disabled={isSendingToLeafy}
           style={({ pressed }) => [
-            styles.locketInstantCtaButton,
+            styles.leafyInstantCtaButton,
             { transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
         >
-          <View style={styles.locketInstantCtaIconBox}>
-            <Text style={{ fontSize: 22 }}>💛</Text>
+          <View style={styles.leafyInstantCtaIconBox}>
+            <Text style={{ fontSize: 22 }}>🌿</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.locketInstantCtaTitle}>
-              {isSendingToLocket ? 'Đang đăng ảnh...' : 'Đăng Lên Locket Ngay 🚀'}
+            <Text style={styles.leafyInstantCtaTitle}>
+              {isSendingToLeafy ? 'Đang ghim ảnh...' : 'Treo Lên Bức Tường Leafy 🚀'}
             </Text>
-            <Text style={styles.locketInstantCtaSubtitle}>
-              Ghim ngay lên Widget bạn bè & Lướt xem Feed
+            <Text style={styles.leafyInstantCtaSubtitle}>
+              Ghim ngay lên Widget bạn bè & Bức tường Leafybooth
             </Text>
           </View>
-          <Text style={styles.locketInstantCtaArrow}>➔</Text>
+          <Text style={styles.leafyInstantCtaArrow}>➔</Text>
         </Pressable>
 
         {/* Nút 2: Trang trí thêm sticker, đổi viền độc lạ trong Studio */}
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 'auto',
   },
-  locketInstantCtaButton: {
+  leafyInstantCtaButton: {
     backgroundColor: colors.accentYellow,
     borderRadius: 16,
     borderWidth: 1.5,
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     gap: 12,
     ...theme.shadows.darkSoft,
   },
-  locketInstantCtaIconBox: {
+  leafyInstantCtaIconBox: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -626,19 +626,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  locketInstantCtaTitle: {
+  leafyInstantCtaTitle: {
     fontSize: 16,
     fontWeight: '900',
     color: colors.ink,
     letterSpacing: -0.2,
   },
-  locketInstantCtaSubtitle: {
+  leafyInstantCtaSubtitle: {
     fontSize: 11,
     fontWeight: '700',
     color: '#374151',
     marginTop: 2,
   },
-  locketInstantCtaArrow: {
+  leafyInstantCtaArrow: {
     fontSize: 18,
     fontWeight: '900',
     color: colors.ink,

@@ -754,9 +754,9 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
   const { friends, currentUser, sendMoment } = useMomentsStore();
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
   const [isSendAllFriends, setIsSendAllFriends] = useState(true);
-  const [isSendingToLocket, setIsSendingToLocket] = useState(false);
+  const [isSendingToWidget, setIsSendingToWidget] = useState(false);
 
-  const LOCKET_QUICK_TAGS = useMemo(
+  const LEAFY_QUICK_TAGS = useMemo(
     () => [
       'Photobooth hôm nay 🎞️',
       'Khung tự thiết kế 🎨',
@@ -768,7 +768,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     []
   );
 
-  const toggleLocketFriend = (friendId: string) => {
+  const toggleWidgetFriend = (friendId: string) => {
     if (isSendAllFriends) {
       setIsSendAllFriends(false);
       setSelectedRecipientIds([friendId]);
@@ -1207,8 +1207,8 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     setShowShareModal(true);
   };
 
-  const handleConfirmSendToLocket = () => {
-    setIsSendingToLocket(true);
+  const handleConfirmSendToWidget = () => {
+    setIsSendingToWidget(true);
     playShutterSound();
 
     const targetPhoto = slotPhotos[0] || 'https://picsum.photos/seed/photobooth_frame/500/500';
@@ -1237,14 +1237,14 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     });
 
     setShowShareModal(false);
-    setIsSendingToLocket(false);
+    setIsSendingToWidget(false);
 
     Alert.alert(
       'Đã gửi lên Widget! 💛🎉',
       `Dải ảnh "${frameName || 'Photobooth'}" đã được ghim thành công lên Widget màn hình chính của ${recipientNames}.\n\nBạn bè có thể thấy ngay trên màn hình và thả reaction emoji!`,
       [
         {
-          text: 'Xem Locket Feed 💛',
+          text: 'Xem Bức Tường Leafy 🌿',
           onPress: () => {
             useMomentsStore.getState().setViewMode('pick');
             if (router.canDismiss()) {
@@ -1841,7 +1841,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   ]}
                 >
                   <Text style={[styles.socialShareTrendingBtnText, { color: colors.ink }]}>
-                    💛 Gửi lên Widget bạn bè (Locket)
+                    🌿 Gửi lên Widget bạn bè (Leafybooth)
                   </Text>
                 </Pressable>
               </View>
@@ -1965,7 +1965,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               <Text style={styles.studioHeaderNewBtnText}>➕ Mới</Text>
             </Pressable>
 
-            {/* Right: Actions Row (Lưu Mẫu + Chụp ngay + Up Locket) */}
+            {/* Right: Actions Row (Lưu Mẫu + Chụp ngay + Up Leafy Widget) */}
             <View style={styles.studioHeaderRightRow}>
               <Pressable
                 onPress={handleSaveAsTemplate}
@@ -2018,7 +2018,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   { backgroundColor: '#FFD93D', transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.studioCtaBtnText}>🚀 Up Locket 💛</Text>
+                <Text style={styles.studioCtaBtnText}>🚀 Treo Lên Leafy 🌿</Text>
               </Pressable>
             </View>
           </View>
@@ -2065,7 +2065,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     { backgroundColor: '#FFD93D', borderColor: colors.ink, transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={[styles.canvasActionPillText, { color: colors.ink, fontWeight: '900' }]}>🚀 Up Locket 💛</Text>
+                  <Text style={[styles.canvasActionPillText, { color: colors.ink, fontWeight: '900' }]}>🚀 Treo Lên Leafy 🌿</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -3390,7 +3390,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
         </Pressable>
       </Modal>
 
-      {/* MODAL GỬI LÊN WIDGET BẠN BÈ (LOCKET SHARING) */}
+      {/* MODAL GỬI LÊN WIDGET BẠN BÈ (LEAFYBOOTH WIDGET SHARING) */}
       <Modal
         visible={showShareModal}
         transparent
@@ -3416,22 +3416,22 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
             </View>
 
             <Text style={styles.shareSheetSubtitle}>
-              Gửi từ {currentUser.name}: Dải ảnh "{frameName || 'Photobooth'}" sẽ ghim ngay trên màn hình chính của bạn thân như Locket!
+              Gửi từ {currentUser.name}: Dải ảnh "{frameName || 'Photobooth'}" sẽ ghim ngay trên màn hình chính của bạn thân qua Widget Leafybooth!
             </Text>
 
             {/* Chọn bạn bè nhận Widget */}
             <Text style={styles.shareSheetSectionLabel}>Gửi đến ai trên màn hình chính?</Text>
-            <View style={styles.locketFriendRow}>
+            <View style={styles.widgetFriendRow}>
               {/* Nút tất cả bạn bè */}
               <Pressable
                 onPress={handleSelectAllFriends}
                 style={({ pressed }) => [
-                  styles.locketAllPill,
-                  isSendAllFriends && styles.locketAllPillActive,
+                  styles.widgetAllPill,
+                  isSendAllFriends && styles.widgetAllPillActive,
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={[styles.locketAllText, isSendAllFriends && styles.locketAllTextActive]}>
+                <Text style={[styles.widgetAllText, isSendAllFriends && styles.widgetAllTextActive]}>
                   {isSendAllFriends ? '✓ Tất cả (5 bạn)' : 'Gửi tất cả bạn bè'}
                 </Text>
               </Pressable>
@@ -3447,25 +3447,25 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   return (
                     <Pressable
                       key={friend.id}
-                      onPress={() => toggleLocketFriend(friend.id)}
+                      onPress={() => toggleWidgetFriend(friend.id)}
                       style={({ pressed }) => [
-                        styles.locketFriendChip,
-                        isSelected && styles.locketFriendChipActive,
+                        styles.widgetFriendChip,
+                        isSelected && styles.widgetFriendChipActive,
                         { transform: [{ scale: pressed ? 0.94 : 1 }] },
                       ]}
                     >
-                      <View style={[styles.locketFriendAvatar, { backgroundColor: friend.avatarColor }]}>
-                        <Text style={styles.locketFriendLetter}>{friend.avatarLetter}</Text>
+                      <View style={[styles.widgetFriendAvatar, { backgroundColor: friend.avatarColor }]}>
+                        <Text style={styles.widgetFriendLetter}>{friend.avatarLetter}</Text>
                         {isSelected && (
-                          <View style={styles.locketFriendCheck}>
-                            <Text style={styles.locketFriendCheckText}>✓</Text>
+                          <View style={styles.widgetFriendCheck}>
+                            <Text style={styles.widgetFriendCheckText}>✓</Text>
                           </View>
                         )}
                       </View>
                       <Text
                         style={[
-                          styles.locketFriendName,
-                          isSelected && styles.locketFriendNameActive,
+                          styles.widgetFriendName,
+                          isSelected && styles.widgetFriendNameActive,
                         ]}
                         numberOfLines={1}
                       >
@@ -3479,21 +3479,21 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
 
             {/* Lời nhắn nhanh / Quick tags */}
             <Text style={styles.shareSheetSectionLabel}>Lời nhắn kèm dải ảnh:</Text>
-            <View style={styles.locketQuickTagsRow}>
-              {LOCKET_QUICK_TAGS.map((tag) => (
+            <View style={styles.widgetQuickTagsRow}>
+              {LEAFY_QUICK_TAGS.map((tag) => (
                 <Pressable
                   key={tag}
                   onPress={() => setPostCaption(tag)}
                   style={({ pressed }) => [
-                    styles.locketQuickTagChip,
-                    postCaption === tag && styles.locketQuickTagChipActive,
+                    styles.widgetQuickTagChip,
+                    postCaption === tag && styles.widgetQuickTagChipActive,
                     { transform: [{ scale: pressed ? 0.94 : 1 }] },
                   ]}
                 >
                   <Text
                     style={[
-                      styles.locketQuickTagText,
-                      postCaption === tag && styles.locketQuickTagTextActive,
+                      styles.widgetQuickTagText,
+                      postCaption === tag && styles.widgetQuickTagTextActive,
                     ]}
                   >
                     {tag}
@@ -3514,15 +3514,15 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
 
             {/* Nút gửi chính */}
             <Pressable
-              onPress={handleConfirmSendToLocket}
-              disabled={isSendingToLocket}
+              onPress={handleConfirmSendToWidget}
+              disabled={isSendingToWidget}
               style={({ pressed }) => [
                 styles.shareConfirmBtn,
                 { backgroundColor: '#FFD93D', transform: [{ scale: pressed ? 0.97 : 1 }] },
               ]}
             >
               <Text style={styles.shareConfirmBtnText}>
-                {isSendingToLocket ? '⏳ Đang gửi lên widget...' : '💛 Gửi Lên Widget Ngay'}
+                {isSendingToWidget ? '⏳ Đang gửi lên widget...' : '💛 Gửi Lên Widget Ngay'}
               </Text>
             </Pressable>
           </Pressable>
@@ -4965,11 +4965,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.ink,
   },
-  // Locket Widget Share Sheet styles
-  locketFriendRow: {
+  // Leafybooth Widget Share Sheet styles
+  widgetFriendRow: {
     marginBottom: 12,
   },
-  locketAllPill: {
+  widgetAllPill: {
     backgroundColor: '#F3F4F6',
     borderWidth: 1.5,
     borderColor: '#D1D5DB',
@@ -4979,21 +4979,21 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginBottom: 8,
   },
-  locketAllPillActive: {
+  widgetAllPillActive: {
     backgroundColor: '#FEF08A',
     borderColor: colors.ink,
     borderWidth: 2,
   },
-  locketAllText: {
+  widgetAllText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#4B5563',
   },
-  locketAllTextActive: {
+  widgetAllTextActive: {
     color: colors.ink,
     fontWeight: '900',
   },
-  locketFriendChip: {
+  widgetFriendChip: {
     alignItems: 'center',
     padding: 6,
     borderRadius: 16,
@@ -5002,13 +5002,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     width: 62,
   },
-  locketFriendChipActive: {
+  widgetFriendChipActive: {
     borderColor: colors.ink,
     backgroundColor: '#FEF9C3',
     borderWidth: 2,
     ...theme.shadows.hardSmall,
   },
-  locketFriendAvatar: {
+  widgetFriendAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -5019,12 +5019,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginBottom: 4,
   },
-  locketFriendLetter: {
+  widgetFriendLetter: {
     fontSize: 16,
     fontWeight: '900',
     color: colors.ink,
   },
-  locketFriendCheck: {
+  widgetFriendCheck: {
     position: 'absolute',
     bottom: -2,
     right: -2,
@@ -5037,28 +5037,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  locketFriendCheckText: {
+  widgetFriendCheckText: {
     fontSize: 10,
     fontWeight: '900',
     color: colors.ink,
   },
-  locketFriendName: {
+  widgetFriendName: {
     fontSize: 11,
     fontWeight: '700',
     color: '#6B7280',
     textAlign: 'center',
   },
-  locketFriendNameActive: {
+  widgetFriendNameActive: {
     color: colors.ink,
     fontWeight: '900',
   },
-  locketQuickTagsRow: {
+  widgetQuickTagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
     marginBottom: 10,
   },
-  locketQuickTagChip: {
+  widgetQuickTagChip: {
     backgroundColor: '#F3F4F6',
     borderRadius: 14,
     paddingHorizontal: 10,
@@ -5066,17 +5066,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  locketQuickTagChipActive: {
+  widgetQuickTagChipActive: {
     backgroundColor: '#A7F3D0',
     borderColor: colors.ink,
     borderWidth: 1.5,
   },
-  locketQuickTagText: {
+  widgetQuickTagText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#4B5563',
   },
-  locketQuickTagTextActive: {
+  widgetQuickTagTextActive: {
     color: colors.ink,
     fontWeight: '900',
   },
