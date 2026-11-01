@@ -875,7 +875,42 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     loadSavedFrame,
     deleteSavedFrame,
     savedCustomFrames,
+    saveDraft,
+    loadDraft,
+    clearDraft,
+    hasDraft,
   } = useStudioStore();
+
+  const [hasDraftState, setHasDraftState] = useState(false);
+
+  useEffect(() => {
+    if (hasDraft()) {
+      setHasDraftState(true);
+    }
+  }, []);
+
+  // Tự động lưu nháp khi có thay đổi nội dung trang trí
+  useEffect(() => {
+    if (stickers.length > 0 || textItems.length > 0 || customText.length > 0) {
+      const timer = setTimeout(() => {
+        saveDraft();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    stickers,
+    textItems,
+    customText,
+    frameName,
+    backgroundColor,
+    pattern,
+    frameLayout,
+    frameEdgeStyle,
+    sealStamp,
+    washiTapeStyle,
+    gradientTheme,
+    photoFilter,
+  ]);
 
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory>('all');
   const [templateTab, setTemplateTab] = useState<'presets' | 'my_frames'>('presets');
@@ -2022,6 +2057,35 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
               </Pressable>
             </View>
           </View>
+
+          {/* BANNER THÔNG BÁO BẢN NHÁP DỞ DANG */}
+          {hasDraftState && (
+            <View style={styles.draftBannerWrapper}>
+              <View style={styles.draftBannerPill}>
+                <Text style={styles.draftBannerText}>📝 Bạn có bản nháp chưa lưu</Text>
+                <Pressable
+                  onPress={() => {
+                    playShutterSound();
+                    loadDraft();
+                    setHasDraftState(false);
+                    Alert.alert('✓ Đã khôi phục bản nháp!', 'Khung và sticker đã được khôi phục nguyên vẹn.');
+                  }}
+                  style={styles.draftRestoreBtn}
+                >
+                  <Text style={styles.draftRestoreBtnText}>Khôi phục</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    clearDraft();
+                    setHasDraftState(false);
+                  }}
+                  style={styles.draftDiscardBtn}
+                >
+                  <Text style={styles.draftDiscardBtnText}>✕</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           {/* MAIN CANVAS: TACTILE CRAFT TABLE */}
           <View style={styles.canvasStudioWrapper}>
@@ -7268,5 +7332,46 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 16,
+  },
+  draftBannerWrapper: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: 'center',
+    backgroundColor: '#0A0A0C',
+  },
+  draftBannerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 217, 61, 0.15)',
+    borderWidth: 1.5,
+    borderColor: '#FFD93D',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  draftBannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFD93D',
+  },
+  draftRestoreBtn: {
+    backgroundColor: '#FFD93D',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  draftRestoreBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  draftDiscardBtn: {
+    padding: 3,
+  },
+  draftDiscardBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#94A3B8',
   },
 });

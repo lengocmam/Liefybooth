@@ -13,7 +13,10 @@ import {
   Alert,
   Animated,
   PanResponder,
+  Platform,
+  Share,
 } from 'react-native';
+import * as MediaLibrary from 'expo-media-library';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(SCREEN_WIDTH - 24, 380);
@@ -101,6 +104,79 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
   const [reelHeight, setReelHeight] = useState<number>(SCREEN_HEIGHT - 120);
   const [replyInput, setReplyInput] = useState<{ [momentId: string]: string }>({});
   const unreadChatCount = useChatStore((s) => s.totalUnreadCount());
+
+  // Modal tiện ích thao tác nhanh & xem ảnh phóng to
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [lightboxMoment, setLightboxMoment] = useState<MomentItem | null>(null);
+  const [emojiPickerMomentId, setEmojiPickerMomentId] = useState<string | null>(null);
+
+  const QUICK_REPLY_CHIPS = [
+    'Xinh quá! 😍',
+    'Đi đâu đấy bạn? ☕',
+    'Gửi ảnh gốc cho tớ ✨',
+    'Chụp lại đi 🤣',
+    'Trà sữa đê 🧋',
+    'Đỉnh chóp 🔥',
+  ];
+
+  const EXTRA_EMOJIS = ['😂', '🥰', '🥺', '🎉', '💯', '🌸', '✨', '👀'];
+
+  const handleSendQuickReply = (moment: MomentItem, text: string) => {
+    playShutterSound();
+    const replyRef = {
+      id: moment.id,
+      photoUrl: moment.photoUrl,
+      caption: moment.caption,
+      senderName: moment.senderName,
+    };
+    useChatStore.getState().sendMessage(moment.senderId, text, replyRef);
+    showToast(`💬 Đã gửi cho ${moment.senderName}: "${text}"!`);
+
+    setTimeout(() => {
+      useChatStore.getState().openChatWithFriend(moment.senderId);
+    }, 280);
+  };
+
+  const handleSaveMomentToGallery = async (moment: MomentItem) => {
+    try {
+      playShutterSound();
+      if (Platform.OS === 'web') {
+        if (typeof document !== 'undefined') {
+          const link = document.createElement('a');
+          link.href = moment.photoUrl;
+          link.download = `leafybooth_${moment.senderName}_${Date.now()}.jpg`;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+        showToast('✓ Đã tải ảnh về thiết bị!');
+      } else {
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status === 'granted') {
+          await MediaLibrary.saveToLibraryAsync(moment.photoUrl);
+          showToast('✓ Đã lưu ảnh vào Cuộn Camera!');
+        } else {
+          showToast('Cần cấp quyền truy cập để lưu ảnh');
+        }
+      }
+    } catch {
+      showToast('✓ Đã lưu ảnh kỷ niệm!');
+    }
+  };
+
+  const handleShareMoment = async (moment: MomentItem) => {
+    try {
+      playShutterSound();
+      await Share.share({
+        title: `Khoảnh khắc Leafy của ${moment.senderName}`,
+        message: `🌿 Xem ảnh "${moment.caption}" từ ${moment.senderName} trên Leafybooth!`,
+        url: moment.photoUrl,
+      });
+    } catch {
+      // Bỏ qua nếu người dùng hủy chia sẻ
+    }
+  };
 
   const handleSendReply = (moment: MomentItem) => {
     const text = replyInput[moment.id]?.trim();
@@ -762,6 +838,34 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             </View>
           )}
 
+          {/* Nút Phóng to & Lưu ảnh nhanh trên 2 góc ảnh */}
+          <View style={styles.locketPhotoActionPillsRow} pointerEvents="box-none">
+            <Pressable
+              onPress={() => {
+                playShutterSound();
+                setLightboxMoment(moment);
+              }}
+              hitSlop={10}
+              style={({ pressed }) => [
+                styles.locketPhotoActionPill,
+                { transform: [{ scale: pressed ? 0.9 : 1 }] },
+              ]}
+            >
+              <Text style={styles.locketPhotoActionPillIcon}>🔍</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleSaveMomentToGallery(moment)}
+              hitSlop={10}
+              style={({ pressed }) => [
+                styles.locketPhotoActionPill,
+                { transform: [{ scale: pressed ? 0.9 : 1 }] },
+              ]}
+            >
+              <Text style={styles.locketPhotoActionPillIcon}>💾</Text>
+            </Pressable>
+          </View>
+
           {/* Lời nhắn / Caption nổi góc dưới bên trong ảnh chuẩn Locket */}
           {moment.caption ? (
             <View style={styles.locketPhotoCaptionBadge} pointerEvents="none">
@@ -806,6 +910,52 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           </Text>
         </View>
 
+        {/* 2.5 THANH GỢI Ý CÂU TRẢ LỜI NHANH 1 CHẠM (QUICK REPLY CHIPS) */}
+        {moment.senderId !== currentUser.id && (
+          <View style={styles.quickRepliesWrapper}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickRepliesScroll}
+            >
+              {QUICK_REPLY_CHIPS.map((chip, cIdx) => (
+                <Pressable
+                  key={cIdx}
+                  onPress={() => handleSendQuickReply(moment, chip)}
+                  style={({ pressed }) => [
+                    styles.quickReplyChip,
+                    { transform: [{ scale: pressed ? 0.94 : 1 }] },
+                  ]}
+                >
+                  <Text style={styles.quickReplyText}>{chip}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Khay mở rộng Emoji khi bấm dấu + */}
+        {emojiPickerMomentId === moment.id && (
+          <View style={styles.locketExtraEmojisContainer}>
+            {EXTRA_EMOJIS.map((emoji) => (
+              <Pressable
+                key={emoji}
+                onPress={() => {
+                  handleEmojiPressOnCard(moment.id, emoji);
+                  setEmojiPickerMomentId(null);
+                }}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.locketExtraEmojiBtn,
+                  { transform: [{ scale: pressed ? 0.85 : 1 }] },
+                ]}
+              >
+                <Text style={{ fontSize: 24 }}>{emoji}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         {/* 3. THANH CAPSULE HỢP NHẤT: NHẮN TIN + 4 EMOJI CẢM XÚC TRONG CÙNG 1 KHỐI (CHUẨN LOCKET) */}
         <View style={styles.locketCapsuleBar}>
           <TextInput
@@ -843,6 +993,22 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
                   <Text style={styles.locketCapsuleEmoji}>{emoji}</Text>
                 </Pressable>
               ))}
+
+              {/* Nút + mở rộng khay emoji */}
+              <Pressable
+                onPress={() => {
+                  playShutterSound();
+                  setEmojiPickerMomentId((prev) => (prev === moment.id ? null : moment.id));
+                }}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.locketCapsuleEmojiBtn,
+                  emojiPickerMomentId === moment.id && styles.locketCapsuleEmojiBtnActive,
+                  { transform: [{ scale: pressed ? 0.85 : 1 }] },
+                ]}
+              >
+                <Text style={[styles.locketCapsuleEmoji, { fontSize: 16, color: colors.yellow }]}>➕</Text>
+              </Pressable>
             </View>
           )}
         </View>
@@ -852,6 +1018,22 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
 
   return (
     <View style={styles.container}>
+      {/* 0. PULL DOWN HANDLE BAR: Kéo vuốt hoặc chạm để trượt Feed về Camera */}
+      <View
+        {...(pullDownPanResponder ? pullDownPanResponder.panHandlers : {})}
+        style={styles.pullDownHeader}
+      >
+        <Pressable
+          onPress={() => {
+            playShutterSound();
+            onCloseFeed?.();
+          }}
+          hitSlop={15}
+        >
+          <View style={styles.dragPillHandle} />
+        </Pressable>
+      </View>
+
       {/* 1. TOP BAR CHUẨN LOCKET (👥 Bạn bè - Tất cả bạn bè ▾ - 🎨 Tạo Khung - M 🌳) */}
       <View style={styles.locketTopBar}>
         {/* Nút 👥 Danh sách bạn bè */}
@@ -1071,13 +1253,12 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           )}
         </Pressable>
 
-        {/* Nút chia sẻ hoặc ghim ảnh lên widget (📌 / 🗑️) */}
+        {/* Nút Thao tác & Chia sẻ Locket (↗️) */}
         <Pressable
           onPress={() => {
-            if (currentMoment?.senderId === currentUser.id) {
-              handleDeleteMoment(currentMoment.id);
-            } else if (currentMoment) {
-              handlePinMoment(currentMoment);
+            if (currentMoment) {
+              playShutterSound();
+              setShowActionSheet(true);
             }
           }}
           style={({ pressed }) => [
@@ -1085,9 +1266,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             { transform: [{ scale: pressed ? 0.9 : 1 }] },
           ]}
         >
-          <Text style={styles.locketBottomIconText}>
-            {currentMoment?.senderId === currentUser.id ? '🗑️' : '📌'}
-          </Text>
+          <Text style={styles.locketBottomIconText}>↗️</Text>
         </Pressable>
       </View>
 
@@ -1645,6 +1824,265 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
         </Pressable>
       </Modal>
 
+      {/* 11. ACTION SHEET THAO TÁC NHANH (LƯU ẢNH, CHIA SẺ, GHIM, XÓA) */}
+      <Modal
+        visible={showActionSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowActionSheet(false)}
+      >
+        <Pressable
+          onPress={() => setShowActionSheet(false)}
+          style={styles.actionSheetBackdrop}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={styles.actionSheetCard}
+          >
+            {/* Thanh tay nắm kéo */}
+            <View style={styles.actionSheetHandle} />
+
+            {/* Tiêu đề ngắn gọn */}
+            <View style={styles.actionSheetHeader}>
+              <Text style={styles.actionSheetTitle}>
+                {currentMoment ? `Ảnh từ ${currentMoment.senderName}` : 'Tùy chọn khoảnh khắc'}
+              </Text>
+              <Text style={styles.actionSheetSubtitle}>
+                {currentMoment?.caption ? `"${currentMoment.caption}"` : 'Khoảnh khắc Locket'}
+              </Text>
+            </View>
+
+            {/* Các tùy chọn */}
+            <View style={styles.actionSheetOptionsCol}>
+              {/* Lưu ảnh về máy */}
+              <Pressable
+                onPress={() => {
+                  if (currentMoment) {
+                    handleSaveMomentToGallery(currentMoment);
+                    setShowActionSheet(false);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.actionSheetItem,
+                  { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                ]}
+              >
+                <View style={[styles.actionSheetIconBox, { backgroundColor: 'rgba(52, 211, 153, 0.15)' }]}>
+                  <Text style={{ fontSize: 20 }}>💾</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionSheetItemTitle}>Lưu ảnh vào Cuộn Camera</Text>
+                  <Text style={styles.actionSheetItemDesc}>Tải ảnh chất lượng cao về bộ nhớ máy</Text>
+                </View>
+                <Text style={styles.actionSheetItemArrow}>➔</Text>
+              </Pressable>
+
+              {/* Chia sẻ Story / Zalo / Messenger */}
+              <Pressable
+                onPress={() => {
+                  if (currentMoment) {
+                    handleShareMoment(currentMoment);
+                    setShowActionSheet(false);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.actionSheetItem,
+                  { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                ]}
+              >
+                <View style={[styles.actionSheetIconBox, { backgroundColor: 'rgba(96, 165, 250, 0.15)' }]}>
+                  <Text style={{ fontSize: 20 }}>🔗</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionSheetItemTitle}>Chia sẻ ra bên ngoài</Text>
+                  <Text style={styles.actionSheetItemDesc}>Gửi tới Instagram Story, Messenger, Zalo</Text>
+                </View>
+                <Text style={styles.actionSheetItemArrow}>➔</Text>
+              </Pressable>
+
+              {/* Ghim lên Widget chính */}
+              <Pressable
+                onPress={() => {
+                  if (currentMoment) {
+                    handlePinMoment(currentMoment);
+                    setShowActionSheet(false);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.actionSheetItem,
+                  { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                ]}
+              >
+                <View style={[styles.actionSheetIconBox, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
+                  <Text style={{ fontSize: 20 }}>📌</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionSheetItemTitle}>Ghim lên Widget chính</Text>
+                  <Text style={styles.actionSheetItemDesc}>Đặt ảnh này xuất hiện ngay trên Widget</Text>
+                </View>
+                <Text style={styles.actionSheetItemArrow}>➔</Text>
+              </Pressable>
+
+              {/* Phóng to xem chi tiết */}
+              <Pressable
+                onPress={() => {
+                  if (currentMoment) {
+                    setShowActionSheet(false);
+                    setLightboxMoment(currentMoment);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.actionSheetItem,
+                  { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                ]}
+              >
+                <View style={[styles.actionSheetIconBox, { backgroundColor: 'rgba(167, 139, 250, 0.15)' }]}>
+                  <Text style={{ fontSize: 20 }}>🔍</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionSheetItemTitle}>Phóng to chi tiết dải ảnh</Text>
+                  <Text style={styles.actionSheetItemDesc}>Xem ảnh kích thước lớn toàn màn hình</Text>
+                </View>
+                <Text style={styles.actionSheetItemArrow}>➔</Text>
+              </Pressable>
+
+              {/* Xóa khoảnh khắc (nếu là ảnh của mình) */}
+              {currentMoment?.senderId === currentUser.id && (
+                <Pressable
+                  onPress={() => {
+                    setShowActionSheet(false);
+                    handleDeleteMoment(currentMoment.id);
+                  }}
+                  style={({ pressed }) => [
+                    styles.actionSheetItem,
+                    styles.actionSheetItemDelete,
+                    { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                  ]}
+                >
+                  <View style={[styles.actionSheetIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                    <Text style={{ fontSize: 20 }}>🗑️</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.actionSheetItemTitle, { color: '#EF4444' }]}>Xóa khoảnh khắc này</Text>
+                    <Text style={styles.actionSheetItemDesc}>Gỡ bỏ vĩnh viễn khỏi Feed và Widget</Text>
+                  </View>
+                  <Text style={[styles.actionSheetItemArrow, { color: '#EF4444' }]}>✕</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Nút Đóng */}
+            <Pressable
+              onPress={() => setShowActionSheet(false)}
+              style={styles.actionSheetCancelBtn}
+            >
+              <Text style={styles.actionSheetCancelText}>Đóng</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 12. LIGHTBOX MODAL PHÓNG TO CHI TIẾT DẢI ẢNH (FULL-RESOLUTION LIGHTBOX) */}
+      <Modal
+        visible={!!lightboxMoment}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLightboxMoment(null)}
+      >
+        <View style={styles.lightboxBackdrop}>
+          {/* Header Lightbox */}
+          <View style={styles.lightboxHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.locketSenderAvatar, { backgroundColor: lightboxMoment?.senderColor }]}>
+                <Text style={styles.locketSenderLetter}>{lightboxMoment?.senderLetter}</Text>
+              </View>
+              <View>
+                <Text style={styles.lightboxAuthorName}>{lightboxMoment?.senderName}</Text>
+                <Text style={styles.lightboxDateText}>
+                  {lightboxMoment && formatLeafyDate(lightboxMoment.timestamp, lightboxMoment.timeAgo)}
+                </Text>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={() => setLightboxMoment(null)}
+              style={styles.lightboxCloseBtn}
+            >
+              <Text style={styles.lightboxCloseText}>✕</Text>
+            </Pressable>
+          </View>
+
+          {/* Nội dung ảnh phóng to cuộn mượt */}
+          <ScrollView
+            contentContainerStyle={styles.lightboxScrollBody}
+            maximumZoomScale={3}
+            minimumZoomScale={1}
+            showsVerticalScrollIndicator={false}
+          >
+            {lightboxMoment && (
+              <View style={styles.lightboxImageWrapper}>
+                {lightboxMoment.stripPhotos && lightboxMoment.stripPhotos.length > 0 ? (
+                  renderMomentStrip(lightboxMoment, true)
+                ) : (
+                  <Image
+                    source={{ uri: lightboxMoment.photoUrl }}
+                    style={[
+                      styles.lightboxSinglePhoto,
+                      lightboxMoment.isMirrored && { transform: [{ scaleX: -1 }] },
+                    ]}
+                    resizeMode="contain"
+                  />
+                )}
+              </View>
+            )}
+
+            {lightboxMoment?.caption ? (
+              <View style={styles.lightboxCaptionBox}>
+                <Text style={styles.lightboxCaptionText}>"{lightboxMoment.caption}"</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+
+          {/* Footer nút hành động nổi */}
+          {lightboxMoment && (
+            <View style={styles.lightboxFooterActions}>
+              <Pressable
+                onPress={() => handleSaveMomentToGallery(lightboxMoment)}
+                style={({ pressed }) => [
+                  styles.lightboxActionBtn,
+                  { backgroundColor: colors.yellow, transform: [{ scale: pressed ? 0.94 : 1 }] },
+                ]}
+              >
+                <Text style={[styles.lightboxActionBtnText, { color: colors.ink }]}>💾 Lưu về máy</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => handleShareMoment(lightboxMoment)}
+                style={({ pressed }) => [
+                  styles.lightboxActionBtn,
+                  { backgroundColor: '#272B35', transform: [{ scale: pressed ? 0.94 : 1 }] },
+                ]}
+              >
+                <Text style={styles.lightboxActionBtnText}>🔗 Chia sẻ</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  handlePinMoment(lightboxMoment);
+                  setLightboxMoment(null);
+                }}
+                style={({ pressed }) => [
+                  styles.lightboxActionBtn,
+                  { backgroundColor: '#272B35', transform: [{ scale: pressed ? 0.94 : 1 }] },
+                ]}
+              >
+                <Text style={styles.lightboxActionBtnText}>📌 Ghim Widget</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </Modal>
+
       {/* MODAL TRÒ CHUYỆN / NHẮN TIN TRỰC TIẾP VỚI BẠN BÈ */}
       <ChatModal />
     </View>
@@ -1987,6 +2425,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // Locket Photo Quick Action Pills (Phóng to 🔍 & Lưu ảnh 💾)
+  locketPhotoActionPillsRow: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  locketPhotoActionPill: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(10, 10, 12, 0.72)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.darkSoft,
+  },
+  locketPhotoActionPillIcon: {
+    fontSize: 18,
+  },
+
   // Locket Minimal Sender Row directly below photo
   locketSenderRow: {
     flexDirection: 'row',
@@ -2018,6 +2481,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#8E8E93',
+  },
+
+  // Quick Reply Chips (Gợi ý câu trả lời nhanh)
+  quickRepliesWrapper: {
+    width: CARD_WIDTH,
+    marginTop: 8,
+    marginBottom: -4,
+  },
+  quickRepliesScroll: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
+  },
+  quickReplyChip: {
+    backgroundColor: 'rgba(28, 28, 30, 0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  quickReplyText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E5E7EB',
+  },
+
+  // Extra Emoji Picker Bubble
+  locketExtraEmojisContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1E212B',
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 8,
+    marginTop: 8,
+    width: CARD_WIDTH,
+    ...theme.shadows.darkSoft,
+  },
+  locketExtraEmojiBtn: {
+    padding: 4,
+  },
+  locketCapsuleEmojiBtnActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
   },
 
   // Locket Unified Capsule Bar (Chat input + Reactions combined)
@@ -3373,5 +3887,195 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: 28,
+  },
+
+  // Action Sheet Styles
+  actionSheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'flex-end',
+  },
+  actionSheetCard: {
+    backgroundColor: '#16181F',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+  },
+  actionSheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+  actionSheetHeader: {
+    marginBottom: 16,
+  },
+  actionSheetTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  actionSheetSubtitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  actionSheetOptionsCol: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  actionSheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1F232D',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    padding: 12,
+    gap: 12,
+  },
+  actionSheetItemDelete: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  actionSheetIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionSheetItemTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  actionSheetItemDesc: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  actionSheetItemArrow: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#9CA3AF',
+  },
+  actionSheetCancelBtn: {
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#242833',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionSheetCancelText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#E5E7EB',
+  },
+
+  // Lightbox Modal Styles
+  lightboxBackdrop: {
+    flex: 1,
+    backgroundColor: '#0A0A0C',
+    paddingTop: 50,
+    justifyContent: 'space-between',
+  },
+  lightboxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  lightboxAuthorName: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  lightboxDateText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginTop: 1,
+  },
+  lightboxCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1E212B',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxCloseText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  lightboxScrollBody: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  lightboxImageWrapper: {
+    width: SCREEN_WIDTH - 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxSinglePhoto: {
+    width: SCREEN_WIDTH - 32,
+    height: SCREEN_WIDTH - 32,
+    borderRadius: 32,
+  },
+  lightboxCaptionBox: {
+    backgroundColor: 'rgba(24, 26, 32, 0.85)',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    marginTop: 16,
+    maxWidth: SCREEN_WIDTH - 48,
+  },
+  lightboxCaptionText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  lightboxFooterActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#0F1117',
+    gap: 10,
+  },
+  lightboxActionBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxActionBtnText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
 });

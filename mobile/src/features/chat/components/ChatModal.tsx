@@ -37,7 +37,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({
     messages,
     activeChatFriendId,
     isChatModalOpen,
-    typingFriends,
     openChatWithFriend,
     closeChatModal,
     sendMessage,
@@ -88,8 +87,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({
       c.friendUsername.toLowerCase().includes(q)
     );
   });
-
-  const isFriendTyping = activeChatFriendId ? !!typingFriends[activeChatFriendId] : false;
 
   const handleSend = (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
@@ -161,9 +158,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
                         {activeFriend.name}
                       </Text>
                       <Text style={styles.headerFriendStatus}>
-                        {isFriendTyping
-                          ? 'Đang nhập tin nhắn... ✍️'
-                          : `@${activeFriend.username}`}
+                        {`@${activeFriend.username}`}
                       </Text>
                     </View>
                   </View>
@@ -362,25 +357,6 @@ export const ChatModal: React.FC<ChatModalProps> = ({
                   })}
 
                   {/* Hiệu ứng bạn bè đang gõ tin nhắn */}
-                  {isFriendTyping && (
-                    <View style={styles.typingIndicatorRow}>
-                      <View
-                        style={[
-                          styles.miniBubbleAvatar,
-                          { backgroundColor: activeFriend.color },
-                        ]}
-                      >
-                        <Text style={styles.miniBubbleAvatarLetter}>
-                          {activeFriend.letter}
-                        </Text>
-                      </View>
-                      <View style={styles.typingBubble}>
-                        <Text style={styles.typingDot}>●</Text>
-                        <Text style={styles.typingDot}>●</Text>
-                        <Text style={styles.typingDot}>●</Text>
-                      </View>
-                    </View>
-                  )}
                 </ScrollView>
 
                 {/* Thanh chọn nhanh sticker/emoji */}

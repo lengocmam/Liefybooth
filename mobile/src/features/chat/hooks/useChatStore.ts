@@ -240,37 +240,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [...state.messages, newMsg],
     }));
 
-    // Kích hoạt mô phỏng bạn bè gõ tin nhắn và trả lời tự động sau 1.2s - 2.0s
+    // Phản hồi tự nhiên sau 1.5s (hoàn toàn private, không hiện trạng thái typing)
     setTimeout(() => {
+      const repliesPool = FRIEND_AUTO_REPLIES[friendId] || FRIEND_AUTO_REPLIES.default;
+      const randomReply = repliesPool[Math.floor(Math.random() * repliesPool.length)];
+
+      const replyMsg: ChatMessage = {
+        id: `reply_${Date.now()}`,
+        friendId,
+        senderId: friendId,
+        senderName: friendId === 'u1' ? 'An' : friendId === 'u2' ? 'Bình' : friendId === 'u3' ? 'Chi' : 'Bạn thân',
+        text: randomReply,
+        createdAt: new Date().toISOString(),
+        timeDisplay: formatTimeNow(),
+        isRead: get().activeChatFriendId === friendId,
+      };
+
+      playShutterSound();
       set((state) => ({
-        typingFriends: { ...state.typingFriends, [friendId]: true },
+        messages: [...state.messages, replyMsg],
       }));
-
-      setTimeout(() => {
-        set((state) => ({
-          typingFriends: { ...state.typingFriends, [friendId]: false },
-        }));
-
-        const repliesPool = FRIEND_AUTO_REPLIES[friendId] || FRIEND_AUTO_REPLIES.default;
-        const randomReply = repliesPool[Math.floor(Math.random() * repliesPool.length)];
-
-        const replyMsg: ChatMessage = {
-          id: `reply_${Date.now()}`,
-          friendId,
-          senderId: friendId,
-          senderName: friendId === 'u1' ? 'An' : friendId === 'u2' ? 'Bình' : friendId === 'u3' ? 'Chi' : 'Bạn thân',
-          text: randomReply,
-          createdAt: new Date().toISOString(),
-          timeDisplay: formatTimeNow(),
-          isRead: get().activeChatFriendId === friendId,
-        };
-
-        playShutterSound();
-        set((state) => ({
-          messages: [...state.messages, replyMsg],
-        }));
-      }, 1400);
-    }, 600);
+    }, 1500);
 
     return newMsg;
   },

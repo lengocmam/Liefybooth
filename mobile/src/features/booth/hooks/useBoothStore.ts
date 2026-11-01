@@ -3,7 +3,8 @@ import { DEFAULT_BACKDROPS } from '../../../core/constants';
 import { colors } from '../../../core/theme/colors';
 
 export type StripLayout = 'vertical' | 'grid';
-export type StripFilter = 'original' | 'bw' | 'warm' | 'cool';
+export type StripFilter = 'original' | 'haru_blue' | 'bw' | 'warm' | 'cool' | 'sakura';
+export type PoseCategory = 'none' | 'besties' | 'kpop' | 'y2k' | 'solo';
 
 export interface BackdropItem {
   id: string;
@@ -35,7 +36,29 @@ interface BoothState {
   // Ảnh đã chụp (tối đa 4 ảnh)
   capturedPhotos: string[];
   addCapturedPhoto: (uri: string) => void;
+  replacePhotoAtIndex: (index: number, uri: string) => void;
   resetPhotos: () => void;
+
+  // Chụp lại từng ô (Smart Retake)
+  retakeIndex: number | null;
+  setRetakeIndex: (index: number | null) => void;
+
+  // Nhịp đếm ngược giữa các shot (3s, 5s, 7s)
+  shotInterval: 3 | 5 | 7;
+  setShotInterval: (interval: 3 | 5 | 7) => void;
+
+  // Gợi ý dáng chụp (Pose Guide)
+  poseCategory: PoseCategory;
+  setPoseCategory: (cat: PoseCategory) => void;
+
+  // Xuất dải đôi (Twin Strips)
+  twinStripMode: boolean;
+  setTwinStripMode: (twin: boolean) => void;
+
+  // Con dấu & Mã vạch kỷ niệm
+  barcodeNumber: string;
+  stampType: 'leafy_certified' | 'besties' | 'none';
+  setStampType: (stamp: 'leafy_certified' | 'besties' | 'none') => void;
 
   // Cấu hình chụp
   cameraFacing: 'front' | 'back';
@@ -77,7 +100,31 @@ export const useBoothStore = create<BoothState>((set) => ({
     set((state) => ({
       capturedPhotos: [...state.capturedPhotos, uri].slice(0, 4),
     })),
-  resetPhotos: () => set({ capturedPhotos: [] }),
+  replacePhotoAtIndex: (index, uri) =>
+    set((state) => {
+      const next = [...state.capturedPhotos];
+      if (index >= 0 && index < 4) {
+        next[index] = uri;
+      }
+      return { capturedPhotos: next };
+    }),
+  resetPhotos: () => set({ capturedPhotos: [], retakeIndex: null }),
+
+  retakeIndex: null,
+  setRetakeIndex: (index) => set({ retakeIndex: index }),
+
+  shotInterval: 3,
+  setShotInterval: (interval) => set({ shotInterval: interval }),
+
+  poseCategory: 'none',
+  setPoseCategory: (cat) => set({ poseCategory: cat }),
+
+  twinStripMode: false,
+  setTwinStripMode: (twin) => set({ twinStripMode: twin }),
+
+  barcodeNumber: `#LB-${Math.floor(1000 + Math.random() * 9000)}`,
+  stampType: 'leafy_certified',
+  setStampType: (stamp) => set({ stampType: stamp }),
 
   cameraFacing: 'front',
   isMirrored: true,
@@ -111,9 +158,12 @@ export const useBoothStore = create<BoothState>((set) => ({
   resetBooth: () =>
     set({
       capturedPhotos: [],
+      retakeIndex: null,
       layout: 'vertical',
       filter: 'original',
       activeCustomFrame: null,
       stripTitle: '',
+      twinStripMode: false,
+      barcodeNumber: `#LB-${Math.floor(1000 + Math.random() * 9000)}`,
     }),
 }));

@@ -6,6 +6,7 @@ import {
   Pressable,
   Image,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,6 +16,7 @@ import { theme } from '../../core/theme/theme';
 import { useBoothStore } from '../../features/booth/hooks/useBoothStore';
 import { playShutterSound } from '../../features/booth/services/soundService';
 import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
+import { POSE_COLLECTIONS, PoseCollection } from '../../features/booth/constants/poseGuides';
 
 export default function BoothCameraScreen() {
   const insets = useSafeAreaInsets();
@@ -26,11 +28,19 @@ export default function BoothCameraScreen() {
     selectedBackdrop,
     capturedPhotos,
     addCapturedPhoto,
+    replacePhotoAtIndex,
     resetPhotos,
+    retakeIndex,
+    setRetakeIndex,
+    shotInterval,
+    setShotInterval,
+    poseCategory,
+    setPoseCategory,
     cameraFacing,
     isMirrored,
     soundEnabled,
     activeCustomFrame,
+    frameColor,
     toggleCameraFacing,
     toggleMirror,
     toggleSound,
@@ -39,12 +49,16 @@ export default function BoothCameraScreen() {
   const [currentShotIndex, setCurrentShotIndex] = useState(0); // 0, 1, 2, 3
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isShooting, setIsShooting] = useState(false);
-  const [shootingMode, setShootingMode] = useState<'instant' | 'timer'>('instant');
+  const [shootingMode, setShootingMode] = useState<'instant' | 'timer'>('timer');
   const flashAnim = useRef(new Animated.Value(0)).current;
 
-  // Yêu cầu quyền camera khi mở
+  // Yêu cầu quyền camera khi mở & xử lý retake
   useEffect(() => {
-    resetPhotos();
+    if (retakeIndex !== null) {
+      setCurrentShotIndex(retakeIndex);
+    } else {
+      resetPhotos();
+    }
     if (!permission?.granted) {
       requestPermission();
     }
@@ -59,7 +73,7 @@ export default function BoothCameraScreen() {
     }).start();
   };
 
-  const takeSinglePhoto = async (shotIndex: number): Promise<string> => {
+  const takeSinglePhoto = async (shotIndex: number, isReplacing: boolean = false): Promise<string> => {
     triggerFlash();
     if (soundEnabled) {
       playShutterSound();
@@ -69,7 +83,7 @@ export default function BoothCameraScreen() {
     try {
       if (cameraRef.current && permission?.granted) {
         const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
+          quality: 0.85,
           skipProcessing: true,
         });
         photoUri = photo?.uri || '';
@@ -78,13 +92,40 @@ export default function BoothCameraScreen() {
       // Fallback nếu chạy trên web hoặc mô phỏng
     }
 
-    // Nếu không có uri từ camera thực tế (ví dụ trên web dev), dùng placeholder phong cách pop
     if (!photoUri) {
       photoUri = `https://picsum.photos/seed/leafy_${Date.now()}_${shotIndex}/400/400`;
     }
 
-    addCapturedPhoto(photoUri);
+    if (!isReplacing) {
+      addCapturedPhoto(photoUri);
+    }
     return photoUri;
+  };
+
+  // Chụp lại riêng 1 ô (Smart Retake)
+  const handleRetakeSingleShot = async () => {
+    if (isShooting || retakeIndex === null) return;
+    setIsShooting(true);
+
+    for (let sec = shotInterval; sec > 0; sec--) {
+      setCountdown(sec);
+      if (soundEnabled) {
+        playShutterSound();
+      }
+      await new Promise((r) => setTimeout(r, 850));
+    }
+    setCountdown(null);
+
+    const uri = await takeSinglePhoto(retakeIndex, true);
+    replacePhotoAtIndex(retakeIndex, uri);
+
+    const updated = [...capturedPhotos];
+    updated[retakeIndex] = uri;
+    useStudioStore.getState().setSlotPhotos(updated);
+
+    setRetakeIndex(null);
+    setIsShooting(false);
+    router.replace('/booth/result' as any);
   };
 
   // Chụp tức thời 1-chạm không cần chờ đếm ngược
@@ -108,7 +149,7 @@ export default function BoothCameraScreen() {
     }
   };
 
-  // Chế độ tự động đếm ngược 3s theo chuỗi
+  // Chế độ tự động đếm ngược chuỗi 4 ảnh chuẩn K-Booth
   const startPhotoboothSequence = async () => {
     if (isShooting) return;
     setIsShooting(true);
@@ -118,10 +159,13 @@ export default function BoothCameraScreen() {
     for (let shot = 0; shot < 4; shot++) {
       setCurrentShotIndex(shot);
 
-      // Đếm ngược 3 -> 2 -> 1
-      for (let sec = 3; sec > 0; sec--) {
+      // Đếm ngược theo nhịp shotInterval (3s, 5s hoặc 7s)
+      for (let sec = shotInterval; sec > 0; sec--) {
         setCountdown(sec);
-        await new Promise(r => setTimeout(r, 900));
+        if (soundEnabled) {
+          playShutterSound();
+        }
+        await new Promise((r) => setTimeout(r, 850));
       }
 
       setCountdown(null);
@@ -130,36 +174,39 @@ export default function BoothCameraScreen() {
         shotUris.push(uri);
       }
 
-      // Nghỉ 1 giây giữa các khung hình để người dùng đổi dáng
+      // Nghỉ giữa các khung hình để người dùng đổi dáng
       if (shot < 3) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 900));
       }
     }
 
     setIsShooting(false);
 
-    // Đồng bộ ngay lập tức 4 ảnh thật vừa chụp vào Studio Store!
     if (shotUris.length > 0) {
       useStudioStore.getState().setSlotPhotos(shotUris);
     }
 
-    // Chuyển tới màn hình kết quả dải ảnh
     router.replace('/booth/result' as any);
   };
 
   const handleShutterPress = () => {
-    if (shootingMode === 'instant') {
+    if (retakeIndex !== null) {
+      handleRetakeSingleShot();
+    } else if (shootingMode === 'instant') {
       handleInstantShot();
     } else {
       startPhotoboothSequence();
     }
   };
 
+  const currentPoseCollection = POSE_COLLECTIONS.find((p) => p.id === poseCategory);
+  const currentPoseStep = currentPoseCollection?.steps[currentShotIndex] || currentPoseCollection?.steps[0];
+  const effectiveBgColor = frameColor || activeCustomFrame?.color || selectedBackdrop?.color || colors.pink;
+
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 20) }]}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 14), paddingBottom: Math.max(insets.bottom, 18) }]}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        {/* Nút đóng X */}
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
@@ -170,7 +217,7 @@ export default function BoothCameraScreen() {
           <Text style={styles.circleButtonText}>✕</Text>
         </Pressable>
 
-        {/* Nền đang chọn Pill (Bấm để đổi nền hoặc vào Studio chỉnh sửa) */}
+        {/* Nền đang chọn Pill */}
         <Pressable
           onPress={() => router.push('/studio' as any)}
           style={({ pressed }) => [
@@ -187,7 +234,7 @@ export default function BoothCameraScreen() {
           </Text>
         </Pressable>
 
-        {/* Nút chuyển nhanh sang Tạo Khung mới trong Frame Studio */}
+        {/* Nút chuyển nhanh sang Tạo Khung Studio */}
         <Pressable
           onPress={() => {
             playShutterSound();
@@ -198,10 +245,10 @@ export default function BoothCameraScreen() {
             { transform: [{ scale: pressed ? 0.94 : 1 }] },
           ]}
         >
-          <Text style={styles.boothStudioShortcutText}>🎨 Tạo khung</Text>
+          <Text style={styles.boothStudioShortcutText}>🎨 Khung</Text>
         </Pressable>
 
-        {/* Cụm nút phụ: Lật gương + Bật/Tắt âm thanh */}
+        {/* Cụm nút phụ: Lật gương + Âm thanh */}
         <View style={styles.topActionGroup}>
           <Pressable
             onPress={toggleMirror}
@@ -226,8 +273,49 @@ export default function BoothCameraScreen() {
         </View>
       </View>
 
-      {/* Camera Viewfinder */}
-      <View style={styles.viewfinderWrapper}>
+      {/* Banner Smart Retake nếu đang chụp lại 1 ô */}
+      {retakeIndex !== null && (
+        <View style={styles.retakeBanner}>
+          <View style={styles.retakeBannerContent}>
+            <Text style={styles.retakeBannerTitle}>
+              ↺ Đang chụp lại Ô số {retakeIndex + 1}
+            </Text>
+            <Text style={styles.retakeBannerSubtitle}>
+              3 ô đẹp kia vẫn được giữ nguyên vẹn
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              setRetakeIndex(null);
+              router.replace('/booth/result' as any);
+            }}
+            style={styles.retakeCancelBtn}
+          >
+            <Text style={styles.retakeCancelBtnText}>Hủy</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Floating Pose Guide Tip trên đầu Camera */}
+      {poseCategory !== 'none' && currentPoseStep && (
+        <View style={styles.poseGuideFloat}>
+          <View style={styles.poseGuidePill}>
+            <Text style={styles.poseGuidePillIcon}>{currentPoseStep.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.poseGuideTitle}>
+                {currentPoseCollection?.name} · Ô {currentShotIndex + 1}/4: {currentPoseStep.title}
+              </Text>
+              <Text style={styles.poseGuideTip} numberOfLines={1}>
+                💡 {currentPoseStep.tip}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Camera Viewfinder & Live Strip Side Column */}
+      <View style={styles.chamberContainer}>
+        {/* Main Camera Viewfinder */}
         <View style={styles.viewfinder}>
           {permission?.granted ? (
             <CameraView
@@ -249,13 +337,22 @@ export default function BoothCameraScreen() {
             </View>
           )}
 
+          {/* Silhouette Pose Outline Guide khi bật Pose Guide */}
+          {poseCategory !== 'none' && (
+            <View pointerEvents="none" style={styles.silhouetteOverlay}>
+              <View style={styles.silhouetteHeadBox} />
+              <View style={styles.silhouetteShoulderBox} />
+              <Text style={styles.silhouetteLabel}>{currentPoseStep?.title || 'Tạo dáng'}</Text>
+            </View>
+          )}
+
           {/* Hiệu ứng chớp đèn Flash */}
           <Animated.View
             pointerEvents="none"
             style={[styles.flashOverlay, { opacity: flashAnim }]}
           />
 
-          {/* Số đếm ngược to ở giữa */}
+          {/* Số đếm ngược to tròn ở giữa */}
           {countdown !== null && (
             <View style={styles.countdownContainer}>
               <View style={styles.countdownCircle}>
@@ -264,78 +361,134 @@ export default function BoothCameraScreen() {
             </View>
           )}
         </View>
-      </View>
 
-      {/* Progress & Slot Row */}
-      <View style={styles.statusSection}>
-        <View style={styles.statusTextRow}>
-          <Text style={styles.shotProgressText}>
-            Ảnh {Math.min(currentShotIndex + 1, 4)}/4
-          </Text>
-          <Text style={styles.holdStillText}>
-            {isShooting ? 'Giữ yên nhé' : 'Sẵn sàng'}
-          </Text>
-        </View>
-
-        {/* 4 Mini Slots Preview */}
-        <View style={styles.slotsRow}>
-          {[0, 1, 2, 3].map(index => {
-            const isTaken = capturedPhotos.length > index;
-            const isCurrent = isShooting && currentShotIndex === index;
+        {/* Live Photobooth Strip Visualizer: Cột dải ảnh mini hiển thị trực tiếp ảnh đang lấp đầy */}
+        <View style={[styles.liveStripSideBar, { backgroundColor: effectiveBgColor }]}>
+          <Text style={styles.liveStripSideTitle}>LEAFY</Text>
+          {[0, 1, 2, 3].map((slotIdx) => {
+            const hasPhoto = capturedPhotos.length > slotIdx;
+            const isCurrent = isShooting && currentShotIndex === slotIdx;
 
             return (
               <View
-                key={index}
+                key={slotIdx}
                 style={[
-                  styles.slotBox,
-                  isCurrent && styles.slotBoxActive,
+                  styles.liveStripSlot,
+                  isCurrent && styles.liveStripSlotCurrent,
                 ]}
               >
-                {isTaken ? (
-                  <Image
-                    source={{ uri: capturedPhotos[index] }}
-                    style={styles.slotImage}
-                  />
+                {hasPhoto ? (
+                  <>
+                    <Image
+                      source={{ uri: capturedPhotos[slotIdx] }}
+                      style={styles.liveStripSlotImg}
+                    />
+                    <View style={styles.liveStripCheckBadge}>
+                      <Text style={styles.liveStripCheckText}>✓</Text>
+                    </View>
+                  </>
                 ) : isCurrent ? (
-                  <Text style={styles.slotActiveText}>{countdown || '📸'}</Text>
+                  <Text style={styles.liveStripSlotActiveText}>
+                    {countdown || '📸'}
+                  </Text>
                 ) : (
-                  <Text style={styles.slotPlaceholderText}>{index + 1}</Text>
+                  <Text style={styles.liveStripSlotPendingText}>
+                    {slotIdx + 1}
+                  </Text>
                 )}
               </View>
             );
           })}
+          <Text style={styles.liveStripBarcodeText}>||||||||</Text>
         </View>
       </View>
 
-      {/* Bottom Controls */}
-      <View style={styles.controlsSection}>
-        {/* Chuyển chế độ: Tức thời vs Đếm 3s */}
-        <View style={styles.modeSwitchRow}>
+      {/* Pose Collection Selector Chips */}
+      <View style={styles.poseSelectorSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.poseChipsScroll}
+        >
           <Pressable
-            onPress={() => setShootingMode('instant')}
-            disabled={isShooting}
-            style={[
-              styles.modeChip,
-              shootingMode === 'instant' && styles.modeChipActive,
-            ]}
+            onPress={() => setPoseCategory('none')}
+            style={[styles.poseChip, poseCategory === 'none' && styles.poseChipActive]}
           >
-            <Text style={[styles.modeChipText, shootingMode === 'instant' && styles.modeChipTextActive]}>
-              ⚡ Chụp tức thời
+            <Text style={[styles.poseChipText, poseCategory === 'none' && styles.poseChipTextActive]}>
+              🚫 Tắt dáng
             </Text>
           </Pressable>
+          {POSE_COLLECTIONS.map((col) => (
+            <Pressable
+              key={col.id}
+              onPress={() => setPoseCategory(col.id)}
+              style={[styles.poseChip, poseCategory === col.id && styles.poseChipActive]}
+            >
+              <Text style={[styles.poseChipText, poseCategory === col.id && styles.poseChipTextActive]}>
+                {col.icon} {col.name}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
 
-          <Pressable
-            onPress={() => setShootingMode('timer')}
-            disabled={isShooting}
-            style={[
-              styles.modeChip,
-              shootingMode === 'timer' && styles.modeChipActive,
-            ]}
-          >
-            <Text style={[styles.modeChipText, shootingMode === 'timer' && styles.modeChipTextActive]}>
-              ⏱️ Tự động 3s
-            </Text>
-          </Pressable>
+      {/* Bottom Controls: Mode switch & Interval Selector */}
+      <View style={styles.controlsSection}>
+        <View style={styles.modeAndIntervalRow}>
+          {/* Chuyển chế độ: Tức thời vs Đếm chuỗi */}
+          <View style={styles.modeSwitchRow}>
+            <Pressable
+              onPress={() => setShootingMode('instant')}
+              disabled={isShooting}
+              style={[
+                styles.modeChip,
+                shootingMode === 'instant' && styles.modeChipActive,
+              ]}
+            >
+              <Text style={[styles.modeChipText, shootingMode === 'instant' && styles.modeChipTextActive]}>
+                ⚡ 1-chạm
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setShootingMode('timer')}
+              disabled={isShooting}
+              style={[
+                styles.modeChip,
+                shootingMode === 'timer' && styles.modeChipActive,
+              ]}
+            >
+              <Text style={[styles.modeChipText, shootingMode === 'timer' && styles.modeChipTextActive]}>
+                ⏱️ Chuỗi 4 ảnh
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Chọn nhịp đếm ngược: 3s | 5s | 7s */}
+          {shootingMode === 'timer' && (
+            <View style={styles.intervalRow}>
+              {([3, 5, 7] as const).map((sec) => (
+                <Pressable
+                  key={sec}
+                  onPress={() => setShotInterval(sec)}
+                  disabled={isShooting}
+                  style={[
+                    styles.intervalChip,
+                    shotInterval === sec && styles.intervalChipActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.intervalChipText,
+                      shotInterval === sec && styles.intervalChipTextActive,
+                    ]}
+                  >
+                    {sec}s
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Shutter Area */}
@@ -356,7 +509,7 @@ export default function BoothCameraScreen() {
             <Text style={{ fontSize: 20 }}>↺</Text>
           </Pressable>
 
-          {/* NÚT CHỤP CHÍNH TO TRÒN (BIG INSTANT SHUTTER BUTTON) */}
+          {/* NÚT CHỤP CHÍNH TO TRÒN */}
           <Pressable
             onPress={handleShutterPress}
             disabled={isShooting}
@@ -367,19 +520,23 @@ export default function BoothCameraScreen() {
           >
             <View style={styles.bigShutterInner}>
               <Text style={styles.bigShutterEmoji}>
-                {isShooting ? '⏳' : shootingMode === 'instant' ? '📸' : '⏱️'}
+                {isShooting ? '⏳' : retakeIndex !== null ? '↺' : shootingMode === 'instant' ? '📸' : '⏱️'}
               </Text>
               <Text style={styles.bigShutterLabel}>
-                {isShooting
+                {retakeIndex !== null
+                  ? isShooting
+                    ? 'Đang chụp...'
+                    : `Chụp lại ô ${retakeIndex + 1}`
+                  : isShooting
                   ? 'Đang chụp...'
                   : shootingMode === 'instant'
                   ? `Chụp ảnh ${capturedPhotos.length + 1}/4`
-                  : 'Bắt đầu đếm'}
+                  : `Bắt đầu (${shotInterval}s)`}
               </Text>
             </View>
           </Pressable>
 
-          {/* Nút xoay đổi camera trước/sau (bên phải - icon tròn sạch sẽ) */}
+          {/* Nút xoay đổi camera trước/sau */}
           <Pressable
             onPress={toggleCameraFacing}
             disabled={isShooting}
@@ -401,7 +558,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.darkBg, // Pure Midnight OLED
     justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: 16,
   },
   topBar: {
     flexDirection: 'row',
@@ -429,7 +586,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.darkBorder,
     borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     ...theme.shadows.darkSoft,
   },
@@ -448,130 +605,14 @@ const styles = StyleSheet.create({
     ...theme.shadows.darkSoft,
   },
   boothStudioShortcutText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     color: colors.yellow,
   },
-  viewfinderWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  viewfinder: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#000000',
-    ...theme.shadows.darkSoft,
-  },
-  cameraView: {
-    flex: 1,
-  },
-  simulatedCamera: {
-    flex: 1,
-    backgroundColor: '#1E2024',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  simulatedEmoji: {
-    fontSize: 54,
-    marginBottom: 8,
-  },
-  simulatedText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#E5E7EB',
-  },
-  flashOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#FFFFFF',
-    zIndex: 10,
-  },
-  countdownContainer: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-  countdownCircle: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: '#FFE600',
-    borderWidth: 3.5,
-    borderColor: colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.hard,
-  },
-  countdownNumber: {
-    fontSize: 78,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  statusSection: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  statusTextRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  shotProgressText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.white,
-  },
-  holdStillText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#E5E7EB',
-  },
-  slotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  slotBox: {
-    flex: 1,
-    aspectRatio: 1,
-    backgroundColor: '#1C1F26',
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#2E3542',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  slotBoxActive: {
-    borderColor: '#FFE600',
-    backgroundColor: '#272B35',
-  },
-  slotImage: {
-    width: '100%',
-    height: '100%',
-  },
-  slotActiveText: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#FFE600',
-  },
-  slotPlaceholderText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#64748B',
-  },
   topActionGroup: {
     flexDirection: 'row',
-    gap: 8,
     alignItems: 'center',
+    gap: 8,
   },
   circleButtonSmall: {
     width: 40,
@@ -585,53 +626,355 @@ const styles = StyleSheet.create({
     ...theme.shadows.darkSoft,
   },
   circleButtonSmallActive: {
-    backgroundColor: colors.accentYellow,
-    borderColor: colors.accentYellow,
+    backgroundColor: colors.yellow,
+    borderColor: colors.ink,
   },
-  controlsSection: {
-    width: '100%',
+
+  // Retake Banner
+  retakeBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 217, 61, 0.18)',
+    borderWidth: 1.5,
+    borderColor: colors.yellow,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginVertical: 4,
+  },
+  retakeBannerContent: {
+    flex: 1,
+  },
+  retakeBannerTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.yellow,
+  },
+  retakeBannerSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  retakeCancelBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  retakeCancelBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.white,
+  },
+
+  // Pose Guide Floating Pill
+  poseGuideFloat: {
+    marginVertical: 4,
+  },
+  poseGuidePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 143, 199, 0.2)',
+    borderWidth: 1.5,
+    borderColor: '#FF8FC7',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 8,
+  },
+  poseGuidePillIcon: {
+    fontSize: 20,
+  },
+  poseGuideTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FF8FC7',
+  },
+  poseGuideTip: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+
+  // Chamber Viewfinder with Live Strip Side Column
+  chamberContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
+    marginVertical: 6,
+    maxHeight: 460,
+  },
+  viewfinder: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+    position: 'relative',
+    borderWidth: 2,
+    borderColor: colors.darkBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraView: {
+    width: '100%',
+    height: '100%',
+  },
+  simulatedCamera: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  simulatedEmoji: {
+    fontSize: 56,
+    marginBottom: 10,
+  },
+  simulatedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  flashOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#FFFFFF',
+    zIndex: 10,
+  },
+  countdownContainer: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    zIndex: 20,
+  },
+  countdownCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: colors.yellow,
+    borderWidth: 4,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.hard,
+  },
+  countdownNumber: {
+    fontSize: 60,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+
+  // Silhouette Overlay
+  silhouetteOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  silhouetteHeadBox: {
+    width: 110,
+    height: 130,
+    borderRadius: 55,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    borderStyle: 'dashed',
+    marginBottom: 8,
+  },
+  silhouetteShoulderBox: {
+    width: 200,
+    height: 70,
+    borderTopLeftRadius: 35,
+    borderTopRightRadius: 35,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderStyle: 'dashed',
+  },
+  silhouetteLabel: {
+    marginTop: 8,
+    fontSize: 11,
+    fontWeight: '800',
+    color: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+
+  // Live Strip Visualizer (Side Column)
+  liveStripSideBar: {
+    width: 58,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...theme.shadows.hard,
+  },
+  liveStripSideTitle: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: colors.ink,
+    letterSpacing: 0.5,
+  },
+  liveStripSlot: {
+    width: 46,
+    height: 64,
+    borderRadius: 6,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  liveStripSlotCurrent: {
+    borderColor: colors.yellow,
+    borderWidth: 2.5,
+    transform: [{ scale: 1.05 }],
+  },
+  liveStripSlotImg: {
+    width: '100%',
+    height: '100%',
+  },
+  liveStripCheckBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: '#10B981',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveStripCheckText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  liveStripSlotActiveText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  liveStripSlotPendingText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+  liveStripBarcodeText: {
+    fontSize: 8,
+    color: colors.ink,
+    fontWeight: '900',
+    letterSpacing: -1,
+  },
+
+  // Pose Selector Section
+  poseSelectorSection: {
+    marginVertical: 4,
+  },
+  poseChipsScroll: {
+    gap: 8,
+    paddingHorizontal: 2,
+  },
+  poseChip: {
+    backgroundColor: colors.darkSurfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  poseChipActive: {
+    backgroundColor: '#FF8FC7',
+    borderColor: colors.ink,
+  },
+  poseChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+  poseChipTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+
+  // Controls Section
+  controlsSection: {
     gap: 12,
+    marginBottom: 4,
+  },
+  modeAndIntervalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   modeSwitchRow: {
     flexDirection: 'row',
-    backgroundColor: '#1C1F26',
-    borderRadius: 24,
+    backgroundColor: colors.darkSurfaceElevated,
+    borderRadius: 18,
     borderWidth: 1.5,
     borderColor: colors.darkBorder,
     padding: 3,
     gap: 4,
   },
   modeChip: {
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 14,
   },
   modeChipActive: {
-    backgroundColor: colors.accentYellow,
-    borderWidth: 1.5,
-    borderColor: colors.darkBorder,
+    backgroundColor: colors.yellow,
   },
   modeChipText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#9CA3AF',
+    color: colors.textSecondary,
   },
   modeChipTextActive: {
     color: colors.ink,
     fontWeight: '900',
   },
+  intervalRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.darkSurfaceElevated,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    padding: 3,
+    gap: 4,
+  },
+  intervalChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  intervalChipActive: {
+    backgroundColor: '#6EC6FF',
+  },
+  intervalChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+  intervalChipTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+
+  // Shutter Area
   shutterRow: {
-    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 6,
+    paddingHorizontal: 10,
   },
   sideCircleBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: colors.darkSurfaceElevated,
     borderWidth: 1.5,
     borderColor: colors.darkBorder,
@@ -640,32 +983,33 @@ const styles = StyleSheet.create({
     ...theme.shadows.darkSoft,
   },
   bigShutterOuter: {
-    flex: 1,
-    marginHorizontal: 12,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.accentYellow,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    padding: 3,
-    ...theme.shadows.darkSoft,
-  },
-  bigShutterInner: {
-    flex: 1,
-    borderRadius: 28,
-    backgroundColor: colors.accentYellow,
-    flexDirection: 'row',
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: colors.yellow,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    ...theme.shadows.hard,
+  },
+  bigShutterInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 36,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bigShutterEmoji: {
-    fontSize: 24,
+    fontSize: 28,
   },
   bigShutterLabel: {
-    fontSize: 15,
+    fontSize: 9,
     fontWeight: '900',
     color: colors.ink,
-    letterSpacing: -0.2,
+    marginTop: 1,
+    textAlign: 'center',
   },
 });

@@ -84,94 +84,119 @@ export async function exportStripToImage(
   strip: StripItem,
   eventName: string,
   eventDate: string,
-  index: number = 1
+  index: number = 1,
+  twinStrips: boolean = false
 ): Promise<boolean> {
-  const filename = `leafybooth_${eventName.replace(/\s+/g, '_')}_dai_${strip.authorName}_${index}.png`;
+  const filename = `leafybooth_${eventName.replace(/\s+/g, '_')}_dai_${strip.authorName}_${index}${twinStrips ? '_twin' : ''}.png`;
 
   if (Platform.OS === 'web') {
     const drawAndExport = async (allowExternalImages: boolean): Promise<boolean> => {
       const canvas = document.createElement('canvas');
-      canvas.width = 440;
+      const singleWidth = 440;
+      canvas.width = twinStrips ? singleWidth * 2 : singleWidth;
       canvas.height = 1260;
       const ctx = canvas.getContext('2d');
       if (!ctx) return false;
 
-      // 1. Nền dải ảnh Sticker Pop
-      ctx.fillStyle = strip.stripColor || '#FF8FC7';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const drawSingleStripAt = async (offsetX: number) => {
+        // 1. Nền dải ảnh Sticker Pop
+        ctx.fillStyle = strip.stripColor || '#FF8FC7';
+        ctx.fillRect(offsetX, 0, singleWidth, canvas.height);
 
-      // Viền dày Sticker Pop
-      ctx.strokeStyle = '#111111';
-      ctx.lineWidth = 8;
-      ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+        // Viền dày Sticker Pop
+        ctx.strokeStyle = '#111111';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(offsetX + 4, 4, singleWidth - 8, canvas.height - 8);
 
-      // 2. Header thương hiệu
-      ctx.fillStyle = '#111111';
-      ctx.font = '900 16px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('🌿 LEAFYBOOTH PHOTOBOOTH', canvas.width / 2, 42);
+        // 2. Header thương hiệu
+        ctx.fillStyle = '#111111';
+        ctx.font = '900 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🌿 LEAFYBOOTH PHOTOBOOTH', offsetX + singleWidth / 2, 42);
 
-      ctx.font = '800 13px sans-serif';
-      ctx.fillStyle = '#262626';
-      ctx.fillText(`${eventName} · ${eventDate}`, canvas.width / 2, 64);
+        ctx.font = '800 13px sans-serif';
+        ctx.fillStyle = '#262626';
+        ctx.fillText(`${eventName} · ${eventDate}`, offsetX + singleWidth / 2, 64);
 
-      // 3. 4 khung ảnh
-      const photoWidth = 380;
-      const photoHeight = 240;
-      const startX = 30;
-      const startY = 82;
-      const gap = 18;
+        // 3. 4 khung ảnh
+        const photoWidth = 380;
+        const photoHeight = 240;
+        const startX = offsetX + 30;
+        const startY = 82;
+        const gap = 18;
 
-      for (let i = 0; i < 4; i++) {
-        const y = startY + i * (photoHeight + gap);
+        for (let i = 0; i < 4; i++) {
+          const y = startY + i * (photoHeight + gap);
 
-        // Khung trắng đệm cho mỗi ảnh
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(startX, y, photoWidth, photoHeight);
+          // Khung trắng đệm cho mỗi ảnh
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(startX, y, photoWidth, photoHeight);
 
-        let imageDrawn = false;
-        if (allowExternalImages && strip.photos[i]) {
-          const img = await loadImageSafe(strip.photos[i]);
-          if (img) {
-            try {
-              ctx.drawImage(img, startX + 4, y + 4, photoWidth - 8, photoHeight - 8);
-              imageDrawn = true;
-            } catch {
-              imageDrawn = false;
+          let imageDrawn = false;
+          if (allowExternalImages && strip.photos[i]) {
+            const img = await loadImageSafe(strip.photos[i]);
+            if (img) {
+              try {
+                ctx.drawImage(img, startX + 4, y + 4, photoWidth - 8, photoHeight - 8);
+                imageDrawn = true;
+              } catch {
+                imageDrawn = false;
+              }
             }
           }
+
+          if (!imageDrawn) {
+            drawStylizedPhotoSlot(ctx, startX + 4, y + 4, photoWidth - 8, photoHeight - 8, i, strip.authorName);
+          }
+
+          // Viền từng khung ảnh
+          ctx.strokeStyle = '#111111';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(startX, y, photoWidth, photoHeight);
         }
 
-        if (!imageDrawn) {
-          drawStylizedPhotoSlot(ctx, startX + 4, y + 4, photoWidth - 8, photoHeight - 8, i, strip.authorName);
-        }
+        // 4. Footer & Watermark
+        const footerY = startY + 4 * (photoHeight + gap) + 14;
 
-        // Viền từng khung ảnh
+        // Huy hiệu tác giả
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(startX, footerY, 140, 34);
         ctx.strokeStyle = '#111111';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(startX, y, photoWidth, photoHeight);
+        ctx.lineWidth = 3;
+        ctx.strokeRect(startX, footerY, 140, 34);
+
+        ctx.fillStyle = '#111111';
+        ctx.font = '900 13px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`👤 ${strip.authorName}`, startX + 12, footerY + 22);
+
+        // Watermark app & Barcode
+        ctx.textAlign = 'right';
+        ctx.font = '900 13px sans-serif';
+        ctx.fillStyle = '#111111';
+        ctx.fillText('leafybooth.app 🌿', offsetX + singleWidth - 30, footerY + 22);
+      };
+
+      await drawSingleStripAt(0);
+
+      if (twinStrips) {
+        await drawSingleStripAt(singleWidth);
+
+        // Đường cắt ở giữa 2 dải ảnh
+        ctx.setLineDash([8, 8]);
+        ctx.strokeStyle = '#111111';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(singleWidth, 10);
+        ctx.lineTo(singleWidth, canvas.height - 10);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✂️', singleWidth, 26);
+        ctx.fillText('✂️', singleWidth, canvas.height - 14);
       }
-
-      // 4. Footer & Watermark
-      const footerY = startY + 4 * (photoHeight + gap) + 14;
-
-      // Huy hiệu tác giả
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(startX, footerY, 140, 34);
-      ctx.strokeStyle = '#111111';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(startX, footerY, 140, 34);
-
-      ctx.fillStyle = '#111111';
-      ctx.font = '900 13px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(`👤 ${strip.authorName}`, startX + 12, footerY + 22);
-
-      // Watermark app
-      ctx.textAlign = 'right';
-      ctx.font = '900 13px sans-serif';
-      ctx.fillStyle = '#111111';
-      ctx.fillText('leafybooth.app 🌿', canvas.width - startX, footerY + 22);
 
       try {
         const dataUrl = canvas.toDataURL('image/png');

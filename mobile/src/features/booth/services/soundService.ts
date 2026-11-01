@@ -1,9 +1,23 @@
-import { Platform } from 'react-native';
+import { Platform, Vibration } from 'react-native';
 
 /**
- * Phát âm thanh photobooth "tách"
+ * Kích hoạt rung phản hồi xúc giác nhẹ (Haptic feedback)
+ */
+export const triggerHaptic = (duration = 18) => {
+  try {
+    if (Platform.OS !== 'web') {
+      Vibration.vibrate(duration);
+    }
+  } catch {
+    // Bỏ qua nếu thiết bị không hỗ trợ rung
+  }
+};
+
+/**
+ * Phát âm thanh photobooth "tách" kèm rung phản hồi xúc giác
  */
 export const playShutterSound = () => {
+  triggerHaptic(18);
   if (Platform.OS === 'web') {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;

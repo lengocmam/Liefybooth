@@ -1,5 +1,24 @@
 import { create } from 'zustand';
 import { colors } from '../../../core/theme/colors';
+import { leafyStorage } from '../../../core/utils/leafyStorage';
+
+export interface StudioDraft {
+  frameName: string;
+  backgroundColor: string;
+  pattern: FramePattern;
+  frameLayout: FrameLayoutType;
+  frameEdgeStyle: FrameEdgeStyle;
+  sealStamp: SealStampType;
+  washiTapeStyle?: WashiTapeStyle;
+  gradientTheme?: GradientTheme;
+  stickers: CustomSticker[];
+  textItems: CustomTextItem[];
+  customText: string;
+  textColor: string;
+  locationTag: string;
+  photoFilter: PhotoFilter;
+  savedAt: number;
+}
 
 export interface CustomSticker {
   id: string;
@@ -215,6 +234,10 @@ interface StudioState {
   saveCurrentFrame: () => SavedCustomFrame;
   loadSavedFrame: (frameId: string) => boolean;
   deleteSavedFrame: (frameId: string) => void;
+  saveDraft: () => void;
+  loadDraft: () => boolean;
+  clearDraft: () => void;
+  hasDraft: () => boolean;
   setCustomText: (text: string) => void;
   setTextPosition: (pos: TextPosition) => void;
   setTextStyleType: (type: TextStyleType) => void;
@@ -2103,7 +2126,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   clearAllStickers: () =>
     set({ stickers: [], selectedStickerId: null }),
 
-  savedCustomFrames: [
+  savedCustomFrames: leafyStorage.getObject<SavedCustomFrame[]>('leafy_saved_custom_frames', [
     {
       id: 'my_frame_y2k_pink',
       name: 'Khung Y2K Trái Tim Hồng',
@@ -2150,7 +2173,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       photoFilter: 'warm',
       stickersCount: 3,
     },
-  ],
+  ]),
 
   saveCurrentFrame: () => {
     const s = get();
@@ -2173,9 +2196,11 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       photoFilter: s.photoFilter,
       stickersCount: s.stickers.length + s.textItems.length,
     };
-    set((state) => ({
-      savedCustomFrames: [newFrame, ...state.savedCustomFrames.filter((f) => f.id !== newFrame.id)],
-    }));
+    set((state) => {
+      const next = [newFrame, ...state.savedCustomFrames.filter((f) => f.id !== newFrame.id)];
+      leafyStorage.setObject('leafy_saved_custom_frames', next);
+      return { savedCustomFrames: next };
+    });
     return newFrame;
   },
 
@@ -2203,9 +2228,66 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   },
 
   deleteSavedFrame: (frameId: string) => {
-    set((state) => ({
-      savedCustomFrames: state.savedCustomFrames.filter((f) => f.id !== frameId),
-    }));
+    set((state) => {
+      const next = state.savedCustomFrames.filter((f) => f.id !== frameId);
+      leafyStorage.setObject('leafy_saved_custom_frames', next);
+      return { savedCustomFrames: next };
+    });
+  },
+
+  saveDraft: () => {
+    const s = get();
+    const draft: StudioDraft = {
+      frameName: s.frameName,
+      backgroundColor: s.backgroundColor,
+      pattern: s.pattern,
+      frameLayout: s.frameLayout,
+      frameEdgeStyle: s.frameEdgeStyle,
+      sealStamp: s.sealStamp,
+      washiTapeStyle: s.washiTapeStyle,
+      gradientTheme: s.gradientTheme,
+      stickers: s.stickers,
+      textItems: s.textItems,
+      customText: s.customText,
+      textColor: s.textColor,
+      locationTag: s.locationTag,
+      photoFilter: s.photoFilter,
+      savedAt: Date.now(),
+    };
+    leafyStorage.setObject('leafy_studio_draft', draft);
+  },
+
+  hasDraft: () => {
+    const draft = leafyStorage.getObject<StudioDraft | null>('leafy_studio_draft', null);
+    return Boolean(draft && (draft.stickers.length > 0 || draft.textItems.length > 0 || draft.customText));
+  },
+
+  loadDraft: () => {
+    const draft = leafyStorage.getObject<StudioDraft | null>('leafy_studio_draft', null);
+    if (!draft) return false;
+    set({
+      frameName: draft.frameName || 'Bản nháp 🌿',
+      backgroundColor: draft.backgroundColor,
+      pattern: draft.pattern,
+      frameLayout: draft.frameLayout,
+      frameEdgeStyle: draft.frameEdgeStyle,
+      sealStamp: draft.sealStamp,
+      washiTapeStyle: draft.washiTapeStyle || 'none',
+      gradientTheme: draft.gradientTheme || 'none',
+      stickers: draft.stickers || [],
+      textItems: draft.textItems || [],
+      customText: draft.customText || '',
+      textColor: draft.textColor || colors.ink,
+      locationTag: draft.locationTag || '',
+      photoFilter: draft.photoFilter || 'none',
+      selectedStickerId: null,
+      selectedTextId: null,
+    });
+    return true;
+  },
+
+  clearDraft: () => {
+    leafyStorage.removeItem('leafy_studio_draft');
   },
 
   createNewBlankFrame: () => {
