@@ -1034,23 +1034,9 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
         </Pressable>
       </View>
 
-      {/* 1. TOP BAR CHUẨN LOCKET (👥 Bạn bè - Tất cả bạn bè ▾ - 🎨 Tạo Khung - M 🌳) */}
+      {/* 1. TOP BAR CHUẨN LOCKET TINH GỌN (👥 Bạn bè ▾ - 🎨 Tạo Khung - M 🌳) */}
       <View style={styles.locketTopBar}>
-        {/* Nút 👥 Danh sách bạn bè */}
-        <Pressable
-          onPress={() => {
-            playShutterSound();
-            router.push('/friends' as any);
-          }}
-          style={({ pressed }) => [
-            styles.locketTopCircleBtn,
-            { transform: [{ scale: pressed ? 0.92 : 1 }] },
-          ]}
-        >
-          <Text style={styles.locketTopIcon}>👥</Text>
-        </Pressable>
-
-        {/* Nút Dropdown pill "Tất cả bạn bè ▾" - Mở Modal Lọc Người Đăng */}
+        {/* Nút Hợp Nhất "👥 Bạn bè ▾" - Mở Modal Lọc Người Đăng & Quản lý */}
         <Pressable
           onPress={() => {
             playShutterSound();
@@ -1062,11 +1048,12 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             { transform: [{ scale: pressed ? 0.95 : 1 }] },
           ]}
         >
+          <Text style={{ fontSize: 13 }}>👥</Text>
           <Text style={styles.locketTopPillText}>
             {activeSenderFilter === 'me'
               ? `Của ${currentUser.name}`
               : activeSenderFilter === 'all'
-              ? 'Tất cả bạn bè'
+              ? `Bạn bè (${friends.length})`
               : friends.find((f) => f.id === activeSenderFilter)?.name || 'Bạn bè'}
           </Text>
           <Text style={styles.locketTopPillArrow}>▾</Text>
@@ -1820,6 +1807,17 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
                 );
               })}
             </ScrollView>
+
+            {/* Nút điều hướng Quản lý bạn bè */}
+            <Pressable
+              onPress={() => {
+                setShowFriendFilterModal(false);
+                router.push('/friends');
+              }}
+              style={styles.friendFilterManageBtn}
+            >
+              <Text style={styles.friendFilterManageText}>👥 Quản lý danh sách 20 bạn bè ➔</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -3768,6 +3766,21 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.yellow,
     marginLeft: 6,
+  },
+  friendFilterManageBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    backgroundColor: '#242833',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  friendFilterManageText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.yellow,
   },
 
   // Account Modal

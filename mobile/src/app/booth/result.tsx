@@ -14,7 +14,6 @@ import { useRouter } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
-import { PillButton } from '../../core/components/PillButton';
 import { exportStripToImage } from '../../core/utils/stripExportService';
 import { useBoothStore, StripFilter } from '../../features/booth/hooks/useBoothStore';
 import { useMomentsStore } from '../../features/moments/hooks/useMomentsStore';
@@ -22,7 +21,7 @@ import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
 import { playShutterSound } from '../../features/booth/services/soundService';
 
 const BOOTH_FILTERS: { id: StripFilter; label: string; icon: string }[] = [
-  { id: 'original', label: 'Màu gốc', icon: '🌿' },
+  { id: 'original', label: 'Gốc', icon: '🌿' },
   { id: 'haru_blue', label: 'Haru Blue', icon: '🌊' },
   { id: 'bw', label: 'Mono Film', icon: '🖤' },
   { id: 'warm', label: 'Sepia 1998', icon: '☕' },
@@ -37,6 +36,7 @@ export default function BoothResultScreen() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const { sendMoment } = useMomentsStore();
   const [isSendingToLeafy, setIsSendingToLeafy] = useState(false);
+  const [selectedSlotForRetake, setSelectedSlotForRetake] = useState<number | null>(null);
 
   const {
     capturedPhotos,
@@ -52,10 +52,8 @@ export default function BoothResultScreen() {
     setTwinStripMode,
     barcodeNumber,
     stampType,
-    setStampType,
   } = useBoothStore();
 
-  // Đảm bảo luôn có 4 ảnh (nếu thiếu dùng placeholder)
   const displayPhotos = [
     capturedPhotos[0] || 'https://picsum.photos/seed/p1/400/400',
     capturedPhotos[1] || 'https://picsum.photos/seed/p2/400/400',
@@ -71,9 +69,9 @@ export default function BoothResultScreen() {
 
   const handleSaveToDevice = async () => {
     setIsSaving(true);
+    playShutterSound();
     try {
       if (Platform.OS === 'web') {
-        // Xuất và tải dải ảnh PNG thật về máy (hỗ trợ cả dải đơn và dải đôi twin strips)
         await exportStripToImage(
           {
             id: `booth_${Date.now()}`,
@@ -96,16 +94,17 @@ export default function BoothResultScreen() {
         }
       }
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setTimeout(() => setSaveSuccess(false), 2500);
     } catch {
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setTimeout(() => setSaveSuccess(false), 2500);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleOpenStudioWithPhotos = () => {
+    playShutterSound();
     useStudioStore.getState().setSlotPhotos(displayPhotos);
     if (activeCustomFrame?.id) {
       useStudioStore.getState().loadSavedFrame(activeCustomFrame.id);
@@ -116,12 +115,9 @@ export default function BoothResultScreen() {
   };
 
   const handleRetake = () => {
+    playShutterSound();
     resetBooth();
     router.replace('/booth/camera' as any);
-  };
-
-  const handleCustomize = () => {
-    router.push('/booth/customize' as any);
   };
 
   const handleExitToHome = () => {
@@ -130,14 +126,6 @@ export default function BoothResultScreen() {
       router.dismissAll();
     }
     router.navigate('/(tabs)/moments' as any);
-  };
-
-  const handleExitToBooth = () => {
-    resetBooth();
-    if (router.canDismiss()) {
-      router.dismissAll();
-    }
-    router.navigate('/(tabs)/booth' as any);
   };
 
   const handleSendToLeafy = () => {
@@ -213,49 +201,56 @@ export default function BoothResultScreen() {
         { backgroundColor: frameColor || colors.pink },
         layout === 'grid' && styles.gridStrip,
         twinStripMode && styles.twinSingleStrip,
-        activeCustomFrame?.edgeStyle === 'film_perforated' && styles.filmPerforatedBorder,
       ]}
     >
       {/* Header thương hiệu */}
       <View style={styles.stripBrandHeader}>
-        <Text style={styles.stripBrandText}>LEAFYBOOTH · SEOUL PHOTO</Text>
+        <Text style={styles.stripBrandText}>LEAFYBOOTH · SEOUL 4-CUT</Text>
       </View>
 
       {/* 4 ô ảnh */}
       <View style={layout === 'grid' ? styles.gridPhotoContainer : styles.verticalPhotoContainer}>
-        {displayPhotos.map((uri, idx) => (
-          <View
-            key={idx}
-            style={[
-              styles.photoFrame,
-              layout === 'grid' && styles.gridPhotoFrame,
-              twinStripMode && styles.twinPhotoFrame,
-            ]}
-          >
-            <Image
-              source={{ uri }}
-              style={[styles.photoImage, getFilterStyle()]}
-              resizeMode="cover"
-            />
-            {filter === 'haru_blue' && <View style={styles.haruFilterOverlay} />}
-            {filter === 'sakura' && <View style={styles.sakuraFilterOverlay} />}
-            {filter === 'warm' && <View style={styles.warmFilterOverlay} />}
-            {filter === 'cool' && <View style={styles.coolFilterOverlay} />}
+        {displayPhotos.map((uri, idx) => {
+          const isSlotSelected = selectedSlotForRetake === idx;
 
-            {/* Nút Chụp Lại Ngay Trên Ô Ảnh */}
+          return (
             <Pressable
-              onPress={() => handleRetakeSlot(idx)}
-              style={({ pressed }) => [
-                styles.slotRetakeFloatingBtn,
-                { transform: [{ scale: pressed ? 0.92 : 1 }] },
+              key={idx}
+              onPress={() => setSelectedSlotForRetake(isSlotSelected ? null : idx)}
+              style={[
+                styles.photoFrame,
+                layout === 'grid' && styles.gridPhotoFrame,
+                twinStripMode && styles.twinPhotoFrame,
+                isSlotSelected && styles.photoFrameSelected,
               ]}
-              hitSlop={6}
             >
-              <Text style={styles.slotRetakeFloatingIcon}>↺</Text>
-              <Text style={styles.slotRetakeFloatingLabel}>{idx + 1}</Text>
+              <Image
+                source={{ uri }}
+                style={[styles.photoImage, getFilterStyle()]}
+                resizeMode="cover"
+              />
+              {filter === 'haru_blue' && <View style={styles.haruFilterOverlay} />}
+              {filter === 'sakura' && <View style={styles.sakuraFilterOverlay} />}
+              {filter === 'warm' && <View style={styles.warmFilterOverlay} />}
+              {filter === 'cool' && <View style={styles.coolFilterOverlay} />}
+
+              {/* Nút Chụp lại nổi khi ô được chạm vào */}
+              {isSlotSelected && (
+                <View style={styles.retakeFloatingOverlay}>
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleRetakeSlot(idx);
+                    }}
+                    style={styles.retakeFloatingPill}
+                  >
+                    <Text style={styles.retakeFloatingText}>↺ Đổi dáng ô {idx + 1}</Text>
+                  </Pressable>
+                </View>
+              )}
             </Pressable>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       {/* Dòng chữ ở đáy dải ảnh */}
@@ -307,20 +302,20 @@ export default function BoothResultScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 14), paddingBottom: Math.max(insets.bottom, 18) }]}>
-      {/* Top Header */}
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 12) }]}>
+      {/* 1. TOP HEADER TINH GỌN */}
       <View style={styles.headerRow}>
         <Pressable
           onPress={handleExitToHome}
           style={({ pressed }) => [
-            styles.closeButton,
-            { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            styles.circleBtn,
+            { transform: [{ scale: pressed ? 0.94 : 1 }] },
           ]}
         >
-          <Text style={styles.closeIcon}>✕</Text>
+          <Text style={styles.circleBtnText}>✕</Text>
         </Pressable>
 
-        {/* Nút gạt chuyển đổi Dải đơn ↔ Dải đôi Twin Strips */}
+        {/* Nút gạt chuyển đổi Dải đơn ↔ Dải đôi Twin */}
         <View style={styles.twinToggleWrapper}>
           <Pressable
             onPress={() => {
@@ -350,40 +345,23 @@ export default function BoothResultScreen() {
         <Pressable
           onPress={handleExitToHome}
           style={({ pressed }) => [
-            styles.homeHeaderPill,
-            { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            styles.circleBtn,
+            { transform: [{ scale: pressed ? 0.94 : 1 }] },
           ]}
         >
-          <Text style={styles.homeHeaderIcon}>🏠</Text>
+          <Text style={{ fontSize: 16 }}>🏠</Text>
         </Pressable>
       </View>
 
-      {/* Main Strip Presentation */}
+      {/* 2. KHÔNG GIAN DẢI ẢNH: HERO STRIP & BỘ LỌC MÀU */}
       <ScrollView
-        contentContainerStyle={styles.stripContainer}
+        contentContainerStyle={styles.stripScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Thanh Chụp Lại Từng Ô (Smart Retake Tool) */}
-        <View style={styles.retakeSlotSection}>
-          <Text style={styles.retakeSlotSectionTitle}>↺ Đổi dáng từng ô:</Text>
-          <View style={styles.retakeSlotChipsRow}>
-            {[0, 1, 2, 3].map((slotIdx) => (
-              <Pressable
-                key={slotIdx}
-                onPress={() => handleRetakeSlot(slotIdx)}
-                style={({ pressed }) => [
-                  styles.retakeSlotChip,
-                  { transform: [{ scale: pressed ? 0.94 : 1 }] },
-                ]}
-              >
-                <Text style={styles.retakeSlotChipText}>Ô {slotIdx + 1} ↺</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        <Text style={styles.retakeHintText}>💡 Chạm vào ô bất kỳ để chụp đổi dáng</Text>
 
-        {/* Khung Dải Ảnh K-Booth (Hỗ trợ Dải đơn & Dải đôi Twin Strips) */}
-        <View style={styles.stripWrapper}>
+        {/* Dải ảnh chính (Single hoặc Twin) */}
+        <View style={styles.stripPresentationWrapper}>
           {twinStripMode ? (
             <View style={styles.twinStripsContainer}>
               {renderSingleStrip(1)}
@@ -399,9 +377,8 @@ export default function BoothResultScreen() {
           )}
         </View>
 
-        {/* Thanh chọn Bộ Lọc Màu K-Booth */}
-        <View style={styles.filtersSection}>
-          <Text style={styles.filtersSectionTitle}>🎨 Bộ Lọc Màu K-Booth:</Text>
+        {/* Thanh chọn Bộ Lọc Màu K-Booth gọn gàng */}
+        <View style={styles.filtersBar}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -415,12 +392,12 @@ export default function BoothResultScreen() {
                   setFilter(fItem.id);
                 }}
                 style={[
-                  styles.filterChip,
-                  filter === fItem.id && styles.filterChipActive,
+                  styles.filterPill,
+                  filter === fItem.id && styles.filterPillActive,
                 ]}
               >
-                <Text style={styles.filterChipIcon}>{fItem.icon}</Text>
-                <Text style={[styles.filterChipLabel, filter === fItem.id && styles.filterChipLabelActive]}>
+                <Text style={styles.filterPillIcon}>{fItem.icon}</Text>
+                <Text style={[styles.filterPillLabel, filter === fItem.id && styles.filterPillLabelActive]}>
                   {fItem.label}
                 </Text>
               </Pressable>
@@ -428,7 +405,7 @@ export default function BoothResultScreen() {
           </ScrollView>
         </View>
 
-        {/* Thông báo đã lưu */}
+        {/* Toast thông báo đã lưu */}
         {saveSuccess && (
           <View style={styles.toastContainer}>
             <Text style={styles.toastText}>✓ Đã lưu dải ảnh HD vào máy!</Text>
@@ -436,79 +413,60 @@ export default function BoothResultScreen() {
         )}
       </ScrollView>
 
-      {/* Action Buttons */}
-      <View style={styles.actionSection}>
-        {/* Nút 1: TREO LÊN BỨC TƯỜNG LEAFY (Widget & Locket) */}
+      {/* 3. DOCK ĐIỀU KHIỂN NỔI DƯỚI ĐÁY: GỌN GÀNG, SANG TRỌNG, 1 CHẠM */}
+      <View style={styles.floatingActionDock}>
+        {/* Nút Hero chính: Treo lên Widget */}
         <Pressable
           onPress={handleSendToLeafy}
           disabled={isSendingToLeafy}
           style={({ pressed }) => [
-            styles.leafyInstantCtaButton,
+            styles.dockHeroBtn,
             { transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
         >
-          <View style={styles.leafyInstantCtaIconBox}>
-            <Text style={{ fontSize: 22 }}>🌿</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.leafyInstantCtaTitle}>
-              {isSendingToLeafy ? 'Đang ghim ảnh...' : 'Treo Lên Bức Tường Leafy 🚀'}
-            </Text>
-            <Text style={styles.leafyInstantCtaSubtitle}>
-              Ghim ngay lên Widget bạn bè & Bức tường Leafybooth
-            </Text>
-          </View>
-          <Text style={styles.leafyInstantCtaArrow}>➔</Text>
+          <Text style={styles.dockHeroBtnIcon}>🚀</Text>
+          <Text style={styles.dockHeroBtnText}>
+            {isSendingToLeafy ? 'Đang gửi...' : 'Treo Lên Widget'}
+          </Text>
         </Pressable>
 
-        {/* Nút 2: Trang trí thêm sticker, đổi viền độc lạ trong Studio */}
+        {/* Cụm 3 nút icon tròn: Lưu máy, Studio, Chụp mới */}
+        <Pressable
+          onPress={handleSaveToDevice}
+          disabled={isSaving}
+          style={({ pressed }) => [
+            styles.dockIconBtn,
+            { transform: [{ scale: pressed ? 0.92 : 1 }] },
+          ]}
+          hitSlop={6}
+        >
+          <Text style={styles.dockIconBtnEmoji}>{isSaving ? '⏳' : '💾'}</Text>
+          <Text style={styles.dockIconBtnLabel}>Lưu máy</Text>
+        </Pressable>
+
         <Pressable
           onPress={handleOpenStudioWithPhotos}
           style={({ pressed }) => [
-            styles.studioCtaButton,
-            { transform: [{ scale: pressed ? 0.98 : 1 }] },
+            styles.dockIconBtn,
+            { transform: [{ scale: pressed ? 0.92 : 1 }] },
           ]}
+          hitSlop={6}
         >
-          <View style={styles.studioCtaIconBox}>
-            <Text style={{ fontSize: 18 }}>🎨</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.studioCtaTitle}>Trang Trí Khung & Sticker ✨</Text>
-            <Text style={styles.studioCtaSubtitle}>180+ sticker, 6 font chữ, viền vé phim & camcorder</Text>
-          </View>
-          <Text style={styles.studioCtaArrow}>➔</Text>
+          <Text style={styles.dockIconBtnEmoji}>🎨</Text>
+          <Text style={styles.dockIconBtnLabel}>Studio</Text>
         </Pressable>
 
-        {/* Hàng nút phụ: Lưu vào máy & Chụp lại */}
-        <View style={styles.buttonRow}>
-          <PillButton
-            title={isSaving ? 'Đang lưu...' : twinStripMode ? '💾 Lưu Dải Đôi (Twin)' : '💾 Lưu dải ảnh HD'}
-            onPress={handleSaveToDevice}
-            variant="white"
-            style={styles.halfButton}
-          />
-          <PillButton
-            title="📸 Chụp bộ mới"
-            onPress={handleRetake}
-            variant="secondary"
-            style={styles.halfButton}
-          />
-        </View>
-
-        {/* Text Actions */}
-        <View style={styles.textActionsRow}>
-          <Pressable onPress={handleCustomize}>
-            <Text style={styles.linkText}>🎨 Bố cục</Text>
-          </Pressable>
-          <Text style={styles.dotSeparator}>·</Text>
-          <Pressable onPress={handleExitToBooth}>
-            <Text style={styles.linkText}>📸 Sảnh Booth</Text>
-          </Pressable>
-          <Text style={styles.dotSeparator}>·</Text>
-          <Pressable onPress={handleExitToHome}>
-            <Text style={styles.linkTextBold}>🏠 Màn hình chính</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={handleRetake}
+          style={({ pressed }) => [
+            styles.dockIconBtn,
+            { transform: [{ scale: pressed ? 0.92 : 1 }] },
+          ]}
+          hitSlop={6}
+        >
+          <Text style={styles.dockIconBtnEmoji}>↺</Text>
+          <Text style={styles.dockIconBtnLabel}>Chụp lại</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -517,21 +475,38 @@ export default function BoothResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.darkBg, // Pure Midnight OLED Dark
-    paddingHorizontal: 16,
+    backgroundColor: '#08080A', // Pure Midnight OLED Dark
+    paddingHorizontal: 14,
+    justifyContent: 'space-between',
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    height: 48,
+  },
+  circleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#14161D',
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.darkSoft,
+  },
+  circleBtnText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.textPrimary,
   },
   twinToggleWrapper: {
     flexDirection: 'row',
-    backgroundColor: colors.darkSurfaceElevated,
+    backgroundColor: '#14161D',
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: colors.darkBorder,
+    borderColor: '#2A2E39',
     padding: 3,
     gap: 4,
   },
@@ -544,7 +519,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
   },
   twinToggleText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     color: colors.textSecondary,
   },
@@ -552,97 +527,35 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '900',
   },
-  homeHeaderPill: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.darkSurfaceElevated,
-    borderWidth: 1.5,
-    borderColor: colors.darkBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.darkSoft,
-  },
-  homeHeaderIcon: {
-    fontSize: 16,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.darkSurfaceElevated,
-    borderWidth: 1.5,
-    borderColor: colors.darkBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.darkSoft,
-  },
-  closeIcon: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
 
-  stripContainer: {
+  stripScrollContent: {
     alignItems: 'center',
-    paddingVertical: 8,
-  },
-
-  // Retake Slot Section
-  retakeSlotSection: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.darkBorder,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-  retakeSlotSectionTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.yellow,
-  },
-  retakeSlotChipsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  retakeSlotChip: {
-    backgroundColor: colors.darkSurfaceElevated,
-    borderWidth: 1.5,
-    borderColor: colors.yellow,
-    borderRadius: 12,
-    paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  retakeSlotChipText: {
+  retakeHintText: {
     fontSize: 11,
-    fontWeight: '900',
-    color: colors.yellow,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.45)',
+    marginBottom: 6,
+  },
+  stripPresentationWrapper: {
+    alignItems: 'center',
+    marginVertical: 2,
   },
 
-  // Strip presentation
-  stripWrapper: {
-    marginVertical: 4,
-    alignItems: 'center',
-  },
   photoboothStrip: {
-    width: 220,
+    width: 210,
     borderRadius: 16,
     borderWidth: 3,
     borderColor: colors.ink,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 10,
     alignItems: 'center',
     ...theme.shadows.hard,
   },
   gridStrip: {
-    width: 280,
+    width: 270,
   },
   twinStripsContainer: {
     flexDirection: 'row',
@@ -650,7 +563,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   twinSingleStrip: {
-    width: 165,
+    width: 155,
     paddingHorizontal: 6,
     paddingTop: 6,
     paddingBottom: 8,
@@ -658,18 +571,18 @@ const styles = StyleSheet.create({
   twinCutDivider: {
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 480,
+    height: 460,
     paddingVertical: 10,
   },
   twinCutIcon: {
-    fontSize: 14,
+    fontSize: 13,
   },
   twinDashedLine: {
     flex: 1,
     width: 1,
     borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     marginVertical: 4,
   },
   stripBrandHeader: {
@@ -677,25 +590,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stripBrandText: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: '900',
     color: colors.ink,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   verticalPhotoContainer: {
     width: '100%',
-    gap: 8,
+    gap: 7,
   },
   gridPhotoContainer: {
     width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   photoFrame: {
     width: '100%',
-    aspectRatio: 1.35,
+    aspectRatio: 1.34,
     borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
@@ -703,49 +616,42 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     position: 'relative',
   },
+  photoFrameSelected: {
+    borderColor: colors.yellow,
+    borderWidth: 2.5,
+  },
   gridPhotoFrame: {
     width: '48%',
     aspectRatio: 1,
   },
   twinPhotoFrame: {
-    aspectRatio: 1.3,
+    aspectRatio: 1.28,
   },
   photoImage: {
     width: '100%',
     height: '100%',
   },
 
-  // Retake Floating Button on Photo Frame
-  slotRetakeFloatingBtn: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    flexDirection: 'row',
+  retakeFloatingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     alignItems: 'center',
-    gap: 2,
-    borderWidth: 1,
-    borderColor: colors.yellow,
+    justifyContent: 'center',
   },
-  slotRetakeFloatingIcon: {
-    color: colors.yellow,
-    fontSize: 11,
-    fontWeight: '900',
+  retakeFloatingPill: {
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
   },
-  slotRetakeFloatingLabel: {
-    color: colors.white,
+  retakeFloatingText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '900',
+    color: colors.ink,
   },
 
-  // Filters Overlays
-  filmPerforatedBorder: {
-    borderStyle: 'dashed',
-    borderWidth: 2,
-  },
   haruFilterOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(14, 165, 233, 0.12)',
@@ -764,21 +670,20 @@ const styles = StyleSheet.create({
   },
 
   stripTitleText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
     color: colors.ink,
-    marginTop: 8,
+    marginTop: 6,
     textAlign: 'center',
   },
 
-  // Footer Signature & Barcode
   stripFooterSignature: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
-    paddingTop: 6,
+    marginTop: 6,
+    paddingTop: 5,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0, 0, 0, 0.15)',
   },
@@ -788,10 +693,10 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   waxSealEmoji: {
-    fontSize: 12,
+    fontSize: 11,
   },
   waxSealText: {
-    fontSize: 7,
+    fontSize: 6.5,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -802,7 +707,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 1.5,
-    height: 12,
+    height: 10,
   },
   barcodeBar: {
     height: '100%',
@@ -815,164 +720,109 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  // Filters Section
-  filtersSection: {
+  filtersBar: {
     width: '100%',
-    marginVertical: 10,
-  },
-  filtersSectionTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textSecondary,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 4,
   },
   filtersScroll: {
-    gap: 8,
+    gap: 6,
+    paddingHorizontal: 2,
   },
-  filterChip: {
+  filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.darkSurfaceElevated,
+    backgroundColor: '#14161D',
     borderWidth: 1.5,
-    borderColor: colors.darkBorder,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    gap: 6,
+    borderColor: '#2A2E39',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 5,
   },
-  filterChipActive: {
+  filterPillActive: {
     backgroundColor: colors.yellow,
     borderColor: colors.ink,
   },
-  filterChipIcon: {
-    fontSize: 14,
-  },
-  filterChipLabel: {
+  filterPillIcon: {
     fontSize: 12,
+  },
+  filterPillLabel: {
+    fontSize: 11,
     fontWeight: '800',
     color: colors.textSecondary,
   },
-  filterChipLabelActive: {
+  filterPillLabelActive: {
     color: colors.ink,
     fontWeight: '900',
   },
 
-  // Toast
   toastContainer: {
-    marginTop: 8,
+    marginTop: 6,
     backgroundColor: colors.yellow,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderColor: colors.ink,
   },
   toastText: {
     color: colors.ink,
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 12,
   },
 
-  // Action Section
-  actionSection: {
-    width: '100%',
-    gap: 8,
-    paddingTop: 6,
-  },
-  leafyInstantCtaButton: {
+  // Floating Action Dock at bottom
+  floatingActionDock: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.yellow,
-    borderWidth: 2.5,
-    borderColor: colors.ink,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 10,
-    ...theme.shadows.hard,
-  },
-  leafyInstantCtaIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  leafyInstantCtaTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  leafyInstantCtaSubtitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(17, 24, 39, 0.8)',
-  },
-  leafyInstantCtaArrow: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  studioCtaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.darkSurfaceElevated,
+    backgroundColor: '#14161D',
+    borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: colors.darkBorder,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    gap: 10,
+    borderColor: '#2A2E39',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 8,
     ...theme.shadows.darkSoft,
   },
-  studioCtaIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  dockHeroBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.yellow,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    paddingVertical: 10,
+    gap: 6,
+    ...theme.shadows.hard,
   },
-  studioCtaTitle: {
+  dockHeroBtnIcon: {
+    fontSize: 16,
+  },
+  dockHeroBtnText: {
     fontSize: 13,
     fontWeight: '900',
-    color: colors.white,
+    color: colors.ink,
   },
-  studioCtaSubtitle: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  studioCtaArrow: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  halfButton: {
-    flex: 1,
-  },
-  textActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  dockIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#1C1F28',
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
+    justifyContent: 'center',
   },
-  linkText: {
-    fontSize: 12,
-    fontWeight: '700',
+  dockIconBtnEmoji: {
+    fontSize: 16,
+  },
+  dockIconBtnLabel: {
+    fontSize: 8,
+    fontWeight: '800',
     color: colors.textSecondary,
-  },
-  linkTextBold: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: colors.yellow,
-  },
-  dotSeparator: {
-    color: colors.darkBorder,
-    fontSize: 14,
+    marginTop: 1,
   },
 });

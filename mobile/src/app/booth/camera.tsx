@@ -7,13 +7,14 @@ import {
   Image,
   Animated,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
-import { useBoothStore } from '../../features/booth/hooks/useBoothStore';
+import { useBoothStore, PoseCategory } from '../../features/booth/hooks/useBoothStore';
 import { playShutterSound } from '../../features/booth/services/soundService';
 import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
 import { POSE_COLLECTIONS, PoseCollection } from '../../features/booth/constants/poseGuides';
@@ -50,6 +51,7 @@ export default function BoothCameraScreen() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isShooting, setIsShooting] = useState(false);
   const [shootingMode, setShootingMode] = useState<'instant' | 'timer'>('timer');
+  const [showPoseModal, setShowPoseModal] = useState(false);
   const flashAnim = useRef(new Animated.Value(0)).current;
 
   // Yêu cầu quyền camera khi mở & xử lý retake
@@ -159,7 +161,6 @@ export default function BoothCameraScreen() {
     for (let shot = 0; shot < 4; shot++) {
       setCurrentShotIndex(shot);
 
-      // Đếm ngược theo nhịp shotInterval (3s, 5s hoặc 7s)
       for (let sec = shotInterval; sec > 0; sec--) {
         setCountdown(sec);
         if (soundEnabled) {
@@ -174,7 +175,6 @@ export default function BoothCameraScreen() {
         shotUris.push(uri);
       }
 
-      // Nghỉ giữa các khung hình để người dùng đổi dáng
       if (shot < 3) {
         await new Promise((r) => setTimeout(r, 900));
       }
@@ -199,81 +199,87 @@ export default function BoothCameraScreen() {
     }
   };
 
+  const handleCycleInterval = () => {
+    playShutterSound();
+    if (shotInterval === 3) setShotInterval(5);
+    else if (shotInterval === 5) setShotInterval(7);
+    else setShotInterval(3);
+  };
+
   const currentPoseCollection = POSE_COLLECTIONS.find((p) => p.id === poseCategory);
   const currentPoseStep = currentPoseCollection?.steps[currentShotIndex] || currentPoseCollection?.steps[0];
   const effectiveBgColor = frameColor || activeCustomFrame?.color || selectedBackdrop?.color || colors.pink;
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 14), paddingBottom: Math.max(insets.bottom, 18) }]}>
-      {/* Top Bar */}
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 14) }]}>
+      {/* 1. TOP BAR HỢP NHẤT: TINH GỌN, KHÔNG RỐI MẮT */}
       <View style={styles.topBar}>
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.circleButton,
-            { transform: [{ scale: pressed ? 0.95 : 1 }] },
+            { transform: [{ scale: pressed ? 0.94 : 1 }] },
           ]}
         >
           <Text style={styles.circleButtonText}>✕</Text>
         </Pressable>
 
-        {/* Nền đang chọn Pill */}
-        <Pressable
-          onPress={() => router.push('/studio' as any)}
-          style={({ pressed }) => [
-            styles.backdropPill,
-            activeCustomFrame && { backgroundColor: colors.yellow },
-            { transform: [{ scale: pressed ? 0.95 : 1 }] },
-          ]}
-        >
-          <Text
-            style={[styles.backdropPillText, activeCustomFrame && { color: colors.ink }]}
-            numberOfLines={1}
-          >
-            {activeCustomFrame ? `🎨 ${activeCustomFrame.name}` : `Nền ${selectedBackdrop.name}`}
-          </Text>
-        </Pressable>
-
-        {/* Nút chuyển nhanh sang Tạo Khung Studio */}
+        {/* Capsule Chọn Gợi Ý Dáng Chụp (1 chạm mở Modal) */}
         <Pressable
           onPress={() => {
             playShutterSound();
-            router.push('/studio' as any);
+            setShowPoseModal(true);
           }}
           style={({ pressed }) => [
-            styles.boothStudioShortcutBtn,
-            { transform: [{ scale: pressed ? 0.94 : 1 }] },
+            styles.poseCapsuleBtn,
+            poseCategory !== 'none' && styles.poseCapsuleBtnActive,
+            { transform: [{ scale: pressed ? 0.96 : 1 }] },
           ]}
         >
-          <Text style={styles.boothStudioShortcutText}>🎨 Khung</Text>
+          <Text style={styles.poseCapsuleIcon}>
+            {poseCategory === 'none' ? '👯' : currentPoseCollection?.icon || '✨'}
+          </Text>
+          <Text style={[styles.poseCapsuleText, poseCategory !== 'none' && styles.poseCapsuleTextActive]}>
+            {poseCategory === 'none' ? 'Gợi ý dáng ▾' : `${currentPoseCollection?.name} ▾`}
+          </Text>
         </Pressable>
 
-        {/* Cụm nút phụ: Lật gương + Âm thanh */}
-        <View style={styles.topActionGroup}>
+        {/* Cụm công cụ nhỏ: Hẹn giờ + Gương + Âm thanh */}
+        <View style={styles.topRightTools}>
           <Pressable
-            onPress={toggleMirror}
+            onPress={handleCycleInterval}
             style={({ pressed }) => [
-              styles.circleButtonSmall,
-              isMirrored && styles.circleButtonSmallActive,
+              styles.toolChip,
               { transform: [{ scale: pressed ? 0.92 : 1 }] },
             ]}
           >
-            <Text style={{ fontSize: 16 }}>🪞</Text>
+            <Text style={styles.toolChipText}>⏱️ {shotInterval}s</Text>
           </Pressable>
 
           <Pressable
             onPress={toggleSound}
             style={({ pressed }) => [
-              styles.circleButtonSmall,
+              styles.circleMiniBtn,
               { transform: [{ scale: pressed ? 0.92 : 1 }] },
             ]}
           >
-            <Text style={{ fontSize: 16 }}>{soundEnabled ? '🔊' : '🔇'}</Text>
+            <Text style={{ fontSize: 15 }}>{soundEnabled ? '🔊' : '🔇'}</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={toggleMirror}
+            style={({ pressed }) => [
+              styles.circleMiniBtn,
+              isMirrored && styles.circleMiniBtnActive,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+          >
+            <Text style={{ fontSize: 15 }}>🪞</Text>
           </Pressable>
         </View>
       </View>
 
-      {/* Banner Smart Retake nếu đang chụp lại 1 ô */}
+      {/* Banner Smart Retake (Chỉ xuất hiện khi đang chụp lại 1 ô) */}
       {retakeIndex !== null && (
         <View style={styles.retakeBanner}>
           <View style={styles.retakeBannerContent}>
@@ -296,26 +302,8 @@ export default function BoothCameraScreen() {
         </View>
       )}
 
-      {/* Floating Pose Guide Tip trên đầu Camera */}
-      {poseCategory !== 'none' && currentPoseStep && (
-        <View style={styles.poseGuideFloat}>
-          <View style={styles.poseGuidePill}>
-            <Text style={styles.poseGuidePillIcon}>{currentPoseStep.emoji}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.poseGuideTitle}>
-                {currentPoseCollection?.name} · Ô {currentShotIndex + 1}/4: {currentPoseStep.title}
-              </Text>
-              <Text style={styles.poseGuideTip} numberOfLines={1}>
-                💡 {currentPoseStep.tip}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Camera Viewfinder & Live Strip Side Column */}
-      <View style={styles.chamberContainer}>
-        {/* Main Camera Viewfinder */}
+      {/* 2. KHUNG NGẮM CAMERA CHÍNH: MỞ RỘNG TỐI ĐA & CỘT DẢI ẢNH MINI DOCKED */}
+      <View style={styles.viewfinderContainer}>
         <View style={styles.viewfinder}>
           {permission?.granted ? (
             <CameraView
@@ -337,16 +325,30 @@ export default function BoothCameraScreen() {
             </View>
           )}
 
-          {/* Silhouette Pose Outline Guide khi bật Pose Guide */}
+          {/* Mẹo tạo dáng nổi tinh tế trên khung ngắm */}
+          {poseCategory !== 'none' && currentPoseStep && (
+            <View pointerEvents="none" style={styles.poseFloatingTip}>
+              <Text style={styles.poseFloatingTipEmoji}>{currentPoseStep.emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.poseFloatingTipTitle}>
+                  {currentPoseStep.title}
+                </Text>
+                <Text style={styles.poseFloatingTipDesc} numberOfLines={1}>
+                  {currentPoseStep.tip}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Đường phác thảo dáng mờ căn chỉnh bố cục */}
           {poseCategory !== 'none' && (
             <View pointerEvents="none" style={styles.silhouetteOverlay}>
               <View style={styles.silhouetteHeadBox} />
               <View style={styles.silhouetteShoulderBox} />
-              <Text style={styles.silhouetteLabel}>{currentPoseStep?.title || 'Tạo dáng'}</Text>
             </View>
           )}
 
-          {/* Hiệu ứng chớp đèn Flash */}
+          {/* Hiệu ứng chớp Flash */}
           <Animated.View
             pointerEvents="none"
             style={[styles.flashOverlay, { opacity: flashAnim }]}
@@ -360,169 +362,103 @@ export default function BoothCameraScreen() {
               </View>
             </View>
           )}
-        </View>
 
-        {/* Live Photobooth Strip Visualizer: Cột dải ảnh mini hiển thị trực tiếp ảnh đang lấp đầy */}
-        <View style={[styles.liveStripSideBar, { backgroundColor: effectiveBgColor }]}>
-          <Text style={styles.liveStripSideTitle}>LEAFY</Text>
-          {[0, 1, 2, 3].map((slotIdx) => {
-            const hasPhoto = capturedPhotos.length > slotIdx;
-            const isCurrent = isShooting && currentShotIndex === slotIdx;
+          {/* Cột Dải Ảnh Mini Tinh Tế Docked Mép Phải Khung Ngắm */}
+          <View style={[styles.dockedLiveStrip, { backgroundColor: effectiveBgColor }]}>
+            <Text style={styles.dockedLiveStripBrand}>LB</Text>
+            {[0, 1, 2, 3].map((slotIdx) => {
+              const hasPhoto = capturedPhotos.length > slotIdx;
+              const isCurrent = isShooting && currentShotIndex === slotIdx;
 
-            return (
-              <View
-                key={slotIdx}
-                style={[
-                  styles.liveStripSlot,
-                  isCurrent && styles.liveStripSlotCurrent,
-                ]}
-              >
-                {hasPhoto ? (
-                  <>
-                    <Image
-                      source={{ uri: capturedPhotos[slotIdx] }}
-                      style={styles.liveStripSlotImg}
-                    />
-                    <View style={styles.liveStripCheckBadge}>
-                      <Text style={styles.liveStripCheckText}>✓</Text>
-                    </View>
-                  </>
-                ) : isCurrent ? (
-                  <Text style={styles.liveStripSlotActiveText}>
-                    {countdown || '📸'}
-                  </Text>
-                ) : (
-                  <Text style={styles.liveStripSlotPendingText}>
-                    {slotIdx + 1}
-                  </Text>
-                )}
-              </View>
-            );
-          })}
-          <Text style={styles.liveStripBarcodeText}>||||||||</Text>
-        </View>
-      </View>
-
-      {/* Pose Collection Selector Chips */}
-      <View style={styles.poseSelectorSection}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.poseChipsScroll}
-        >
-          <Pressable
-            onPress={() => setPoseCategory('none')}
-            style={[styles.poseChip, poseCategory === 'none' && styles.poseChipActive]}
-          >
-            <Text style={[styles.poseChipText, poseCategory === 'none' && styles.poseChipTextActive]}>
-              🚫 Tắt dáng
-            </Text>
-          </Pressable>
-          {POSE_COLLECTIONS.map((col) => (
-            <Pressable
-              key={col.id}
-              onPress={() => setPoseCategory(col.id)}
-              style={[styles.poseChip, poseCategory === col.id && styles.poseChipActive]}
-            >
-              <Text style={[styles.poseChipText, poseCategory === col.id && styles.poseChipTextActive]}>
-                {col.icon} {col.name}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Bottom Controls: Mode switch & Interval Selector */}
-      <View style={styles.controlsSection}>
-        <View style={styles.modeAndIntervalRow}>
-          {/* Chuyển chế độ: Tức thời vs Đếm chuỗi */}
-          <View style={styles.modeSwitchRow}>
-            <Pressable
-              onPress={() => setShootingMode('instant')}
-              disabled={isShooting}
-              style={[
-                styles.modeChip,
-                shootingMode === 'instant' && styles.modeChipActive,
-              ]}
-            >
-              <Text style={[styles.modeChipText, shootingMode === 'instant' && styles.modeChipTextActive]}>
-                ⚡ 1-chạm
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setShootingMode('timer')}
-              disabled={isShooting}
-              style={[
-                styles.modeChip,
-                shootingMode === 'timer' && styles.modeChipActive,
-              ]}
-            >
-              <Text style={[styles.modeChipText, shootingMode === 'timer' && styles.modeChipTextActive]}>
-                ⏱️ Chuỗi 4 ảnh
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Chọn nhịp đếm ngược: 3s | 5s | 7s */}
-          {shootingMode === 'timer' && (
-            <View style={styles.intervalRow}>
-              {([3, 5, 7] as const).map((sec) => (
-                <Pressable
-                  key={sec}
-                  onPress={() => setShotInterval(sec)}
-                  disabled={isShooting}
+              return (
+                <View
+                  key={slotIdx}
                   style={[
-                    styles.intervalChip,
-                    shotInterval === sec && styles.intervalChipActive,
+                    styles.dockedSlot,
+                    isCurrent && styles.dockedSlotCurrent,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.intervalChipText,
-                      shotInterval === sec && styles.intervalChipTextActive,
-                    ]}
-                  >
-                    {sec}s
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+                  {hasPhoto ? (
+                    <Image
+                      source={{ uri: capturedPhotos[slotIdx] }}
+                      style={styles.dockedSlotImg}
+                    />
+                  ) : isCurrent ? (
+                    <Text style={styles.dockedSlotActiveText}>{countdown || '📸'}</Text>
+                  ) : (
+                    <Text style={styles.dockedSlotPendingText}>{slotIdx + 1}</Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+
+      {/* 3. ĐẾ ĐIỀU KHIỂN CHỤP DƯỚI ĐÁY: GỌN GÀNG, CÔNG THÁI HỌC */}
+      <View style={styles.shutterDeck}>
+        {/* Nút gạt chuyển chế độ: 1-chạm vs Chuỗi 4 ảnh */}
+        <View style={styles.modeSwitchCapsule}>
+          <Pressable
+            onPress={() => setShootingMode('instant')}
+            disabled={isShooting}
+            style={[
+              styles.modeSegment,
+              shootingMode === 'instant' && styles.modeSegmentActive,
+            ]}
+          >
+            <Text style={[styles.modeSegmentText, shootingMode === 'instant' && styles.modeSegmentTextActive]}>
+              ⚡ 1-chạm
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setShootingMode('timer')}
+            disabled={isShooting}
+            style={[
+              styles.modeSegment,
+              shootingMode === 'timer' && styles.modeSegmentActive,
+            ]}
+          >
+            <Text style={[styles.modeSegmentText, shootingMode === 'timer' && styles.modeSegmentTextActive]}>
+              ⏱️ Chuỗi 4 ô ({shotInterval}s)
+            </Text>
+          </Pressable>
         </View>
 
-        {/* Shutter Area */}
+        {/* Hàng nút chụp chính */}
         <View style={styles.shutterRow}>
-          {/* Nút reset (bên trái) */}
+          {/* Nút Chụp lại từ đầu */}
           <Pressable
             onPress={() => {
+              playShutterSound();
               resetPhotos();
               setCurrentShotIndex(0);
             }}
             disabled={isShooting || capturedPhotos.length === 0}
             style={({ pressed }) => [
-              styles.sideCircleBtn,
+              styles.sideDeckBtn,
               capturedPhotos.length === 0 && { opacity: 0.3 },
               { transform: [{ scale: pressed ? 0.92 : 1 }] },
             ]}
           >
-            <Text style={{ fontSize: 20 }}>↺</Text>
+            <Text style={styles.sideDeckBtnIcon}>↺</Text>
           </Pressable>
 
-          {/* NÚT CHỤP CHÍNH TO TRÒN */}
+          {/* NÚT CHỤP CHÍNH TO TRÒN NỔI BẬT */}
           <Pressable
             onPress={handleShutterPress}
             disabled={isShooting}
             style={({ pressed }) => [
-              styles.bigShutterOuter,
-              { transform: [{ scale: pressed ? 0.95 : 1 }] },
+              styles.heroShutterOuter,
+              { transform: [{ scale: pressed ? 0.96 : 1 }] },
             ]}
           >
-            <View style={styles.bigShutterInner}>
-              <Text style={styles.bigShutterEmoji}>
+            <View style={styles.heroShutterInner}>
+              <Text style={styles.heroShutterEmoji}>
                 {isShooting ? '⏳' : retakeIndex !== null ? '↺' : shootingMode === 'instant' ? '📸' : '⏱️'}
               </Text>
-              <Text style={styles.bigShutterLabel}>
+              <Text style={styles.heroShutterLabel}>
                 {retakeIndex !== null
                   ? isShooting
                     ? 'Đang chụp...'
@@ -530,25 +466,102 @@ export default function BoothCameraScreen() {
                   : isShooting
                   ? 'Đang chụp...'
                   : shootingMode === 'instant'
-                  ? `Chụp ảnh ${capturedPhotos.length + 1}/4`
-                  : `Bắt đầu (${shotInterval}s)`}
+                  ? `Chụp ô ${capturedPhotos.length + 1}/4`
+                  : 'Bắt đầu chụp'}
               </Text>
             </View>
           </Pressable>
 
-          {/* Nút xoay đổi camera trước/sau */}
+          {/* Nút Lật camera trước / sau */}
           <Pressable
             onPress={toggleCameraFacing}
             disabled={isShooting}
             style={({ pressed }) => [
-              styles.sideCircleBtn,
+              styles.sideDeckBtn,
               { transform: [{ scale: pressed ? 0.92 : 1 }] },
             ]}
           >
-            <Text style={{ fontSize: 22 }}>🔄</Text>
+            <Text style={styles.sideDeckBtnIcon}>🔄</Text>
           </Pressable>
         </View>
       </View>
+
+      {/* 4. MODAL CHỌN BỘ GỢI Ý DÁNG CHỤP K-BOOTH */}
+      <Modal visible={showPoseModal} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>👯 Bộ Gợi Ý Dáng Chụp K-Booth</Text>
+              <Pressable
+                onPress={() => setShowPoseModal(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalList}>
+              {/* Nút tắt gợi ý dáng */}
+              <Pressable
+                onPress={() => {
+                  setPoseCategory('none');
+                  setShowPoseModal(false);
+                }}
+                style={[
+                  styles.poseCard,
+                  poseCategory === 'none' && styles.poseCardActive,
+                ]}
+              >
+                <Text style={styles.poseCardIcon}>🚫</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.poseCardName}>Tắt gợi ý dáng</Text>
+                  <Text style={styles.poseCardDesc}>Tự do biểu cảm và tạo dáng theo cách của bạn</Text>
+                </View>
+                {poseCategory === 'none' && <Text style={styles.checkIcon}>✓</Text>}
+              </Pressable>
+
+              {/* Các bộ dáng thịnh hành */}
+              {POSE_COLLECTIONS.map((col) => {
+                const isSelected = poseCategory === col.id;
+                return (
+                  <Pressable
+                    key={col.id}
+                    onPress={() => {
+                      playShutterSound();
+                      setPoseCategory(col.id as PoseCategory);
+                      setShowPoseModal(false);
+                    }}
+                    style={[
+                      styles.poseCard,
+                      isSelected && styles.poseCardActive,
+                    ]}
+                  >
+                    <Text style={styles.poseCardIcon}>{col.icon}</Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.poseCardTitleRow}>
+                        <Text style={styles.poseCardName}>{col.name}</Text>
+                        <View style={styles.poseCardBadge}>
+                          <Text style={styles.poseCardBadgeText}>{col.badge}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.poseCardDesc}>{col.desc}</Text>
+                      {/* 4 bước nhỏ */}
+                      <View style={styles.poseStepsRow}>
+                        {col.steps.map((st) => (
+                          <Text key={st.step} style={styles.poseStepMini}>
+                            {st.step}. {st.emoji}
+                          </Text>
+                        ))}
+                      </View>
+                    </View>
+                    {isSelected && <Text style={styles.checkIcon}>✓</Text>}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -556,76 +569,88 @@ export default function BoothCameraScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.darkBg, // Pure Midnight OLED
+    backgroundColor: '#08080A', // Pure Midnight OLED Dark
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    height: 48,
   },
   circleButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.darkSurfaceElevated,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#14161D',
     borderWidth: 1.5,
-    borderColor: colors.darkBorder,
+    borderColor: '#2A2E39',
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.darkSoft,
   },
   circleButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  backdropPill: {
-    backgroundColor: colors.darkSurfaceElevated,
+  poseCapsuleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#14161D',
     borderWidth: 1.5,
-    borderColor: colors.darkBorder,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    ...theme.shadows.darkSoft,
-  },
-  backdropPillText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  boothStudioShortcutBtn: {
-    backgroundColor: 'rgba(200, 241, 53, 0.15)',
-    borderWidth: 1.5,
-    borderColor: colors.yellow,
+    borderColor: '#2A2E39',
     borderRadius: 20,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    ...theme.shadows.darkSoft,
+    paddingVertical: 7,
+    gap: 6,
   },
-  boothStudioShortcutText: {
+  poseCapsuleBtnActive: {
+    backgroundColor: 'rgba(255, 143, 199, 0.15)',
+    borderColor: '#FF8FC7',
+  },
+  poseCapsuleIcon: {
+    fontSize: 14,
+  },
+  poseCapsuleText: {
     fontSize: 12,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+  poseCapsuleTextActive: {
+    color: '#FF8FC7',
+    fontWeight: '900',
+  },
+  topRightTools: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  toolChip: {
+    backgroundColor: '#14161D',
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  toolChipText: {
+    fontSize: 11,
     fontWeight: '800',
     color: colors.yellow,
   },
-  topActionGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  circleButtonSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.darkSurfaceElevated,
+  circleMiniBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#14161D',
     borderWidth: 1.5,
-    borderColor: colors.darkBorder,
+    borderColor: '#2A2E39',
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.darkSoft,
   },
-  circleButtonSmallActive: {
+  circleMiniBtnActive: {
     backgroundColor: colors.yellow,
     borderColor: colors.ink,
   },
@@ -638,81 +663,53 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 217, 61, 0.18)',
     borderWidth: 1.5,
     borderColor: colors.yellow,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     marginVertical: 4,
   },
   retakeBannerContent: {
     flex: 1,
   },
   retakeBannerTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     color: colors.yellow,
   },
   retakeBannerSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textSecondary,
   },
   retakeCancelBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
+    borderRadius: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
   },
   retakeCancelBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     color: colors.white,
   },
 
-  // Pose Guide Floating Pill
-  poseGuideFloat: {
-    marginVertical: 4,
-  },
-  poseGuidePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 143, 199, 0.2)',
-    borderWidth: 1.5,
-    borderColor: '#FF8FC7',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 8,
-  },
-  poseGuidePillIcon: {
-    fontSize: 20,
-  },
-  poseGuideTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#FF8FC7',
-  },
-  poseGuideTip: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-
-  // Chamber Viewfinder with Live Strip Side Column
-  chamberContainer: {
+  // Viewfinder Container: Maximized Viewfinder
+  viewfinderContainer: {
     flex: 1,
-    flexDirection: 'row',
-    gap: 10,
-    marginVertical: 6,
-    maxHeight: 460,
+    marginVertical: 8,
+    justifyContent: 'center',
   },
   viewfinder: {
-    flex: 1,
-    borderRadius: 24,
+    width: '100%',
+    aspectRatio: 0.88,
+    borderRadius: 28,
     overflow: 'hidden',
     backgroundColor: '#000000',
     position: 'relative',
     borderWidth: 2,
-    borderColor: colors.darkBorder,
+    borderColor: '#2A2E39',
     justifyContent: 'center',
     alignItems: 'center',
+    ...theme.shadows.darkSoft,
   },
   cameraView: {
     width: '100%',
@@ -724,11 +721,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   simulatedEmoji: {
-    fontSize: 56,
-    marginBottom: 10,
+    fontSize: 54,
+    marginBottom: 8,
   },
   simulatedText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textSecondary,
     textAlign: 'center',
@@ -746,20 +743,50 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   countdownCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: colors.yellow,
-    borderWidth: 4,
+    borderWidth: 3.5,
     borderColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.hard,
   },
   countdownNumber: {
-    fontSize: 60,
+    fontSize: 54,
     fontWeight: '900',
     color: colors.ink,
+  },
+
+  // Floating Pose Tip on top of viewfinder
+  poseFloatingTip: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#FF8FC7',
+    gap: 6,
+    zIndex: 5,
+  },
+  poseFloatingTipEmoji: {
+    fontSize: 18,
+  },
+  poseFloatingTipTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#FF8FC7',
+  },
+  poseFloatingTipDesc: {
+    fontSize: 10,
+    color: '#E2E8F0',
   },
 
   // Silhouette Overlay
@@ -767,249 +794,265 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 5,
+    zIndex: 4,
   },
   silhouetteHeadBox: {
-    width: 110,
-    height: 130,
-    borderRadius: 55,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.45)',
-    borderStyle: 'dashed',
-    marginBottom: 8,
-  },
-  silhouetteShoulderBox: {
-    width: 200,
-    height: 70,
-    borderTopLeftRadius: 35,
-    borderTopRightRadius: 35,
-    borderWidth: 2,
+    width: 90,
+    height: 110,
+    borderRadius: 45,
+    borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.35)',
     borderStyle: 'dashed',
+    marginBottom: 6,
   },
-  silhouetteLabel: {
-    marginTop: 8,
-    fontSize: 11,
-    fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.8)',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
+  silhouetteShoulderBox: {
+    width: 170,
+    height: 60,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderStyle: 'dashed',
   },
 
-  // Live Strip Visualizer (Side Column)
-  liveStripSideBar: {
-    width: 58,
-    borderRadius: 16,
-    borderWidth: 2,
+  // Docked Live Strip (Compact Right-Edge Visualizer)
+  dockedLiveStrip: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    bottom: 8,
+    width: 38,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: colors.ink,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 3,
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 6,
     ...theme.shadows.hard,
   },
-  liveStripSideTitle: {
-    fontSize: 8,
+  dockedLiveStripBrand: {
+    fontSize: 7,
     fontWeight: '900',
     color: colors.ink,
-    letterSpacing: 0.5,
   },
-  liveStripSlot: {
-    width: 46,
-    height: 64,
-    borderRadius: 6,
+  dockedSlot: {
+    width: 30,
+    height: 40,
+    borderRadius: 4,
     backgroundColor: colors.white,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.ink,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
-  liveStripSlotCurrent: {
+  dockedSlotCurrent: {
     borderColor: colors.yellow,
-    borderWidth: 2.5,
-    transform: [{ scale: 1.05 }],
+    borderWidth: 2,
+    transform: [{ scale: 1.08 }],
   },
-  liveStripSlotImg: {
+  dockedSlotImg: {
     width: '100%',
     height: '100%',
   },
-  liveStripCheckBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    backgroundColor: '#10B981',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  liveStripCheckText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  liveStripSlotActiveText: {
-    fontSize: 16,
+  dockedSlotActiveText: {
+    fontSize: 11,
     fontWeight: '900',
     color: colors.ink,
   },
-  liveStripSlotPendingText: {
-    fontSize: 14,
+  dockedSlotPendingText: {
+    fontSize: 10,
     fontWeight: '800',
     color: '#94A3B8',
   },
-  liveStripBarcodeText: {
-    fontSize: 8,
-    color: colors.ink,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
 
-  // Pose Selector Section
-  poseSelectorSection: {
-    marginVertical: 4,
-  },
-  poseChipsScroll: {
-    gap: 8,
-    paddingHorizontal: 2,
-  },
-  poseChip: {
-    backgroundColor: colors.darkSurfaceElevated,
-    borderWidth: 1.5,
-    borderColor: colors.darkBorder,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  poseChipActive: {
-    backgroundColor: '#FF8FC7',
-    borderColor: colors.ink,
-  },
-  poseChipText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textSecondary,
-  },
-  poseChipTextActive: {
-    color: colors.ink,
-    fontWeight: '900',
-  },
-
-  // Controls Section
-  controlsSection: {
-    gap: 12,
-    marginBottom: 4,
-  },
-  modeAndIntervalRow: {
-    flexDirection: 'row',
+  // Shutter Deck (Bottom Controls)
+  shutterDeck: {
+    gap: 10,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    paddingBottom: 2,
   },
-  modeSwitchRow: {
+  modeSwitchCapsule: {
     flexDirection: 'row',
-    backgroundColor: colors.darkSurfaceElevated,
-    borderRadius: 18,
+    backgroundColor: '#14161D',
+    borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: colors.darkBorder,
+    borderColor: '#2A2E39',
     padding: 3,
     gap: 4,
   },
-  modeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+  modeSegment: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 16,
   },
-  modeChipActive: {
+  modeSegmentActive: {
     backgroundColor: colors.yellow,
   },
-  modeChipText: {
-    fontSize: 12,
+  modeSegmentText: {
+    fontSize: 11,
     fontWeight: '800',
     color: colors.textSecondary,
   },
-  modeChipTextActive: {
+  modeSegmentTextActive: {
     color: colors.ink,
     fontWeight: '900',
   },
-  intervalRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.darkSurfaceElevated,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: colors.darkBorder,
-    padding: 3,
-    gap: 4,
-  },
-  intervalChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  intervalChipActive: {
-    backgroundColor: '#6EC6FF',
-  },
-  intervalChipText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textSecondary,
-  },
-  intervalChipTextActive: {
-    color: colors.ink,
-    fontWeight: '900',
-  },
-
-  // Shutter Area
   shutterRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
   },
-  sideCircleBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.darkSurfaceElevated,
+  sideDeckBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#14161D',
     borderWidth: 1.5,
-    borderColor: colors.darkBorder,
+    borderColor: '#2A2E39',
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.darkSoft,
   },
-  bigShutterOuter: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+  sideDeckBtnIcon: {
+    fontSize: 20,
+    color: colors.white,
+  },
+  heroShutterOuter: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
     backgroundColor: colors.yellow,
     borderWidth: 3,
     borderColor: colors.ink,
-    padding: 4,
+    padding: 3,
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.hard,
   },
-  bigShutterInner: {
+  heroShutterInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 36,
+    borderRadius: 34,
     backgroundColor: colors.yellow,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bigShutterEmoji: {
-    fontSize: 28,
+  heroShutterEmoji: {
+    fontSize: 24,
   },
-  bigShutterLabel: {
-    fontSize: 9,
+  heroShutterLabel: {
+    fontSize: 8,
     fontWeight: '900',
     color: colors.ink,
     marginTop: 1,
     textAlign: 'center',
+  },
+
+  // Modal Sheet for Pose Guides
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#14161D',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 28,
+    maxHeight: '65%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    fontSize: 14,
+    color: colors.white,
+    fontWeight: '900',
+  },
+  modalList: {
+    gap: 10,
+    paddingBottom: 10,
+  },
+  poseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1C1F28',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
+    padding: 12,
+    gap: 12,
+  },
+  poseCardActive: {
+    borderColor: '#FF8FC7',
+    backgroundColor: 'rgba(255, 143, 199, 0.12)',
+  },
+  poseCardIcon: {
+    fontSize: 26,
+  },
+  poseCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  poseCardName: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.white,
+  },
+  poseCardBadge: {
+    backgroundColor: '#FF8FC7',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+  },
+  poseCardBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  poseCardDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  poseStepsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  poseStepMini: {
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  checkIcon: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FF8FC7',
   },
 });
