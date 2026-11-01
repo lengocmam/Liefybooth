@@ -8,6 +8,7 @@ import {
   Animated,
   ScrollView,
   Modal,
+  Vibration,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -52,6 +53,7 @@ export default function BoothCameraScreen() {
   const [isShooting, setIsShooting] = useState(false);
   const [shootingMode, setShootingMode] = useState<'instant' | 'timer'>('timer');
   const [showPoseModal, setShowPoseModal] = useState(false);
+  const [ringLightMode, setRingLightMode] = useState<'off' | 'white' | 'warm'>('off');
   const flashAnim = useRef(new Animated.Value(0)).current;
 
   // Yêu cầu quyền camera khi mở & xử lý retake
@@ -67,6 +69,9 @@ export default function BoothCameraScreen() {
   }, []);
 
   const triggerFlash = () => {
+    try {
+      Vibration.vibrate(40);
+    } catch (_) {}
     flashAnim.setValue(1);
     Animated.timing(flashAnim, {
       toValue: 0,
@@ -111,6 +116,9 @@ export default function BoothCameraScreen() {
 
     for (let sec = shotInterval; sec > 0; sec--) {
       setCountdown(sec);
+      try {
+        Vibration.vibrate(30);
+      } catch (_) {}
       if (soundEnabled) {
         playShutterSound();
       }
@@ -163,6 +171,9 @@ export default function BoothCameraScreen() {
 
       for (let sec = shotInterval; sec > 0; sec--) {
         setCountdown(sec);
+        try {
+          Vibration.vibrate(30);
+        } catch (_) {}
         if (soundEnabled) {
           playShutterSound();
         }
@@ -240,11 +251,11 @@ export default function BoothCameraScreen() {
             {poseCategory === 'none' ? '👯' : currentPoseCollection?.icon || '✨'}
           </Text>
           <Text style={[styles.poseCapsuleText, poseCategory !== 'none' && styles.poseCapsuleTextActive]}>
-            {poseCategory === 'none' ? 'Gợi ý dáng ▾' : `${currentPoseCollection?.name} ▾`}
+            {poseCategory === 'none' ? 'Dáng ▾' : `${currentPoseCollection?.name} ▾`}
           </Text>
         </Pressable>
 
-        {/* Cụm công cụ nhỏ: Hẹn giờ + Gương + Âm thanh */}
+        {/* Cụm công cụ nhỏ: Hẹn giờ + Trợ sáng Ring Light + Gương + Âm thanh */}
         <View style={styles.topRightTools}>
           <Pressable
             onPress={handleCycleInterval}
@@ -254,6 +265,23 @@ export default function BoothCameraScreen() {
             ]}
           >
             <Text style={styles.toolChipText}>⏱️ {shotInterval}s</Text>
+          </Pressable>
+
+          {/* Nút Viền Trợ Sáng Soft Ring Light */}
+          <Pressable
+            onPress={() => {
+              playShutterSound();
+              setRingLightMode((prev) => (prev === 'off' ? 'white' : prev === 'white' ? 'warm' : 'off'));
+            }}
+            style={({ pressed }) => [
+              styles.circleMiniBtn,
+              ringLightMode !== 'off' && styles.circleMiniBtnActive,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+          >
+            <Text style={{ fontSize: 14 }}>
+              {ringLightMode === 'off' ? '💡' : ringLightMode === 'white' ? '⚪' : '🟡'}
+            </Text>
           </Pressable>
 
           <Pressable
@@ -282,14 +310,9 @@ export default function BoothCameraScreen() {
       {/* Banner Smart Retake (Chỉ xuất hiện khi đang chụp lại 1 ô) */}
       {retakeIndex !== null && (
         <View style={styles.retakeBanner}>
-          <View style={styles.retakeBannerContent}>
-            <Text style={styles.retakeBannerTitle}>
-              ↺ Đang chụp lại Ô số {retakeIndex + 1}
-            </Text>
-            <Text style={styles.retakeBannerSubtitle}>
-              3 ô đẹp kia vẫn được giữ nguyên vẹn
-            </Text>
-          </View>
+          <Text style={styles.retakeBannerTitle}>
+            🔄 Đang đổi ô {retakeIndex + 1}
+          </Text>
           <Pressable
             onPress={() => {
               setRetakeIndex(null);
@@ -297,7 +320,7 @@ export default function BoothCameraScreen() {
             }}
             style={styles.retakeCancelBtn}
           >
-            <Text style={styles.retakeCancelBtnText}>Hủy</Text>
+            <Text style={styles.retakeCancelBtnText}>✕ Hủy</Text>
           </Pressable>
         </View>
       )}
@@ -305,6 +328,35 @@ export default function BoothCameraScreen() {
       {/* 2. KHUNG NGẮM CAMERA CHÍNH: MỞ RỘNG TỐI ĐA & CỘT DẢI ẢNH MINI DOCKED */}
       <View style={styles.viewfinderContainer}>
         <View style={styles.viewfinder}>
+          {/* Màn hình trợ sáng Soft Ring Light */}
+          {ringLightMode !== 'off' && (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.ringLightFrame,
+                {
+                  borderColor: ringLightMode === 'white' ? '#FFFFFF' : '#FFEAA7',
+                  backgroundColor:
+                    ringLightMode === 'white'
+                      ? 'rgba(255, 255, 255, 0.06)'
+                      : 'rgba(255, 234, 167, 0.06)',
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.ringLightBadge,
+                  {
+                    backgroundColor: ringLightMode === 'white' ? '#FFFFFF' : '#FFEAA7',
+                  },
+                ]}
+              >
+                <Text style={styles.ringLightBadgeText}>
+                  {ringLightMode === 'white' ? '💡 Sáng Studio' : '💡 Sáng Ấm'}
+                </Text>
+              </View>
+            </View>
+          )}
           {permission?.granted ? (
             <CameraView
               ref={cameraRef}
@@ -397,7 +449,7 @@ export default function BoothCameraScreen() {
 
       {/* 3. ĐẾ ĐIỀU KHIỂN CHỤP DƯỚI ĐÁY: GỌN GÀNG, CÔNG THÁI HỌC */}
       <View style={styles.shutterDeck}>
-        {/* Nút gạt chuyển chế độ: 1-chạm vs Chuỗi 4 ảnh */}
+        {/* Nút gạt chuyển chế độ: 1 ảnh vs Chuỗi 4 ảnh */}
         <View style={styles.modeSwitchCapsule}>
           <Pressable
             onPress={() => setShootingMode('instant')}
@@ -408,7 +460,7 @@ export default function BoothCameraScreen() {
             ]}
           >
             <Text style={[styles.modeSegmentText, shootingMode === 'instant' && styles.modeSegmentTextActive]}>
-              ⚡ 1-chạm
+              ⚡ 1 ảnh
             </Text>
           </Pressable>
 
@@ -421,7 +473,7 @@ export default function BoothCameraScreen() {
             ]}
           >
             <Text style={[styles.modeSegmentText, shootingMode === 'timer' && styles.modeSegmentTextActive]}>
-              ⏱️ Chuỗi 4 ô ({shotInterval}s)
+              📸 Chuỗi 4
             </Text>
           </Pressable>
         </View>
@@ -462,12 +514,12 @@ export default function BoothCameraScreen() {
                 {retakeIndex !== null
                   ? isShooting
                     ? 'Đang chụp...'
-                    : `Chụp lại ô ${retakeIndex + 1}`
+                    : `Đổi ô ${retakeIndex + 1}`
                   : isShooting
                   ? 'Đang chụp...'
                   : shootingMode === 'instant'
-                  ? `Chụp ô ${capturedPhotos.length + 1}/4`
-                  : 'Bắt đầu chụp'}
+                  ? `Chụp ${capturedPhotos.length + 1}/4`
+                  : 'Bắt đầu'}
               </Text>
             </View>
           </Pressable>
@@ -491,7 +543,7 @@ export default function BoothCameraScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>👯 Bộ Gợi Ý Dáng Chụp K-Booth</Text>
+              <Text style={styles.modalTitle}>👯 Gợi ý dáng</Text>
               <Pressable
                 onPress={() => setShowPoseModal(false)}
                 style={styles.modalCloseBtn}
@@ -514,8 +566,8 @@ export default function BoothCameraScreen() {
               >
                 <Text style={styles.poseCardIcon}>🚫</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.poseCardName}>Tắt gợi ý dáng</Text>
-                  <Text style={styles.poseCardDesc}>Tự do biểu cảm và tạo dáng theo cách của bạn</Text>
+                  <Text style={styles.poseCardName}>Không dùng</Text>
+                  <Text style={styles.poseCardDesc}>Tự do tạo dáng theo cách của bạn</Text>
                 </View>
                 {poseCategory === 'none' && <Text style={styles.checkIcon}>✓</Text>}
               </Pressable>
@@ -668,17 +720,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginVertical: 4,
   },
-  retakeBannerContent: {
-    flex: 1,
-  },
   retakeBannerTitle: {
     fontSize: 12,
     fontWeight: '900',
     color: colors.yellow,
-  },
-  retakeBannerSubtitle: {
-    fontSize: 10,
-    color: colors.textSecondary,
   },
   retakeCancelBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
@@ -690,6 +735,35 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: colors.white,
+  },
+
+  // Soft Ring Light Frame
+  ringLightFrame: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: 22,
+    borderRadius: 28,
+    zIndex: 12,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 8,
+  },
+  ringLightBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  ringLightBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#000000',
   },
 
   // Viewfinder Container: Maximized Viewfinder

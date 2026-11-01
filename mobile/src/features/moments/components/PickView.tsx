@@ -1070,7 +1070,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             { transform: [{ scale: pressed ? 0.94 : 1 }] },
           ]}
         >
-          <Text style={styles.locketTopStudioBtnText}>🎨 Tạo Khung</Text>
+          <Text style={styles.locketTopStudioBtnText}>🎨 Khung</Text>
         </Pressable>
 
         {/* Nút Avatar tài khoản "M 🌳" */}
@@ -1816,7 +1816,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
               }}
               style={styles.friendFilterManageBtn}
             >
-              <Text style={styles.friendFilterManageText}>👥 Quản lý danh sách 20 bạn bè ➔</Text>
+              <Text style={styles.friendFilterManageText}>👥 Quản lý bạn bè ➔</Text>
             </Pressable>
           </Pressable>
         </Pressable>

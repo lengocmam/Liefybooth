@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,10 @@ import {
   Pressable,
   Alert,
   Platform,
+  Animated,
+  Vibration,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -22,11 +26,11 @@ import { playShutterSound } from '../../features/booth/services/soundService';
 
 const BOOTH_FILTERS: { id: StripFilter; label: string; icon: string }[] = [
   { id: 'original', label: 'Gốc', icon: '🌿' },
-  { id: 'haru_blue', label: 'Haru Blue', icon: '🌊' },
-  { id: 'bw', label: 'Mono Film', icon: '🖤' },
-  { id: 'warm', label: 'Sepia 1998', icon: '☕' },
-  { id: 'sakura', label: 'Sakura Glow', icon: '🌸' },
-  { id: 'cool', label: 'Cyber Y2K', icon: '⚡' },
+  { id: 'haru_blue', label: 'Haru', icon: '🌊' },
+  { id: 'bw', label: 'Mono', icon: '🖤' },
+  { id: 'warm', label: 'Sepia', icon: '☕' },
+  { id: 'sakura', label: 'Sakura', icon: '🌸' },
+  { id: 'cool', label: 'Cyber', icon: '⚡' },
 ];
 
 export default function BoothResultScreen() {
@@ -38,13 +42,24 @@ export default function BoothResultScreen() {
   const [isSendingToLeafy, setIsSendingToLeafy] = useState(false);
   const [selectedSlotForRetake, setSelectedSlotForRetake] = useState<number | null>(null);
 
+  // Hiệu ứng in ảnh Photobooth (Printing Animation)
+  const printAnim = useRef(new Animated.Value(-80)).current;
+  const printOpacity = useRef(new Animated.Value(0)).current;
+  const [showPrintedBadge, setShowPrintedBadge] = useState(true);
+
+  // Modal ký tên & đổi màu nền nhanh
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [customSignInput, setCustomSignInput] = useState('');
+
   const {
     capturedPhotos,
     frameColor,
+    setFrameColor,
     layout,
     filter,
     setFilter,
     stripTitle,
+    setStripTitle,
     activeCustomFrame,
     resetBooth,
     setRetakeIndex,
@@ -53,6 +68,31 @@ export default function BoothResultScreen() {
     barcodeNumber,
     stampType,
   } = useBoothStore();
+
+  useEffect(() => {
+    // Rung xúc giác khi ảnh in xong
+    try {
+      Vibration.vibrate([0, 40, 80, 40]);
+    } catch (_) {}
+
+    // Dải ảnh trượt ra từ khe in
+    Animated.parallel([
+      Animated.spring(printAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.timing(printOpacity, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    const timer = setTimeout(() => setShowPrintedBadge(false), 2400);
+    return () => clearTimeout(timer);
+  }, []);
 
   const displayPhotos = [
     capturedPhotos[0] || 'https://picsum.photos/seed/p1/400/400',
@@ -244,7 +284,7 @@ export default function BoothResultScreen() {
                     }}
                     style={styles.retakeFloatingPill}
                   >
-                    <Text style={styles.retakeFloatingText}>↺ Đổi dáng ô {idx + 1}</Text>
+                    <Text style={styles.retakeFloatingText}>↺ Đổi ô {idx + 1}</Text>
                   </Pressable>
                 </View>
               )}
@@ -325,7 +365,7 @@ export default function BoothResultScreen() {
             style={[styles.twinToggleBtn, !twinStripMode && styles.twinToggleBtnActive]}
           >
             <Text style={[styles.twinToggleText, !twinStripMode && styles.twinToggleTextActive]}>
-              🎞️ Dải đơn
+              🎞️ Đơn
             </Text>
           </Pressable>
 
@@ -337,7 +377,7 @@ export default function BoothResultScreen() {
             style={[styles.twinToggleBtn, twinStripMode && styles.twinToggleBtnActive]}
           >
             <Text style={[styles.twinToggleText, twinStripMode && styles.twinToggleTextActive]}>
-              👯 Dải đôi Twin
+              ✂️ Đôi
             </Text>
           </Pressable>
         </View>
@@ -358,10 +398,32 @@ export default function BoothResultScreen() {
         contentContainerStyle={styles.stripScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.retakeHintText}>💡 Chạm vào ô bất kỳ để chụp đổi dáng</Text>
+        {/* Khe máy in phong cách retro */}
+        <View style={styles.printerSlotHeader}>
+          <View style={styles.printerSlotLine} />
+          <View style={styles.printerSlotMouth} />
+          <View style={styles.printerSlotLine} />
+        </View>
 
-        {/* Dải ảnh chính (Single hoặc Twin) */}
-        <View style={styles.stripPresentationWrapper}>
+        {/* Huy hiệu thông báo in xong */}
+        {showPrintedBadge && (
+          <View style={styles.printedBadge}>
+            <Text style={styles.printedBadgeText}>🖨️ Dải ảnh đã in xong!</Text>
+          </View>
+        )}
+
+        <Text style={styles.retakeHintText}>💡 Chạm ô để chụp lại</Text>
+
+        {/* Dải ảnh chính với hiệu ứng in ảnh từ khe trượt xuống */}
+        <Animated.View
+          style={[
+            styles.stripPresentationWrapper,
+            {
+              transform: [{ translateY: printAnim }],
+              opacity: printOpacity,
+            },
+          ]}
+        >
           {twinStripMode ? (
             <View style={styles.twinStripsContainer}>
               {renderSingleStrip(1)}
@@ -375,7 +437,7 @@ export default function BoothResultScreen() {
           ) : (
             renderSingleStrip(1)
           )}
-        </View>
+        </Animated.View>
 
         {/* Thanh chọn Bộ Lọc Màu K-Booth gọn gàng */}
         <View style={styles.filtersBar}>
@@ -426,11 +488,28 @@ export default function BoothResultScreen() {
         >
           <Text style={styles.dockHeroBtnIcon}>🚀</Text>
           <Text style={styles.dockHeroBtnText}>
-            {isSendingToLeafy ? 'Đang gửi...' : 'Treo Lên Widget'}
+            {isSendingToLeafy ? 'Đang gửi...' : 'Treo Widget'}
           </Text>
         </Pressable>
 
-        {/* Cụm 3 nút icon tròn: Lưu máy, Studio, Chụp mới */}
+        {/* Nút Ký tên & Đổi màu nền */}
+        <Pressable
+          onPress={() => {
+            playShutterSound();
+            setCustomSignInput(stripTitle || '');
+            setShowSignatureModal(true);
+          }}
+          style={({ pressed }) => [
+            styles.dockIconBtn,
+            { transform: [{ scale: pressed ? 0.92 : 1 }] },
+          ]}
+          hitSlop={6}
+        >
+          <Text style={styles.dockIconBtnEmoji}>✍️</Text>
+          <Text style={styles.dockIconBtnLabel}>Ký tên</Text>
+        </Pressable>
+
+        {/* Nút Lưu */}
         <Pressable
           onPress={handleSaveToDevice}
           disabled={isSaving}
@@ -441,9 +520,10 @@ export default function BoothResultScreen() {
           hitSlop={6}
         >
           <Text style={styles.dockIconBtnEmoji}>{isSaving ? '⏳' : '💾'}</Text>
-          <Text style={styles.dockIconBtnLabel}>Lưu máy</Text>
+          <Text style={styles.dockIconBtnLabel}>Lưu</Text>
         </Pressable>
 
+        {/* Nút Studio Khung */}
         <Pressable
           onPress={handleOpenStudioWithPhotos}
           style={({ pressed }) => [
@@ -453,9 +533,10 @@ export default function BoothResultScreen() {
           hitSlop={6}
         >
           <Text style={styles.dockIconBtnEmoji}>🎨</Text>
-          <Text style={styles.dockIconBtnLabel}>Studio</Text>
+          <Text style={styles.dockIconBtnLabel}>Khung</Text>
         </Pressable>
 
+        {/* Nút Chụp lại */}
         <Pressable
           onPress={handleRetake}
           style={({ pressed }) => [
@@ -468,6 +549,95 @@ export default function BoothResultScreen() {
           <Text style={styles.dockIconBtnLabel}>Chụp lại</Text>
         </Pressable>
       </View>
+
+      {/* 4. MODAL KÝ TÊN & ĐỔI MÀU NỀN DẢI ẢNH NHANH */}
+      <Modal visible={showSignatureModal} animationType="slide" transparent>
+        <Pressable
+          onPress={() => setShowSignatureModal(false)}
+          style={styles.modalBackdrop}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={styles.modalSheet}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>✍️ Dấu Ấn & Màu Dải Ảnh</Text>
+              <Pressable
+                onPress={() => setShowSignatureModal(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            {/* Ô nhập chữ ký / thông điệp */}
+            <Text style={styles.sheetSectionTitle}>Chữ ký kỷ niệm ở đáy dải ảnh:</Text>
+            <TextInput
+              value={customSignInput}
+              onChangeText={setCustomSignInput}
+              placeholder="VD: Besties 2026 ❤️ hoặc Tên bạn..."
+              placeholderTextColor="#6B7280"
+              style={styles.signInput}
+              maxLength={32}
+            />
+
+            {/* Các mẫu chữ ký có sẵn 1 chạm */}
+            <View style={styles.quickSignRow}>
+              {['👭 Besties', '❤️ Forever', '✨ Seoul 4-Cut', '🌿 Leafy Love'].map((txt) => (
+                <Pressable
+                  key={txt}
+                  onPress={() => {
+                    playShutterSound();
+                    setCustomSignInput(txt);
+                    setStripTitle(txt);
+                  }}
+                  style={styles.quickSignChip}
+                >
+                  <Text style={styles.quickSignText}>{txt}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Bảng màu dải ảnh 1 chạm */}
+            <Text style={[styles.sheetSectionTitle, { marginTop: 14 }]}>Màu nền dải ảnh:</Text>
+            <View style={styles.colorPaletteRow}>
+              {[
+                { label: 'Trắng', hex: '#FFFFFF' },
+                { label: 'Hồng', hex: '#FFD1DC' },
+                { label: 'Xanh', hex: '#BAE6FD' },
+                { label: 'Vàng', hex: '#FEF08A' },
+                { label: 'Mint', hex: '#D1FAE5' },
+                { label: 'Đen', hex: '#16181F' },
+              ].map((c) => (
+                <Pressable
+                  key={c.hex}
+                  onPress={() => {
+                    playShutterSound();
+                    setFrameColor(c.hex);
+                  }}
+                  style={[
+                    styles.colorCircleBtn,
+                    { backgroundColor: c.hex },
+                    frameColor === c.hex && styles.colorCircleBtnActive,
+                  ]}
+                />
+              ))}
+            </View>
+
+            {/* Nút xác nhận */}
+            <Pressable
+              onPress={() => {
+                playShutterSound();
+                setStripTitle(customSignInput.trim());
+                setShowSignatureModal(false);
+              }}
+              style={styles.modalConfirmBtn}
+            >
+              <Text style={styles.modalConfirmBtnText}>Xong</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -824,5 +994,151 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.textSecondary,
     marginTop: 1,
+  },
+
+  // Khe máy in retro & Huy hiệu đã in xong
+  printerSlotHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  printerSlotLine: {
+    flex: 1,
+    height: 1.5,
+    backgroundColor: '#2A2E39',
+  },
+  printerSlotMouth: {
+    width: 60,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#3E4454',
+  },
+  printedBadge: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 217, 61, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.yellow,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  printedBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.yellow,
+  },
+
+  // Modal Ký tên & Bảng màu
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#16181F',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
+    padding: 18,
+    paddingBottom: 28,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  modalCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#242833',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  sheetSectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  signInput: {
+    backgroundColor: '#1E212B',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 10,
+  },
+  quickSignRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  quickSignChip: {
+    backgroundColor: '#242833',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  quickSignText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.yellow,
+  },
+  colorPaletteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  colorCircleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  colorCircleBtnActive: {
+    borderColor: colors.yellow,
+    borderWidth: 3.5,
+  },
+  modalConfirmBtn: {
+    backgroundColor: colors.yellow,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    ...theme.shadows.hard,
+  },
+  modalConfirmBtnText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.ink,
   },
 });
