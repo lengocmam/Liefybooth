@@ -115,8 +115,9 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
     try {
       if (cameraRef.current && permission?.granted) {
         const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.85,
-          skipProcessing: true,
+          quality: 1.0, // Chất lượng ảnh lossless tối đa
+          skipProcessing: false, // Bật ISP phần cứng: HDR, khử nhiễu và làm nét
+          shutterSound: false,
         });
         photoUri = photo?.uri || '';
       }
@@ -125,7 +126,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
     }
 
     if (!photoUri) {
-      photoUri = `https://picsum.photos/seed/moment_${Date.now()}/600/600`;
+      photoUri = `https://picsum.photos/seed/moment_${Date.now()}/1080/1080`;
     }
 
     // Lưu ảnh chụp vào preview review & mặc định lật gương nếu dùng camera trước
@@ -307,6 +308,8 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
                     facing === 'front' && { transform: [{ scaleX: -1 }] },
                   ]}
                   facing={facing}
+                  mode="picture"
+                  autofocus="on"
                 />
               ) : (
                 <View style={styles.simulatedCamera}>

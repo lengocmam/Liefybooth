@@ -82,6 +82,10 @@ interface BoothState {
   activeCustomFrame: ActiveCustomFrameData | null;
   setActiveCustomFrame: (frame: ActiveCustomFrameData | null) => void;
 
+  // Video quay K-Booth Live Clip
+  recordedVideoUri: string | null;
+  setRecordedVideoUri: (uri: string | null) => void;
+
   // Reset toàn bộ phiên chụp
   resetBooth: () => void;
 }
@@ -155,9 +159,13 @@ export const useBoothStore = create<BoothState>((set) => ({
       stripTitle: frame?.customText || frame?.name || '',
     })),
 
+  recordedVideoUri: null,
+  setRecordedVideoUri: (uri) => set({ recordedVideoUri: uri }),
+
   resetBooth: () =>
     set({
       capturedPhotos: [],
+      recordedVideoUri: null,
       retakeIndex: null,
       layout: 'vertical',
       filter: 'original',

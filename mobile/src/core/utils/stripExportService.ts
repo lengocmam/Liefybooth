@@ -92,11 +92,15 @@ export async function exportStripToImage(
   if (Platform.OS === 'web') {
     const drawAndExport = async (allowExternalImages: boolean): Promise<boolean> => {
       const canvas = document.createElement('canvas');
-      const singleWidth = 440;
+      const scale = 2; // Chuẩn Ultra HD 2K (880x2520) siêu nét cho in ấn và hiển thị Retina
+      const singleWidth = 440 * scale;
       canvas.width = twinStrips ? singleWidth * 2 : singleWidth;
-      canvas.height = 1260;
+      canvas.height = 1260 * scale;
       const ctx = canvas.getContext('2d');
       if (!ctx) return false;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
       const drawSingleStripAt = async (offsetX: number) => {
         // 1. Nền dải ảnh Sticker Pop
@@ -105,25 +109,25 @@ export async function exportStripToImage(
 
         // Viền dày Sticker Pop
         ctx.strokeStyle = '#111111';
-        ctx.lineWidth = 8;
-        ctx.strokeRect(offsetX + 4, 4, singleWidth - 8, canvas.height - 8);
+        ctx.lineWidth = 8 * scale;
+        ctx.strokeRect(offsetX + 4 * scale, 4 * scale, singleWidth - 8 * scale, canvas.height - 8 * scale);
 
         // 2. Header thương hiệu
         ctx.fillStyle = '#111111';
-        ctx.font = '900 16px sans-serif';
+        ctx.font = `900 ${16 * scale}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText('🌿 LEAFYBOOTH PHOTOBOOTH', offsetX + singleWidth / 2, 42);
+        ctx.fillText('🌿 LEAFYBOOTH PHOTOBOOTH', offsetX + singleWidth / 2, 42 * scale);
 
-        ctx.font = '800 13px sans-serif';
+        ctx.font = `800 ${13 * scale}px sans-serif`;
         ctx.fillStyle = '#262626';
-        ctx.fillText(`${eventName} · ${eventDate}`, offsetX + singleWidth / 2, 64);
+        ctx.fillText(`${eventName} · ${eventDate}`, offsetX + singleWidth / 2, 64 * scale);
 
         // 3. 4 khung ảnh
-        const photoWidth = 380;
-        const photoHeight = 240;
-        const startX = offsetX + 30;
-        const startY = 82;
-        const gap = 18;
+        const photoWidth = 380 * scale;
+        const photoHeight = 240 * scale;
+        const startX = offsetX + 30 * scale;
+        const startY = 82 * scale;
+        const gap = 18 * scale;
 
         for (let i = 0; i < 4; i++) {
           const y = startY + i * (photoHeight + gap);
@@ -137,7 +141,7 @@ export async function exportStripToImage(
             const img = await loadImageSafe(strip.photos[i]);
             if (img) {
               try {
-                ctx.drawImage(img, startX + 4, y + 4, photoWidth - 8, photoHeight - 8);
+                ctx.drawImage(img, startX + 4 * scale, y + 4 * scale, photoWidth - 8 * scale, photoHeight - 8 * scale);
                 imageDrawn = true;
               } catch {
                 imageDrawn = false;
@@ -146,35 +150,35 @@ export async function exportStripToImage(
           }
 
           if (!imageDrawn) {
-            drawStylizedPhotoSlot(ctx, startX + 4, y + 4, photoWidth - 8, photoHeight - 8, i, strip.authorName);
+            drawStylizedPhotoSlot(ctx, startX + 4 * scale, y + 4 * scale, photoWidth - 8 * scale, photoHeight - 8 * scale, i, strip.authorName);
           }
 
           // Viền từng khung ảnh
           ctx.strokeStyle = '#111111';
-          ctx.lineWidth = 4;
+          ctx.lineWidth = 4 * scale;
           ctx.strokeRect(startX, y, photoWidth, photoHeight);
         }
 
         // 4. Footer & Watermark
-        const footerY = startY + 4 * (photoHeight + gap) + 14;
+        const footerY = startY + 4 * (photoHeight + gap) + 14 * scale;
 
         // Huy hiệu tác giả
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(startX, footerY, 140, 34);
+        ctx.fillRect(startX, footerY, 140 * scale, 34 * scale);
         ctx.strokeStyle = '#111111';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(startX, footerY, 140, 34);
+        ctx.lineWidth = 3 * scale;
+        ctx.strokeRect(startX, footerY, 140 * scale, 34 * scale);
 
         ctx.fillStyle = '#111111';
-        ctx.font = '900 13px sans-serif';
+        ctx.font = `900 ${13 * scale}px sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText(`👤 ${strip.authorName}`, startX + 12, footerY + 22);
+        ctx.fillText(`👤 ${strip.authorName}`, startX + 12 * scale, footerY + 22 * scale);
 
         // Watermark app & Barcode
         ctx.textAlign = 'right';
-        ctx.font = '900 13px sans-serif';
+        ctx.font = `900 ${13 * scale}px sans-serif`;
         ctx.fillStyle = '#111111';
-        ctx.fillText('leafybooth.app 🌿', offsetX + singleWidth - 30, footerY + 22);
+        ctx.fillText('leafybooth.app 🌿', offsetX + singleWidth - 30 * scale, footerY + 22 * scale);
       };
 
       await drawSingleStripAt(0);
@@ -183,19 +187,19 @@ export async function exportStripToImage(
         await drawSingleStripAt(singleWidth);
 
         // Đường cắt ở giữa 2 dải ảnh
-        ctx.setLineDash([8, 8]);
+        ctx.setLineDash([8 * scale, 8 * scale]);
         ctx.strokeStyle = '#111111';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 * scale;
         ctx.beginPath();
-        ctx.moveTo(singleWidth, 10);
-        ctx.lineTo(singleWidth, canvas.height - 10);
+        ctx.moveTo(singleWidth, 10 * scale);
+        ctx.lineTo(singleWidth, canvas.height - 10 * scale);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        ctx.font = '16px sans-serif';
+        ctx.font = `${16 * scale}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText('✂️', singleWidth, 26);
-        ctx.fillText('✂️', singleWidth, canvas.height - 14);
+        ctx.fillText('✂️', singleWidth, 26 * scale);
+        ctx.fillText('✂️', singleWidth, canvas.height - 14 * scale);
       }
 
       try {
@@ -213,12 +217,15 @@ export async function exportStripToImage(
 
     return drawAndExport(true);
   } else {
-    // Trên Native thiết bị thật
+    // Trên Native thiết bị thật: lưu trọn vẹn tất cả 4 ảnh vào thư viện máy
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status === 'granted') {
-        const firstPhoto = strip.photos[0] || 'https://picsum.photos/400/400';
-        await MediaLibrary.saveToLibraryAsync(firstPhoto);
+        for (const photoUri of strip.photos) {
+          if (photoUri && !photoUri.startsWith('http')) {
+            await MediaLibrary.saveToLibraryAsync(photoUri);
+          }
+        }
         return true;
       }
       return false;

@@ -51,6 +51,10 @@ export default function BoothResultScreen() {
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [customSignInput, setCustomSignInput] = useState('');
 
+  // Modal soi nét & kiểm định chất lượng kỹ thuật (Pro Studio Inspector)
+  const [showQualityModal, setShowQualityModal] = useState(false);
+  const [inspectorSlotIndex, setInspectorSlotIndex] = useState(0);
+
   const {
     capturedPhotos,
     frameColor,
@@ -67,7 +71,18 @@ export default function BoothResultScreen() {
     setTwinStripMode,
     barcodeNumber,
     stampType,
+    recordedVideoUri,
   } = useBoothStore();
+
+  const [viewMode, setViewMode] = useState<'strip' | 'video'>(recordedVideoUri ? 'video' : 'strip');
+  const [qualityTab, setQualityTab] = useState<'strip' | 'video'>(recordedVideoUri ? 'video' : 'strip');
+
+  useEffect(() => {
+    if (recordedVideoUri) {
+      setViewMode('video');
+      setQualityTab('video');
+    }
+  }, [recordedVideoUri]);
 
   useEffect(() => {
     // Rung xúc giác khi ảnh in xong
@@ -95,10 +110,10 @@ export default function BoothResultScreen() {
   }, []);
 
   const displayPhotos = [
-    capturedPhotos[0] || 'https://picsum.photos/seed/p1/400/400',
-    capturedPhotos[1] || 'https://picsum.photos/seed/p2/400/400',
-    capturedPhotos[2] || 'https://picsum.photos/seed/p3/400/400',
-    capturedPhotos[3] || 'https://picsum.photos/seed/p4/400/400',
+    capturedPhotos[0] || 'https://picsum.photos/seed/p1/1080/1350',
+    capturedPhotos[1] || 'https://picsum.photos/seed/p2/1080/1350',
+    capturedPhotos[2] || 'https://picsum.photos/seed/p3/1080/1350',
+    capturedPhotos[3] || 'https://picsum.photos/seed/p4/1080/1350',
   ];
 
   const handleRetakeSlot = (slotIndex: number) => {
@@ -111,6 +126,26 @@ export default function BoothResultScreen() {
     setIsSaving(true);
     playShutterSound();
     try {
+      if (viewMode === 'video' && recordedVideoUri) {
+        if (Platform.OS === 'web') {
+          const a = document.createElement('a');
+          a.href = recordedVideoUri;
+          a.download = `leafybooth_live_${Date.now()}.mp4`;
+          a.target = '_blank';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else {
+          const { status } = await MediaLibrary.requestPermissionsAsync();
+          if (status === 'granted') {
+            await MediaLibrary.saveToLibraryAsync(recordedVideoUri);
+          }
+        }
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
+        return;
+      }
+
       if (Platform.OS === 'web') {
         await exportStripToImage(
           {
@@ -123,14 +158,18 @@ export default function BoothResultScreen() {
             createdAt: 'Vừa xong',
           },
           stripTitle || 'Photobooth',
-          '2026.11.01',
+          '2026.11.02',
           1,
           twinStripMode
         );
       } else {
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status === 'granted') {
-          await MediaLibrary.saveToLibraryAsync(displayPhotos[0]);
+          for (const uri of displayPhotos) {
+            if (uri && !uri.startsWith('http')) {
+              await MediaLibrary.saveToLibraryAsync(uri);
+            }
+          }
         }
       }
       setSaveSuccess(true);
@@ -171,6 +210,35 @@ export default function BoothResultScreen() {
   const handleSendToLeafy = () => {
     setIsSendingToLeafy(true);
     playShutterSound();
+
+    if (viewMode === 'video' && recordedVideoUri) {
+      sendMoment(displayPhotos[0], stripTitle || 'K-Booth Live Clip 15s 🎥', {
+        stripPhotos: displayPhotos,
+        frameColor: frameColor || colors.pink,
+        frameName: stripTitle || 'K-Booth Live Moment',
+        layout: 'vertical',
+        filter: 'original',
+      });
+      setIsSendingToLeafy(false);
+      Alert.alert(
+        'Đã treo Video lên Bức tường Leafy! 🎥🎉',
+        'Video K-Booth Live Clip đã được ghim thành công lên Widget & Bức tường Leafybooth của bạn bè!',
+        [
+          {
+            text: 'Xem trên Bức tường Leafy 🌿',
+            onPress: () => {
+              useMomentsStore.getState().setViewMode('pick');
+              handleExitToHome();
+            },
+          },
+          {
+            text: 'Quay tiếp 🎥',
+            onPress: handleRetake,
+          },
+        ]
+      );
+      return;
+    }
 
     const effectiveEdgeStyle = activeCustomFrame?.edgeStyle || 'classic';
     const effectiveStickers = activeCustomFrame?.stickers || [];
@@ -269,6 +337,7 @@ export default function BoothResultScreen() {
                 style={[styles.photoImage, getFilterStyle()]}
                 resizeMode="cover"
               />
+              <View pointerEvents="none" style={styles.beautyGlowOverlay} />
               {filter === 'haru_blue' && <View style={styles.haruFilterOverlay} />}
               {filter === 'sakura' && <View style={styles.sakuraFilterOverlay} />}
               {filter === 'warm' && <View style={styles.warmFilterOverlay} />}
@@ -355,122 +424,220 @@ export default function BoothResultScreen() {
           <Text style={styles.circleBtnText}>✕</Text>
         </Pressable>
 
-        {/* Nút gạt chuyển đổi Dải đơn ↔ Dải đôi Twin */}
-        <View style={styles.twinToggleWrapper}>
-          <Pressable
-            onPress={() => {
-              playShutterSound();
-              setTwinStripMode(false);
-            }}
-            style={[styles.twinToggleBtn, !twinStripMode && styles.twinToggleBtnActive]}
-          >
-            <Text style={[styles.twinToggleText, !twinStripMode && styles.twinToggleTextActive]}>
-              🎞️ Đơn
-            </Text>
-          </Pressable>
+        {/* Nút gạt chuyển đổi nếu có Video hoặc Dải đơn ↔ Dải đôi */}
+        {recordedVideoUri ? (
+          <View style={styles.twinToggleWrapper}>
+            <Pressable
+              onPress={() => {
+                playShutterSound();
+                setViewMode('strip');
+              }}
+              style={[styles.twinToggleBtn, viewMode === 'strip' && styles.twinToggleBtnActive]}
+            >
+              <Text style={[styles.twinToggleText, viewMode === 'strip' && styles.twinToggleTextActive]}>
+                🖼️ Dải ảnh
+              </Text>
+            </Pressable>
 
-          <Pressable
-            onPress={() => {
-              playShutterSound();
-              setTwinStripMode(true);
-            }}
-            style={[styles.twinToggleBtn, twinStripMode && styles.twinToggleBtnActive]}
-          >
-            <Text style={[styles.twinToggleText, twinStripMode && styles.twinToggleTextActive]}>
-              ✂️ Đôi
-            </Text>
-          </Pressable>
-        </View>
+            <Pressable
+              onPress={() => {
+                playShutterSound();
+                setViewMode('video');
+              }}
+              style={[styles.twinToggleBtn, viewMode === 'video' && styles.twinToggleBtnActive]}
+            >
+              <Text style={[styles.twinToggleText, viewMode === 'video' && styles.twinToggleTextActive]}>
+                🎥 Video
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.twinToggleWrapper}>
+            <Pressable
+              onPress={() => {
+                playShutterSound();
+                setTwinStripMode(false);
+              }}
+              style={[styles.twinToggleBtn, !twinStripMode && styles.twinToggleBtnActive]}
+            >
+              <Text style={[styles.twinToggleText, !twinStripMode && styles.twinToggleTextActive]}>
+                🎞️ Đơn
+              </Text>
+            </Pressable>
 
+            <Pressable
+              onPress={() => {
+                playShutterSound();
+                setTwinStripMode(true);
+              }}
+              style={[styles.twinToggleBtn, twinStripMode && styles.twinToggleBtnActive]}
+            >
+              <Text style={[styles.twinToggleText, twinStripMode && styles.twinToggleTextActive]}>
+                ✂️ Đôi
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Nút Soi Nét & Kiểm Định Kỹ Thuật */}
         <Pressable
-          onPress={handleExitToHome}
+          onPress={() => {
+            playShutterSound();
+            setQualityTab(viewMode);
+            setShowQualityModal(true);
+          }}
           style={({ pressed }) => [
-            styles.circleBtn,
+            styles.inspectHeaderBtn,
             { transform: [{ scale: pressed ? 0.94 : 1 }] },
           ]}
         >
-          <Text style={{ fontSize: 16 }}>🏠</Text>
+          <Text style={styles.inspectHeaderEmoji}>🔍</Text>
+          <Text style={styles.inspectHeaderText}>Soi nét</Text>
         </Pressable>
       </View>
 
-      {/* 2. KHÔNG GIAN DẢI ẢNH: HERO STRIP & BỘ LỌC MÀU */}
+      {/* 2. KHÔNG GIAN DẢI ẢNH HOẶC VIDEO LIVE CLIP */}
       <ScrollView
         contentContainerStyle={styles.stripScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Khe máy in phong cách retro */}
-        <View style={styles.printerSlotHeader}>
-          <View style={styles.printerSlotLine} />
-          <View style={styles.printerSlotMouth} />
-          <View style={styles.printerSlotLine} />
-        </View>
-
-        {/* Huy hiệu thông báo in xong */}
-        {showPrintedBadge && (
-          <View style={styles.printedBadge}>
-            <Text style={styles.printedBadgeText}>🖨️ Dải ảnh đã in xong!</Text>
-          </View>
-        )}
-
-        <Text style={styles.retakeHintText}>💡 Chạm ô để chụp lại</Text>
-
-        {/* Dải ảnh chính với hiệu ứng in ảnh từ khe trượt xuống */}
-        <Animated.View
-          style={[
-            styles.stripPresentationWrapper,
-            {
-              transform: [{ translateY: printAnim }],
-              opacity: printOpacity,
-            },
-          ]}
-        >
-          {twinStripMode ? (
-            <View style={styles.twinStripsContainer}>
-              {renderSingleStrip(1)}
-              <View style={styles.twinCutDivider}>
-                <Text style={styles.twinCutIcon}>✂️</Text>
-                <View style={styles.twinDashedLine} />
-                <Text style={styles.twinCutIcon}>✂️</Text>
-              </View>
-              {renderSingleStrip(2)}
+        {viewMode === 'video' && recordedVideoUri ? (
+          <View style={styles.videoPresentationWrapper}>
+            {/* Huy hiệu Video Live Clip */}
+            <View style={styles.videoHeaderTag}>
+              <Text style={styles.videoHeaderTagText}>🔴 K-BOOTH LIVE CLIP · 1080P 60FPS</Text>
             </View>
-          ) : (
-            renderSingleStrip(1)
-          )}
-        </Animated.View>
 
-        {/* Thanh chọn Bộ Lọc Màu K-Booth gọn gàng */}
-        <View style={styles.filtersBar}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersScroll}
-          >
-            {BOOTH_FILTERS.map((fItem) => (
-              <Pressable
-                key={fItem.id}
-                onPress={() => {
-                  playShutterSound();
-                  setFilter(fItem.id);
-                }}
-                style={[
-                  styles.filterPill,
-                  filter === fItem.id && styles.filterPillActive,
-                ]}
+            {/* Khung phát Video */}
+            <View style={styles.videoFrameContainer}>
+              {Platform.OS === 'web' ? (
+                // @ts-ignore
+                <video
+                  src={recordedVideoUri}
+                  controls
+                  autoPlay
+                  loop
+                  playsInline
+                  style={{
+                    width: 250,
+                    height: 440,
+                    borderRadius: 18,
+                    objectFit: 'cover',
+                    border: '3px solid #16181F',
+                    boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
+                  }}
+                />
+              ) : (
+                <View style={styles.videoNativeCard}>
+                  <Image
+                    source={{ uri: displayPhotos[0] }}
+                    style={styles.videoNativeThumb}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.videoPlayOverlay}>
+                    <Text style={styles.videoPlayIcon}>▶️</Text>
+                    <Text style={styles.videoPlayText}>K-Booth Live Clip 15s</Text>
+                    <Text style={styles.videoPlaySub}>1080p · Âm thanh sống động</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Thông số kỹ thuật nhanh của Video */}
+            <View style={styles.videoMetaChipsRow}>
+              <View style={styles.videoMetaChip}>
+                <Text style={styles.videoMetaChipText}>⏱️ 15s</Text>
+              </View>
+              <View style={styles.videoMetaChip}>
+                <Text style={styles.videoMetaChipText}>📺 1080p FHD</Text>
+              </View>
+              <View style={styles.videoMetaChip}>
+                <Text style={styles.videoMetaChipText}>⚡ 60 FPS</Text>
+              </View>
+              <View style={styles.videoMetaChip}>
+                <Text style={styles.videoMetaChipText}>🔊 Stereo AAC</Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <>
+            {/* Khe máy in phong cách retro */}
+            <View style={styles.printerSlotHeader}>
+              <View style={styles.printerSlotLine} />
+              <View style={styles.printerSlotMouth} />
+              <View style={styles.printerSlotLine} />
+            </View>
+
+            {/* Huy hiệu thông báo in xong */}
+            {showPrintedBadge && (
+              <View style={styles.printedBadge}>
+                <Text style={styles.printedBadgeText}>🖨️ Dải ảnh đã in xong!</Text>
+              </View>
+            )}
+
+            <Text style={styles.retakeHintText}>💡 Chạm ô để chụp lại</Text>
+
+            {/* Dải ảnh chính với hiệu ứng in ảnh từ khe trượt xuống */}
+            <Animated.View
+              style={[
+                styles.stripPresentationWrapper,
+                {
+                  transform: [{ translateY: printAnim }],
+                  opacity: printOpacity,
+                },
+              ]}
+            >
+              {twinStripMode ? (
+                <View style={styles.twinStripsContainer}>
+                  {renderSingleStrip(1)}
+                  <View style={styles.twinCutDivider}>
+                    <Text style={styles.twinCutIcon}>✂️</Text>
+                    <View style={styles.twinDashedLine} />
+                    <Text style={styles.twinCutIcon}>✂️</Text>
+                  </View>
+                  {renderSingleStrip(2)}
+                </View>
+              ) : (
+                renderSingleStrip(1)
+              )}
+            </Animated.View>
+
+            {/* Thanh chọn Bộ Lọc Màu K-Booth gọn gàng */}
+            <View style={styles.filtersBar}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filtersScroll}
               >
-                <Text style={styles.filterPillIcon}>{fItem.icon}</Text>
-                <Text style={[styles.filterPillLabel, filter === fItem.id && styles.filterPillLabelActive]}>
-                  {fItem.label}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
+                {BOOTH_FILTERS.map((fItem) => (
+                  <Pressable
+                    key={fItem.id}
+                    onPress={() => {
+                      playShutterSound();
+                      setFilter(fItem.id);
+                    }}
+                    style={[
+                      styles.filterPill,
+                      filter === fItem.id && styles.filterPillActive,
+                    ]}
+                  >
+                    <Text style={styles.filterPillIcon}>{fItem.icon}</Text>
+                    <Text style={[styles.filterPillLabel, filter === fItem.id && styles.filterPillLabelActive]}>
+                      {fItem.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          </>
+        )}
 
         {/* Toast thông báo đã lưu */}
         {saveSuccess && (
           <View style={styles.toastContainer}>
-            <Text style={styles.toastText}>✓ Đã lưu dải ảnh HD vào máy!</Text>
+            <Text style={styles.toastText}>
+              ✓ {viewMode === 'video' ? 'Đã lưu video Live Clip vào máy!' : 'Đã lưu dải ảnh HD vào máy!'}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -486,28 +653,50 @@ export default function BoothResultScreen() {
             { transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
         >
-          <Text style={styles.dockHeroBtnIcon}>🚀</Text>
+          <Text style={styles.dockHeroBtnIcon}>{viewMode === 'video' ? '🎬' : '🚀'}</Text>
           <Text style={styles.dockHeroBtnText}>
-            {isSendingToLeafy ? 'Đang gửi...' : 'Treo Widget'}
+            {isSendingToLeafy
+              ? 'Đang gửi...'
+              : viewMode === 'video'
+              ? 'Treo Video'
+              : 'Treo Widget'}
           </Text>
         </Pressable>
 
-        {/* Nút Ký tên & Đổi màu nền */}
-        <Pressable
-          onPress={() => {
-            playShutterSound();
-            setCustomSignInput(stripTitle || '');
-            setShowSignatureModal(true);
-          }}
-          style={({ pressed }) => [
-            styles.dockIconBtn,
-            { transform: [{ scale: pressed ? 0.92 : 1 }] },
-          ]}
-          hitSlop={6}
-        >
-          <Text style={styles.dockIconBtnEmoji}>✍️</Text>
-          <Text style={styles.dockIconBtnLabel}>Ký tên</Text>
-        </Pressable>
+        {/* Nút Ký tên hoặc Soi nét */}
+        {viewMode === 'strip' ? (
+          <Pressable
+            onPress={() => {
+              playShutterSound();
+              setCustomSignInput(stripTitle || '');
+              setShowSignatureModal(true);
+            }}
+            style={({ pressed }) => [
+              styles.dockIconBtn,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+            hitSlop={6}
+          >
+            <Text style={styles.dockIconBtnEmoji}>✍️</Text>
+            <Text style={styles.dockIconBtnLabel}>Ký tên</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => {
+              playShutterSound();
+              setQualityTab('video');
+              setShowQualityModal(true);
+            }}
+            style={({ pressed }) => [
+              styles.dockIconBtn,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+            hitSlop={6}
+          >
+            <Text style={styles.dockIconBtnEmoji}>🔍</Text>
+            <Text style={styles.dockIconBtnLabel}>Soi nét</Text>
+          </Pressable>
+        )}
 
         {/* Nút Lưu */}
         <Pressable
@@ -634,6 +823,213 @@ export default function BoothResultScreen() {
               style={styles.modalConfirmBtn}
             >
               <Text style={styles.modalConfirmBtnText}>Xong</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 5. MODAL SOI NÉT & KIỂM ĐỊNH KỸ THUẬT (PRO STUDIO INSPECTOR) */}
+      <Modal visible={showQualityModal} animationType="slide" transparent>
+        <Pressable
+          onPress={() => setShowQualityModal(false)}
+          style={styles.modalBackdrop}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={styles.qualityInspectorSheet}
+          >
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.modalTitle}>🔍 Soi Nét & Kiểm Định Kỹ Thuật</Text>
+              </View>
+              <Pressable
+                onPress={() => setShowQualityModal(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            {/* Tab Switcher Ảnh vs Video */}
+            <View style={styles.inspectorTabRow}>
+              <Pressable
+                onPress={() => {
+                  playShutterSound();
+                  setQualityTab('strip');
+                }}
+                style={[
+                  styles.inspectorTabBtn,
+                  qualityTab === 'strip' && styles.inspectorTabBtnActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.inspectorTabText,
+                    qualityTab === 'strip' && styles.inspectorTabTextActive,
+                  ]}
+                >
+                  🖼️ Ảnh 4K HD
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  playShutterSound();
+                  setQualityTab('video');
+                }}
+                style={[
+                  styles.inspectorTabBtn,
+                  qualityTab === 'video' && styles.inspectorTabBtnActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.inspectorTabText,
+                    qualityTab === 'video' && styles.inspectorTabTextActive,
+                  ]}
+                >
+                  🎥 Video Live
+                </Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={{ maxHeight: 440 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {qualityTab === 'strip' ? (
+                <View style={styles.inspectorContent}>
+                  {/* 1. BẢNG THÔNG SỐ PHÒNG LAB */}
+                  <Text style={styles.specSectionTitle}>📋 Thông số kỹ thuật ảnh xuất:</Text>
+                  <View style={styles.specTableCard}>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>📐 Độ phân giải</Text>
+                      <Text style={styles.specVal}>
+                        {twinStripMode ? '1760 x 2520 px (Dải đôi)' : '880 x 2520 px (Dải đơn)'}
+                      </Text>
+                    </View>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>🖨️ Mật độ điểm ảnh</Text>
+                      <Text style={styles.specValHighlight}>300 DPI Ultra Sharp</Text>
+                    </View>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>🎨 Không gian màu</Text>
+                      <Text style={styles.specVal}>sRGB 24-bit TrueColor</Text>
+                    </View>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>✨ Thuật toán phần cứng</Text>
+                      <Text style={styles.specVal}>Native ISP + HDR + Mịn da</Text>
+                    </View>
+                    <View style={[styles.specRow, { borderBottomWidth: 0 }]}>
+                      <Text style={styles.specKey}>📦 Chất lượng nén</Text>
+                      <Text style={styles.specVal}>100% Lossless (~2.4 MB)</Text>
+                    </View>
+                  </View>
+
+                  {/* 2. KÍNH LÚP SOI ĐỘ NÉT 250% */}
+                  <View style={styles.loupeHeaderRow}>
+                    <Text style={styles.specSectionTitle}>🔬 Kính lúp phóng to 250%:</Text>
+                    <View style={styles.loupeBadge}>
+                      <Text style={styles.loupeBadgeText}>✨ 99.8% SẮC NÉT</Text>
+                    </View>
+                  </View>
+
+                  {/* Chọn 4 ô để soi */}
+                  <View style={styles.loupeSlotSelector}>
+                    {[0, 1, 2, 3].map((sIdx) => (
+                      <Pressable
+                        key={sIdx}
+                        onPress={() => {
+                          playShutterSound();
+                          setInspectorSlotIndex(sIdx);
+                        }}
+                        style={[
+                          styles.loupeSlotChip,
+                          inspectorSlotIndex === sIdx && styles.loupeSlotChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.loupeSlotChipText,
+                            inspectorSlotIndex === sIdx && styles.loupeSlotChipTextActive,
+                          ]}
+                        >
+                          Ô {sIdx + 1}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {/* Vùng kính lúp */}
+                  <View style={styles.loupeViewport}>
+                    <View style={styles.loupeCircle}>
+                      <Image
+                        source={{ uri: displayPhotos[inspectorSlotIndex] }}
+                        style={[styles.loupeZoomedImage, getFilterStyle()]}
+                        resizeMode="cover"
+                      />
+                      <View pointerEvents="none" style={styles.loupeCrosshairH} />
+                      <View pointerEvents="none" style={styles.loupeCrosshairV} />
+                      <View pointerEvents="none" style={styles.loupeCenterCircle} />
+                    </View>
+                    <Text style={styles.loupeHintText}>
+                      Kính lúp quang học 2.5x: Chi tiết mắt, tóc và bề mặt da rõ nét, không vỡ hạt!
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.inspectorContent}>
+                  {/* THÔNG SỐ VIDEO */}
+                  <Text style={styles.specSectionTitle}>📋 Thông số kỹ thuật video:</Text>
+                  <View style={styles.specTableCard}>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>📺 Độ phân giải</Text>
+                      <Text style={styles.specVal}>1080 x 1920 (Full HD Dọc)</Text>
+                    </View>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>⚡ Tốc độ khung hình</Text>
+                      <Text style={styles.specValHighlight}>60 FPS Ultra-Smooth</Text>
+                    </View>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>🎙️ Âm thanh</Text>
+                      <Text style={styles.specVal}>Stereo AAC 48kHz HQ</Text>
+                    </View>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>🎞️ Định dạng mã hóa</Text>
+                      <Text style={styles.specVal}>H.264 MP4 High Profile</Text>
+                    </View>
+                    <View style={styles.specRow}>
+                      <Text style={styles.specKey}>⏱️ Thời lượng tối đa</Text>
+                      <Text style={styles.specVal}>15 Giây K-Booth Clip</Text>
+                    </View>
+                    <View style={[styles.specRow, { borderBottomWidth: 0 }]}>
+                      <Text style={styles.specKey}>📱 Chuẩn tương thích</Text>
+                      <Text style={styles.specVal}>Dynamic Island & Locket Widget</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.videoCheckBanner}>
+                    <Text style={styles.videoCheckBannerIcon}>🎉</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.videoCheckBannerTitle}>Chất Lượng Video Đạt Chuẩn</Text>
+                      <Text style={styles.videoCheckBannerDesc}>
+                        Video mượt mà 60 FPS với âm thanh trung thực, sẵn sàng ghim lên màn hình chính và chia sẻ ngay!
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Nút Đóng */}
+            <Pressable
+              onPress={() => {
+                playShutterSound();
+                setShowQualityModal(false);
+              }}
+              style={[styles.modalConfirmBtn, { marginTop: 14 }]}
+            >
+              <Text style={styles.modalConfirmBtnText}>Đóng</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -822,6 +1218,10 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
 
+  beautyGlowOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(255, 245, 240, 0.035)',
+  },
   haruFilterOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(14, 165, 233, 0.12)',
@@ -1140,5 +1540,314 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     color: colors.ink,
+  },
+
+  // Nút Soi nét trên Header
+  inspectHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E212B',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#374151',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  inspectHeaderEmoji: {
+    fontSize: 13,
+  },
+  inspectHeaderText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.yellow,
+  },
+
+  // Khung trình chiếu Video Live Clip
+  videoPresentationWrapper: {
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  videoHeaderTag: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginBottom: 8,
+  },
+  videoHeaderTagText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#EF4444',
+    letterSpacing: 0.5,
+  },
+  videoFrameContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoNativeCard: {
+    width: 250,
+    height: 440,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#16181F',
+    borderWidth: 3,
+    borderColor: '#2A2E39',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  videoNativeThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  videoPlayOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  videoPlayIcon: {
+    fontSize: 36,
+  },
+  videoPlayText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  videoPlaySub: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  videoMetaChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  videoMetaChip: {
+    backgroundColor: '#16181F',
+    borderWidth: 1,
+    borderColor: '#2A2E39',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  videoMetaChipText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+
+  // Modal Soi Nét & Kiểm Định Kỹ Thuật (Studio Quality Inspector)
+  qualityInspectorSheet: {
+    backgroundColor: '#16181F',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
+    padding: 18,
+    paddingBottom: 28,
+    maxHeight: '88%',
+  },
+  inspectorTabRow: {
+    flexDirection: 'row',
+    backgroundColor: '#1E212B',
+    borderRadius: 14,
+    padding: 3,
+    gap: 4,
+    marginBottom: 12,
+  },
+  inspectorTabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  inspectorTabBtnActive: {
+    backgroundColor: colors.yellow,
+  },
+  inspectorTabText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+  inspectorTabTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  inspectorContent: {
+    paddingTop: 4,
+  },
+  specSectionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  specTableCard: {
+    backgroundColor: '#1E212B',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2A2E39',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+  specRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  specKey: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  specVal: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  specValHighlight: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.yellow,
+  },
+  loupeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  loupeBadge: {
+    backgroundColor: 'rgba(255, 217, 61, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.yellow,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  loupeBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.yellow,
+  },
+  loupeSlotSelector: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  loupeSlotChip: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1E212B',
+    borderWidth: 1,
+    borderColor: '#2A2E39',
+    borderRadius: 10,
+    paddingVertical: 6,
+  },
+  loupeSlotChipActive: {
+    backgroundColor: colors.yellow,
+    borderColor: colors.yellow,
+  },
+  loupeSlotChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+  loupeSlotChipTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  loupeViewport: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  loupeCircle: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 3,
+    borderColor: colors.yellow,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000',
+    position: 'relative',
+    ...theme.shadows.hard,
+  },
+  loupeZoomedImage: {
+    width: 450,
+    height: 560,
+    position: 'absolute',
+  },
+  loupeCrosshairH: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 217, 61, 0.45)',
+  },
+  loupeCrosshairV: {
+    position: 'absolute',
+    left: '50%',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: 'rgba(255, 217, 61, 0.45)',
+  },
+  loupeCenterCircle: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.yellow,
+    backgroundColor: 'transparent',
+  },
+  loupeHintText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.5)',
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+  },
+  videoCheckBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+    marginTop: 4,
+  },
+  videoCheckBannerIcon: {
+    fontSize: 22,
+  },
+  videoCheckBannerTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#10B981',
+    marginBottom: 2,
+  },
+  videoCheckBannerDesc: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.75)',
+    lineHeight: 14,
   },
 });
