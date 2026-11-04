@@ -496,7 +496,7 @@ export default function BoothResultScreen() {
           <View style={styles.videoPresentationWrapper}>
             {/* Huy hiệu Video Live Clip */}
             <View style={styles.videoHeaderTag}>
-              <Text style={styles.videoHeaderTagText}>🔴 K-BOOTH LIVE CLIP · 1080P 60FPS</Text>
+              <Text style={styles.videoHeaderTagText}>🔴 K-BOOTH LIVE CLIP · 4K UHD 60FPS</Text>
             </View>
 
             {/* Khung phát Video */}
@@ -528,7 +528,7 @@ export default function BoothResultScreen() {
                   <View style={styles.videoPlayOverlay}>
                     <Text style={styles.videoPlayIcon}>▶️</Text>
                     <Text style={styles.videoPlayText}>K-Booth Live Clip 15s</Text>
-                    <Text style={styles.videoPlaySub}>1080p · Âm thanh sống động</Text>
+                    <Text style={styles.videoPlaySub}>4K UHD · Âm thanh sống động</Text>
                   </View>
                 </View>
               )}
@@ -540,7 +540,7 @@ export default function BoothResultScreen() {
                 <Text style={styles.videoMetaChipText}>⏱️ 15s</Text>
               </View>
               <View style={styles.videoMetaChip}>
-                <Text style={styles.videoMetaChipText}>📺 1080p FHD</Text>
+                <Text style={styles.videoMetaChipText}>📺 4K UHD</Text>
               </View>
               <View style={styles.videoMetaChip}>
                 <Text style={styles.videoMetaChipText}>⚡ 60 FPS</Text>
@@ -887,12 +887,12 @@ export default function BoothResultScreen() {
                     <View style={styles.specRow}>
                       <Text style={styles.specKey}>📐 Độ phân giải</Text>
                       <Text style={styles.specVal}>
-                        {twinStripMode ? '1760 x 2520 px (Dải đôi)' : '880 x 2520 px (Dải đơn)'}
+                        {twinStripMode ? '2640 x 3780 px (Dải đôi 4K)' : '1320 x 3780 px (Dải đơn 4K Master)'}
                       </Text>
                     </View>
                     <View style={styles.specRow}>
                       <Text style={styles.specKey}>🖨️ Mật độ điểm ảnh</Text>
-                      <Text style={styles.specValHighlight}>300 DPI Ultra Sharp</Text>
+                      <Text style={styles.specValHighlight}>600 DPI Master Print</Text>
                     </View>
                     <View style={styles.specRow}>
                       <Text style={styles.specKey}>🎨 Không gian màu</Text>
@@ -904,7 +904,7 @@ export default function BoothResultScreen() {
                     </View>
                     <View style={[styles.specRow, { borderBottomWidth: 0 }]}>
                       <Text style={styles.specKey}>📦 Chất lượng nén</Text>
-                      <Text style={styles.specVal}>100% Lossless (~2.4 MB)</Text>
+                      <Text style={styles.specVal}>100% Lossless (~4.8 MB)</Text>
                     </View>
                   </View>
 
@@ -912,7 +912,7 @@ export default function BoothResultScreen() {
                   <View style={styles.loupeHeaderRow}>
                     <Text style={styles.specSectionTitle}>🔬 Kính lúp phóng to 250%:</Text>
                     <View style={styles.loupeBadge}>
-                      <Text style={styles.loupeBadgeText}>✨ 99.8% SẮC NÉT</Text>
+                      <Text style={styles.loupeBadgeText}>✨ 100% SẮC NÉT 4K MASTER</Text>
                     </View>
                   </View>
 
@@ -966,19 +966,19 @@ export default function BoothResultScreen() {
                   <View style={styles.specTableCard}>
                     <View style={styles.specRow}>
                       <Text style={styles.specKey}>📺 Độ phân giải</Text>
-                      <Text style={styles.specVal}>1080 x 1920 (Full HD Dọc)</Text>
+                      <Text style={styles.specVal}>2160 x 3840 (4K UHD) / 1080p</Text>
                     </View>
                     <View style={styles.specRow}>
                       <Text style={styles.specKey}>⚡ Tốc độ khung hình</Text>
-                      <Text style={styles.specValHighlight}>60 FPS Ultra-Smooth</Text>
+                      <Text style={styles.specValHighlight}>60 FPS Cinematic Master</Text>
                     </View>
                     <View style={styles.specRow}>
                       <Text style={styles.specKey}>🎙️ Âm thanh</Text>
                       <Text style={styles.specVal}>Stereo AAC 48kHz HQ</Text>
                     </View>
                     <View style={styles.specRow}>
-                      <Text style={styles.specKey}>🎞️ Định dạng mã hóa</Text>
-                      <Text style={styles.specVal}>H.264 MP4 High Profile</Text>
+                      <Text style={styles.specKey}>🎞️ Định dạng & Bitrate</Text>
+                      <Text style={styles.specVal}>H.264/HEVC · 25 Mbps</Text>
                     </View>
                     <View style={styles.specRow}>
                       <Text style={styles.specKey}>⏱️ Thời lượng tối đa</Text>

@@ -92,7 +92,7 @@ export async function exportStripToImage(
   if (Platform.OS === 'web') {
     const drawAndExport = async (allowExternalImages: boolean): Promise<boolean> => {
       const canvas = document.createElement('canvas');
-      const scale = 2; // Chuẩn Ultra HD 2K (880x2520) siêu nét cho in ấn và hiển thị Retina
+      const scale = 3; // Chuẩn 4K Ultra HD Master (1320x3780 px) 600 DPI siêu sắc nét cho in ấn thương mại và màn hình Retina 4K/8K
       const singleWidth = 440 * scale;
       canvas.width = twinStrips ? singleWidth * 2 : singleWidth;
       canvas.height = 1260 * scale;

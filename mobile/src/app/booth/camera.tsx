@@ -150,8 +150,8 @@ export default function BoothCameraScreen() {
     }
 
     if (!photoUri) {
-      // Ảnh giả lập độ nét cao chuẩn dọc 4:5 (1080x1350)
-      photoUri = `https://picsum.photos/seed/leafy_${Date.now()}_${shotIndex}/1080/1350`;
+      // Ảnh giả lập độ nét cao chuẩn 4K Portrait (2160x2700 px)
+      photoUri = `https://picsum.photos/seed/leafy_${Date.now()}_${shotIndex}/2160/2700`;
     }
 
     if (!isReplacing) {
@@ -329,7 +329,7 @@ export default function BoothCameraScreen() {
         if (cameraRef.current) {
           const video = await cameraRef.current.recordAsync({
             maxDuration: 15,
-            maxFileSize: 60 * 1024 * 1024,
+            maxFileSize: 100 * 1024 * 1024, // 100MB buffer an toàn cho video 4K UHD
           });
           const videoUri =
             video?.uri ||
@@ -534,11 +534,11 @@ export default function BoothCameraScreen() {
             <Text style={styles.qualityHudText}>
               {shootingMode === 'video'
                 ? isRecordingVideo
-                  ? '🔴 REC 60FPS · 1080P'
-                  : '🎥 60 FPS · 1080P FHD'
+                  ? '🔴 REC 4K UHD · 60FPS'
+                  : '🎥 4K UHD · 60 FPS'
                 : beautyGlow
-                ? '✨ 60 FPS · 4K NÉT MỊN'
-                : '⚡ 60 FPS · 0ms LAG · 4K HD'}
+                ? '✨ 60 FPS · 4K MASTER NÉT MỊN'
+                : '⚡ 60 FPS · 4K UHD MASTER'}
             </Text>
           </View>
 
@@ -636,6 +636,8 @@ export default function BoothCameraScreen() {
               ]}
               facing={cameraFacing}
               mode={shootingMode === 'video' ? 'video' : 'picture'}
+              videoQuality="2160p"
+              videoBitrate={25_000_000}
               autofocus="on"
             />
           ) : (

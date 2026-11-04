@@ -131,7 +131,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
     }
 
     if (!photoUri) {
-      photoUri = `https://picsum.photos/seed/moment_${Date.now()}/1080/1080`;
+      photoUri = `https://picsum.photos/seed/moment_${Date.now()}/2160/2160`;
     }
 
     // Lưu ảnh chụp vào preview review & mặc định lật gương nếu dùng camera trước
@@ -334,6 +334,11 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
               >
                 <Text style={styles.cameraTopButtonText}>{flash ? '⚡' : '🌩'}</Text>
               </Pressable>
+
+              {/* Huy hiệu 4K Ultra HD */}
+              <View pointerEvents="none" style={styles.locket4kBadge}>
+                <Text style={styles.locket4kBadgeText}>✨ 4K ULTRA HD</Text>
+              </View>
 
               {/* Zoom 1x góc phải */}
               <View style={[styles.cameraTopButton, styles.zoomPill]}>
@@ -809,6 +814,24 @@ const styles = StyleSheet.create({
     right: 14,
     width: 44,
     height: 32,
+  },
+  locket4kBadge: {
+    position: 'absolute',
+    top: 14,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(20, 22, 29, 0.75)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 217, 61, 0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    zIndex: 10,
+  },
+  locket4kBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.accentYellow,
+    letterSpacing: 0.5,
   },
   zoomText: {
     fontSize: 13,
