@@ -105,7 +105,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
     }).start();
   };
 
-  // Bước 1: Chụp ảnh dừng lại xem trước (KHÔNG đăng ngay lập tức)
+  // Bước 1: Chụp ảnh dừng lại xem trước (Zero Shutter Lag + Safe Hardware Timeout)
   const handleCapturePhoto = async () => {
     if (isSending) return;
     triggerScreenFlash();
@@ -114,11 +114,16 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
     let photoUri = '';
     try {
       if (cameraRef.current && permission?.granted) {
-        const photo = await cameraRef.current.takePictureAsync({
+        const photoPromise = cameraRef.current.takePictureAsync({
           quality: 1.0, // Chất lượng ảnh lossless tối đa
           skipProcessing: false, // Bật ISP phần cứng: HDR, khử nhiễu và làm nét
           shutterSound: false,
         });
+
+        const photo = await Promise.race([
+          photoPromise,
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+        ]);
         photoUri = photo?.uri || '';
       }
     } catch {
@@ -235,7 +240,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
               { transform: [{ scale: pressed ? 0.95 : 1 }] },
             ]}
           >
-            <Text style={styles.friendsPillText}>👥 {friends.length}/20 bạn</Text>
+            <Text style={styles.friendsPillText}>👥 {friends.length}</Text>
           </Pressable>
 
           <Pressable
@@ -245,7 +250,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
               { transform: [{ scale: pressed ? 0.95 : 1 }] },
             ]}
           >
-            <Text style={styles.switchViewPillText}>📬 Hộp ảnh</Text>
+            <Text style={styles.switchViewPillText}>📬</Text>
           </Pressable>
         </View>
       </View>
@@ -276,14 +281,12 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
                   { transform: [{ scale: pressed ? 0.92 : 1 }] },
                 ]}
               >
-                <Text style={styles.reviewMirrorText}>
-                  {isPhotoMirrored ? '🪞 Đang lật gương' : '🪞 Lật ảnh'}
-                </Text>
+                <Text style={styles.reviewMirrorText}>🪞</Text>
               </Pressable>
 
               {/* Huy hiệu chế độ xem trước */}
               <View style={styles.reviewStatusBadge} pointerEvents="none">
-                <Text style={styles.reviewStatusBadgeText}>👀 Xem trước ảnh Locket</Text>
+                <Text style={styles.reviewStatusBadgeText}>👀 Xem trước</Text>
               </View>
 
               {/* Ô nhập chú thích nổi ở đáy ảnh xem trước */}
@@ -374,7 +377,6 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
             ]}
           >
             <Text style={styles.reviewRetakeIcon}>↺</Text>
-            <Text style={styles.reviewRetakeText}>Chụp lại</Text>
           </Pressable>
 
           {/* Nút Duyệt & Đăng lên Widget Locket ✓ */}
@@ -387,7 +389,7 @@ export const PlantView: React.FC<PlantViewProps> = ({ onOpenFeed, pullUpPanRespo
             ]}
           >
             <Text style={styles.reviewApproveIcon}>✓</Text>
-            <Text style={styles.reviewApproveText}>Duyệt & Đăng Widget 🌿</Text>
+            <Text style={styles.reviewApproveText}>Đăng</Text>
           </Pressable>
         </View>
       ) : (

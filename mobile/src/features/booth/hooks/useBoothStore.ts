@@ -43,9 +43,9 @@ interface BoothState {
   retakeIndex: number | null;
   setRetakeIndex: (index: number | null) => void;
 
-  // Nhịp đếm ngược giữa các shot (3s, 5s, 7s)
-  shotInterval: 3 | 5 | 7;
-  setShotInterval: (interval: 3 | 5 | 7) => void;
+  // Nhịp đếm ngược giữa các shot (1s siêu tốc, 3s chuẩn, 5s thong thả, 7s nhóm)
+  shotInterval: 1 | 3 | 5 | 7;
+  setShotInterval: (interval: 1 | 3 | 5 | 7) => void;
 
   // Gợi ý dáng chụp (Pose Guide)
   poseCategory: PoseCategory;

@@ -353,7 +353,7 @@ export default function BoothResultScreen() {
                     }}
                     style={styles.retakeFloatingPill}
                   >
-                    <Text style={styles.retakeFloatingText}>↺ Đổi ô {idx + 1}</Text>
+                    <Text style={styles.retakeFloatingText}>↺ Đổi</Text>
                   </Pressable>
                 </View>
               )}
@@ -434,9 +434,7 @@ export default function BoothResultScreen() {
               }}
               style={[styles.twinToggleBtn, viewMode === 'strip' && styles.twinToggleBtnActive]}
             >
-              <Text style={[styles.twinToggleText, viewMode === 'strip' && styles.twinToggleTextActive]}>
-                🖼️ Dải ảnh
-              </Text>
+              <Text style={{ fontSize: 16 }}>🖼️</Text>
             </Pressable>
 
             <Pressable
@@ -446,9 +444,7 @@ export default function BoothResultScreen() {
               }}
               style={[styles.twinToggleBtn, viewMode === 'video' && styles.twinToggleBtnActive]}
             >
-              <Text style={[styles.twinToggleText, viewMode === 'video' && styles.twinToggleTextActive]}>
-                🎥 Video
-              </Text>
+              <Text style={{ fontSize: 16 }}>🎥</Text>
             </Pressable>
           </View>
         ) : (
@@ -460,9 +456,7 @@ export default function BoothResultScreen() {
               }}
               style={[styles.twinToggleBtn, !twinStripMode && styles.twinToggleBtnActive]}
             >
-              <Text style={[styles.twinToggleText, !twinStripMode && styles.twinToggleTextActive]}>
-                🎞️ Đơn
-              </Text>
+              <Text style={{ fontSize: 16 }}>🎞️</Text>
             </Pressable>
 
             <Pressable
@@ -472,14 +466,12 @@ export default function BoothResultScreen() {
               }}
               style={[styles.twinToggleBtn, twinStripMode && styles.twinToggleBtnActive]}
             >
-              <Text style={[styles.twinToggleText, twinStripMode && styles.twinToggleTextActive]}>
-                ✂️ Đôi
-              </Text>
+              <Text style={{ fontSize: 16 }}>✂️</Text>
             </Pressable>
           </View>
         )}
 
-        {/* Nút Soi Nét & Kiểm Định Kỹ Thuật */}
+        {/* Nút Soi Nét (Biểu tượng kính lúp gọn gàng) */}
         <Pressable
           onPress={() => {
             playShutterSound();
@@ -487,12 +479,11 @@ export default function BoothResultScreen() {
             setShowQualityModal(true);
           }}
           style={({ pressed }) => [
-            styles.inspectHeaderBtn,
+            styles.circleBtn,
             { transform: [{ scale: pressed ? 0.94 : 1 }] },
           ]}
         >
-          <Text style={styles.inspectHeaderEmoji}>🔍</Text>
-          <Text style={styles.inspectHeaderText}>Soi nét</Text>
+          <Text style={{ fontSize: 16 }}>🔍</Text>
         </Pressable>
       </View>
 
@@ -655,11 +646,7 @@ export default function BoothResultScreen() {
         >
           <Text style={styles.dockHeroBtnIcon}>{viewMode === 'video' ? '🎬' : '🚀'}</Text>
           <Text style={styles.dockHeroBtnText}>
-            {isSendingToLeafy
-              ? 'Đang gửi...'
-              : viewMode === 'video'
-              ? 'Treo Video'
-              : 'Treo Widget'}
+            {isSendingToLeafy ? '...' : 'Treo'}
           </Text>
         </Pressable>
 
@@ -678,7 +665,6 @@ export default function BoothResultScreen() {
             hitSlop={6}
           >
             <Text style={styles.dockIconBtnEmoji}>✍️</Text>
-            <Text style={styles.dockIconBtnLabel}>Ký tên</Text>
           </Pressable>
         ) : (
           <Pressable
@@ -694,7 +680,6 @@ export default function BoothResultScreen() {
             hitSlop={6}
           >
             <Text style={styles.dockIconBtnEmoji}>🔍</Text>
-            <Text style={styles.dockIconBtnLabel}>Soi nét</Text>
           </Pressable>
         )}
 
@@ -709,7 +694,6 @@ export default function BoothResultScreen() {
           hitSlop={6}
         >
           <Text style={styles.dockIconBtnEmoji}>{isSaving ? '⏳' : '💾'}</Text>
-          <Text style={styles.dockIconBtnLabel}>Lưu</Text>
         </Pressable>
 
         {/* Nút Studio Khung */}
@@ -722,7 +706,6 @@ export default function BoothResultScreen() {
           hitSlop={6}
         >
           <Text style={styles.dockIconBtnEmoji}>🎨</Text>
-          <Text style={styles.dockIconBtnLabel}>Khung</Text>
         </Pressable>
 
         {/* Nút Chụp lại */}
@@ -735,7 +718,6 @@ export default function BoothResultScreen() {
           hitSlop={6}
         >
           <Text style={styles.dockIconBtnEmoji}>↺</Text>
-          <Text style={styles.dockIconBtnLabel}>Chụp lại</Text>
         </Pressable>
       </View>
 
@@ -1387,7 +1369,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dockIconBtnEmoji: {
-    fontSize: 16,
+    fontSize: 20,
   },
   dockIconBtnLabel: {
     fontSize: 8,

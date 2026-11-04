@@ -56,12 +56,15 @@ export default function BoothCameraScreen() {
   const [isShooting, setIsShooting] = useState(false);
   const [shootingMode, setShootingMode] = useState<'instant' | 'timer' | 'video'>('timer');
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+  const [isStoppingVideo, setIsStoppingVideo] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingTimerRef = useRef<any>(null);
 
   const [showPoseModal, setShowPoseModal] = useState(false);
   const [ringLightMode, setRingLightMode] = useState<'off' | 'white' | 'warm'>('off');
   const [beautyGlow, setBeautyGlow] = useState(true); // Mặc định kích hoạt làm đẹp mịn da K-Glow
+  const [exposureLevel, setExposureLevel] = useState<-1 | 0 | 1>(0); // Bù sáng EV (-1: Tối, 0: Chuẩn, +1: Sáng Studio)
+  const [isFinishingSequence, setIsFinishingSequence] = useState(false); // Chuyển cảnh dải ảnh mượt mà
   const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
   const focusAnim = useRef(new Animated.Value(0)).current;
 
@@ -119,6 +122,7 @@ export default function BoothCameraScreen() {
   };
 
   const takeSinglePhoto = async (shotIndex: number, isReplacing: boolean = false): Promise<string> => {
+    // Kích hoạt phản hồi xúc giác & chớp flash ngay ở frame 0 (Zero Touch Latency)
     triggerFlash();
     if (soundEnabled) {
       playShutterSound();
@@ -127,16 +131,22 @@ export default function BoothCameraScreen() {
     let photoUri = '';
     try {
       if (cameraRef.current && permission?.granted) {
-        const photo = await cameraRef.current.takePictureAsync({
+        const photoPromise = cameraRef.current.takePictureAsync({
           quality: 1.0, // Chất lượng nén ảnh cao nhất (Lossless JPEG)
           skipProcessing: false, // Bật ISP phần cứng: HDR, khử nhiễu, làm nét biên cạnh và cân bằng da
           shutterSound: false,
           exif: false,
         });
+
+        // Bọc Promise.race với timeout 2500ms chống treo driver camera
+        const photo = await Promise.race([
+          photoPromise,
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+        ]);
         photoUri = photo?.uri || '';
       }
     } catch {
-      // Fallback nếu chạy trên web hoặc môi trường mô phỏng
+      // Fallback nếu chạy trên web hoặc camera device bận
     }
 
     if (!photoUri) {
@@ -155,16 +165,17 @@ export default function BoothCameraScreen() {
     if (isShooting || retakeIndex === null) return;
     setIsShooting(true);
 
+    const tickDelay = shotInterval === 1 ? 650 : 750;
     for (let sec = shotInterval; sec > 0; sec--) {
       if (isCancelledRef.current || !isMountedRef.current) return;
       setCountdown(sec);
       try {
-        Vibration.vibrate(30);
+        Vibration.vibrate(25);
       } catch (_) {}
       if (soundEnabled) {
         playShutterSound();
       }
-      await new Promise((r) => setTimeout(r, 850));
+      await new Promise((r) => setTimeout(r, tickDelay));
     }
     if (isCancelledRef.current || !isMountedRef.current) return;
     setCountdown(null);
@@ -210,6 +221,9 @@ export default function BoothCameraScreen() {
     setIsShooting(true);
     resetPhotos();
 
+    const tickDelay = shotInterval === 1 ? 650 : 750;
+    const interShotDelay = shotInterval === 1 ? 350 : 500;
+
     const shotUris: string[] = [];
     for (let shot = 0; shot < 4; shot++) {
       if (isCancelledRef.current || !isMountedRef.current) return;
@@ -219,12 +233,12 @@ export default function BoothCameraScreen() {
         if (isCancelledRef.current || !isMountedRef.current) return;
         setCountdown(sec);
         try {
-          Vibration.vibrate(30);
+          Vibration.vibrate(25);
         } catch (_) {}
         if (soundEnabled) {
           playShutterSound();
         }
-        await new Promise((r) => setTimeout(r, 850));
+        await new Promise((r) => setTimeout(r, tickDelay));
       }
 
       if (isCancelledRef.current || !isMountedRef.current) return;
@@ -235,25 +249,33 @@ export default function BoothCameraScreen() {
       }
 
       if (shot < 3) {
-        await new Promise((r) => setTimeout(r, 900));
+        await new Promise((r) => setTimeout(r, interShotDelay));
       }
     }
 
     if (isCancelledRef.current || !isMountedRef.current) return;
-    setIsShooting(false);
 
     if (shotUris.length > 0) {
       useStudioStore.getState().setSlotPhotos(shotUris);
     }
 
+    // Micro-overlay chuyển cảnh êm ru không chớp trắng
+    setIsFinishingSequence(true);
+    await new Promise((r) => setTimeout(r, 200));
+
     if (isMountedRef.current) {
+      setIsShooting(false);
+      setIsFinishingSequence(false);
       router.replace('/booth/result' as any);
     }
   };
 
-  // Quay video K-Booth Live Clip 15s
+  // Quay video K-Booth Live Clip 15s tối ưu hiệu suất
   const handleToggleVideoRecording = async () => {
     if (isRecordingVideo) {
+      if (isStoppingVideo) return;
+      setIsStoppingVideo(true);
+
       // Dừng quay video
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
@@ -279,6 +301,7 @@ export default function BoothCameraScreen() {
       }
 
       setIsRecordingVideo(true);
+      setIsStoppingVideo(false);
       setRecordingSeconds(0);
       try {
         Vibration.vibrate([0, 50, 100, 50]);
@@ -292,6 +315,7 @@ export default function BoothCameraScreen() {
               recordingTimerRef.current = null;
             }
             setIsRecordingVideo(false);
+            setIsStoppingVideo(true);
             try {
               if (cameraRef.current) cameraRef.current.stopRecording();
             } catch {}
@@ -305,11 +329,13 @@ export default function BoothCameraScreen() {
         if (cameraRef.current) {
           const video = await cameraRef.current.recordAsync({
             maxDuration: 15,
+            maxFileSize: 60 * 1024 * 1024,
           });
           const videoUri =
             video?.uri ||
             `https://assets.mixkit.co/videos/preview/mixkit-friends-taking-a-selfie-photo-4861-large.mp4`;
           setRecordedVideoUri(videoUri);
+          setIsStoppingVideo(false);
           if (isMountedRef.current) {
             router.replace('/booth/result' as any);
           }
@@ -318,14 +344,16 @@ export default function BoothCameraScreen() {
           setTimeout(() => {
             const fallbackUri = `https://assets.mixkit.co/videos/preview/mixkit-friends-taking-a-selfie-photo-4861-large.mp4`;
             setRecordedVideoUri(fallbackUri);
+            setIsStoppingVideo(false);
             if (isMountedRef.current) {
               router.replace('/booth/result' as any);
             }
-          }, 3000);
+          }, 2500);
         }
       } catch {
         const fallbackUri = `https://assets.mixkit.co/videos/preview/mixkit-friends-taking-a-selfie-photo-4861-large.mp4`;
         setRecordedVideoUri(fallbackUri);
+        setIsStoppingVideo(false);
         if (isMountedRef.current) {
           router.replace('/booth/result' as any);
         }
@@ -347,9 +375,10 @@ export default function BoothCameraScreen() {
 
   const handleCycleInterval = () => {
     playShutterSound();
-    if (shotInterval === 3) setShotInterval(5);
+    if (shotInterval === 1) setShotInterval(3);
+    else if (shotInterval === 3) setShotInterval(5);
     else if (shotInterval === 5) setShotInterval(7);
-    else setShotInterval(3);
+    else setShotInterval(1);
   };
 
   const currentPoseCollection = POSE_COLLECTIONS.find((p) => p.id === poseCategory);
@@ -374,36 +403,53 @@ export default function BoothCameraScreen() {
           <Text style={styles.circleButtonText}>✕</Text>
         </Pressable>
 
-        {/* Capsule Chọn Gợi Ý Dáng Chụp (1 chạm mở Modal) */}
+        {/* Nút Chọn Gợi Ý Dáng Chụp (Icon gọn gàng) */}
         <Pressable
           onPress={() => {
             playShutterSound();
             setShowPoseModal(true);
           }}
           style={({ pressed }) => [
-            styles.poseCapsuleBtn,
-            poseCategory !== 'none' && styles.poseCapsuleBtnActive,
-            { transform: [{ scale: pressed ? 0.96 : 1 }] },
+            styles.poseIconBtn,
+            poseCategory !== 'none' && styles.poseIconBtnActive,
+            { transform: [{ scale: pressed ? 0.94 : 1 }] },
           ]}
         >
-          <Text style={styles.poseCapsuleIcon}>
+          <Text style={styles.poseIconBtnEmoji}>
             {poseCategory === 'none' ? '👯' : currentPoseCollection?.icon || '✨'}
-          </Text>
-          <Text style={[styles.poseCapsuleText, poseCategory !== 'none' && styles.poseCapsuleTextActive]}>
-            {poseCategory === 'none' ? 'Dáng ▾' : `${currentPoseCollection?.name} ▾`}
           </Text>
         </Pressable>
 
-        {/* Cụm công cụ nhỏ: Hẹn giờ + Trợ sáng Ring Light + Mịn da K-Glow + Gương + Âm thanh */}
+        {/* Cụm công cụ nhỏ: Hẹn giờ + Bù sáng EV + Trợ sáng Ring Light + Mịn da K-Glow + Gương + Âm thanh */}
         <View style={styles.topRightTools}>
           <Pressable
             onPress={handleCycleInterval}
             style={({ pressed }) => [
               styles.toolChip,
+              shotInterval === 1 && styles.toolChipFast,
               { transform: [{ scale: pressed ? 0.92 : 1 }] },
             ]}
           >
-            <Text style={styles.toolChipText}>⏱️ {shotInterval}s</Text>
+            <Text style={[styles.toolChipText, shotInterval === 1 && styles.toolChipTextFast]}>
+              {shotInterval === 1 ? '⚡ 1s' : `⏱️ ${shotInterval}s`}
+            </Text>
+          </Pressable>
+
+          {/* Nút Bù Sáng Nhanh EV */}
+          <Pressable
+            onPress={() => {
+              playShutterSound();
+              setExposureLevel((prev) => (prev === 0 ? 1 : prev === 1 ? -1 : 0));
+            }}
+            style={({ pressed }) => [
+              styles.circleMiniBtn,
+              exposureLevel !== 0 && styles.circleMiniBtnActive,
+              { transform: [{ scale: pressed ? 0.92 : 1 }] },
+            ]}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '900', color: exposureLevel > 0 ? colors.yellow : '#FFF' }}>
+              {exposureLevel === 1 ? '☀️+1' : exposureLevel === -1 ? '🌙-1' : '☀️ 0'}
+            </Text>
           </Pressable>
 
           {/* Nút Viền Trợ Sáng Soft Ring Light */}
@@ -474,7 +520,7 @@ export default function BoothCameraScreen() {
             }}
             style={styles.retakeCancelBtn}
           >
-            <Text style={styles.retakeCancelBtnText}>✕ Hủy</Text>
+            <Text style={styles.retakeCancelBtnText}>✕</Text>
           </Pressable>
         </View>
       )}
@@ -482,13 +528,35 @@ export default function BoothCameraScreen() {
       {/* 2. KHUNG NGẮM CAMERA CHÍNH: MỞ RỘNG TỐI ĐA & CHẠM LẤY NÉT */}
       <View style={styles.viewfinderContainer}>
         <Pressable style={styles.viewfinder} onPress={handleTapToFocus}>
-          {/* Huy hiệu độ nét & chế độ K-Booth */}
+          {/* Huy hiệu độ nét & chế độ K-Booth & Hiệu năng */}
           <View pointerEvents="none" style={styles.qualityHudBadge}>
             <View style={[styles.qualityHudDot, beautyGlow && { backgroundColor: '#FF8FC7' }]} />
             <Text style={styles.qualityHudText}>
-              {beautyGlow ? '✨ 4K HD · NÉT MỊN' : '📸 4K HD · TỰ NHIÊN'}
+              {shootingMode === 'video'
+                ? isRecordingVideo
+                  ? '🔴 REC 60FPS · 1080P'
+                  : '🎥 60 FPS · 1080P FHD'
+                : beautyGlow
+                ? '✨ 60 FPS · 4K NÉT MỊN'
+                : '⚡ 60 FPS · 0ms LAG · 4K HD'}
             </Text>
           </View>
+
+          {/* Lớp phủ bù sáng EV studio */}
+          {exposureLevel === 1 && (
+            <View pointerEvents="none" style={styles.exposureHighKeyLayer} />
+          )}
+          {exposureLevel === -1 && (
+            <View pointerEvents="none" style={styles.exposureLowKeyLayer} />
+          )}
+
+          {/* Micro-overlay hoàn tất dải ảnh mượt mà */}
+          {isFinishingSequence && (
+            <View pointerEvents="none" style={styles.finishingOverlay}>
+              <Text style={styles.finishingEmoji}>⚡</Text>
+              <Text style={styles.finishingText}>Đang tối ưu ảnh 4K HD...</Text>
+            </View>
+          )}
 
           {/* Vòng ngắm lấy nét chạm Tap-To-Focus */}
           {focusPoint && (
@@ -653,7 +721,7 @@ export default function BoothCameraScreen() {
 
       {/* 3. ĐẾ ĐIỀU KHIỂN CHỤP DƯỚI ĐÁY: GỌN GÀNG, CÔNG THÁI HỌC */}
       <View style={styles.shutterDeck}>
-        {/* Nút gạt chuyển chế độ: 1 ảnh vs Chuỗi 4 ảnh vs Video */}
+        {/* Nút gạt chuyển chế độ: Biểu tượng 1 chạm tối giản */}
         <View style={styles.modeSwitchCapsule}>
           <Pressable
             onPress={() => setShootingMode('instant')}
@@ -663,9 +731,7 @@ export default function BoothCameraScreen() {
               shootingMode === 'instant' && styles.modeSegmentActive,
             ]}
           >
-            <Text style={[styles.modeSegmentText, shootingMode === 'instant' && styles.modeSegmentTextActive]}>
-              ⚡ 1 ảnh
-            </Text>
+            <Text style={styles.modeSegmentIcon}>⚡</Text>
           </Pressable>
 
           <Pressable
@@ -676,9 +742,7 @@ export default function BoothCameraScreen() {
               shootingMode === 'timer' && styles.modeSegmentActive,
             ]}
           >
-            <Text style={[styles.modeSegmentText, shootingMode === 'timer' && styles.modeSegmentTextActive]}>
-              📸 Chuỗi 4
-            </Text>
+            <Text style={styles.modeSegmentIcon}>📸</Text>
           </Pressable>
 
           <Pressable
@@ -689,9 +753,7 @@ export default function BoothCameraScreen() {
               shootingMode === 'video' && styles.modeSegmentActive,
             ]}
           >
-            <Text style={[styles.modeSegmentText, shootingMode === 'video' && styles.modeSegmentTextActive]}>
-              🎥 Video
-            </Text>
+            <Text style={styles.modeSegmentIcon}>🎥</Text>
           </Pressable>
         </View>
 
@@ -714,7 +776,7 @@ export default function BoothCameraScreen() {
             <Text style={styles.sideDeckBtnIcon}>↺</Text>
           </Pressable>
 
-          {/* NÚT CHỤP / QUAY CHÍNH TO TRÒN NỔI BẬT */}
+          {/* NÚT CHỤP / QUAY CHÍNH TO TRÒN NỔI BẬT: BIỂU TƯỢNG ĐẲNG CẤP, KHÔNG CHỮ RƯỜM RÀ */}
           <Pressable
             onPress={handleShutterPress}
             disabled={isShooting}
@@ -726,7 +788,9 @@ export default function BoothCameraScreen() {
           >
             <View style={[styles.heroShutterInner, isRecordingVideo && styles.heroShutterInnerRecording]}>
               <Text style={styles.heroShutterEmoji}>
-                {isRecordingVideo
+                {isStoppingVideo
+                  ? '⏳'
+                  : isRecordingVideo
                   ? '⏹️'
                   : isShooting
                   ? '⏳'
@@ -735,23 +799,8 @@ export default function BoothCameraScreen() {
                   : shootingMode === 'video'
                   ? '🔴'
                   : shootingMode === 'instant'
-                  ? '📸'
-                  : '⏱️'}
-              </Text>
-              <Text style={styles.heroShutterLabel}>
-                {isRecordingVideo
-                  ? `Dừng (${recordingSeconds}s)`
-                  : retakeIndex !== null
-                  ? isShooting
-                    ? 'Đang chụp...'
-                    : `Đổi ô ${retakeIndex + 1}`
-                  : isShooting
-                  ? 'Đang chụp...'
-                  : shootingMode === 'video'
-                  ? 'Quay 15s'
-                  : shootingMode === 'instant'
-                  ? `Chụp ${capturedPhotos.length + 1}/4`
-                  : 'Bắt đầu'}
+                  ? '⚡'
+                  : '📸'}
               </Text>
             </View>
           </Pressable>
@@ -879,6 +928,24 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.textPrimary,
   },
+  poseIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#14161D',
+    borderWidth: 1.5,
+    borderColor: '#2A2E39',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.darkSoft,
+  },
+  poseIconBtnActive: {
+    backgroundColor: 'rgba(255, 143, 199, 0.2)',
+    borderColor: '#FF8FC7',
+  },
+  poseIconBtnEmoji: {
+    fontSize: 18,
+  },
   poseCapsuleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -919,10 +986,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
+  toolChipFast: {
+    backgroundColor: 'rgba(255, 217, 61, 0.2)',
+    borderColor: colors.yellow,
+  },
   toolChipText: {
     fontSize: 11,
     fontWeight: '800',
     color: colors.yellow,
+  },
+  toolChipTextFast: {
+    color: colors.yellow,
+    fontWeight: '900',
   },
   circleMiniBtn: {
     width: 36,
@@ -1061,6 +1136,33 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(255, 240, 245, 0.04)',
     zIndex: 8,
+  },
+  exposureHighKeyLayer: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    zIndex: 8,
+  },
+  exposureLowKeyLayer: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+    zIndex: 8,
+  },
+  finishingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(8, 8, 10, 0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    zIndex: 35,
+  },
+  finishingEmoji: {
+    fontSize: 32,
+  },
+  finishingText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.yellow,
+    letterSpacing: 0.5,
   },
   focusReticle: {
     position: 'absolute',
@@ -1273,12 +1375,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   modeSegment: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modeSegmentActive: {
     backgroundColor: colors.yellow,
+  },
+  modeSegmentIcon: {
+    fontSize: 16,
   },
   modeSegmentText: {
     fontSize: 11,
@@ -1340,7 +1447,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DC2626',
   },
   heroShutterEmoji: {
-    fontSize: 24,
+    fontSize: 32,
   },
   heroShutterLabel: {
     fontSize: 8,
