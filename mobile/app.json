@@ -9,10 +9,12 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.leafybooth.app",
+      "buildNumber": "1",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "LeafyBooth cần quyền truy cập camera để chụp ảnh khoảnh khắc và dải photobooth.",
-        "NSPhotoLibraryAddUsageDescription": "LeafyBooth cần quyền lưu ảnh để lưu dải photobooth vào thư viện ảnh của bạn.",
+        "NSMicrophoneUsageDescription": "LeafyBooth cần quyền truy cập microphone để quay video kèm âm thanh sống động cho dải photobooth.",
+        "NSPhotoLibraryAddUsageDescription": "LeafyBooth cần quyền lưu ảnh để lưu dải photobooth và video vào thư viện ảnh của bạn.",
         "NSPhotoLibraryUsageDescription": "LeafyBooth cần quyền truy cập thư viện ảnh để chọn ảnh làm nền và khung ảnh."
       }
     },

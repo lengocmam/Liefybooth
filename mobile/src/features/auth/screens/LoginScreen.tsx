@@ -20,7 +20,9 @@ import {
   useAuthStore,
   formatPhoneNumber,
   normalizePhoneNumber,
+  SEED_USERS,
 } from '../hooks/useAuthStore';
+import { isSupabaseConfigured } from '../../../core/supabase/supabaseClient';
 import { playShutterSound } from '../../booth/services/soundService';
 
 const AVATAR_COLORS = [
@@ -32,6 +34,18 @@ const AVATAR_COLORS = [
   { color: '#FF7A3D', name: 'Cam đào' },
 ];
 
+// Hàm chuyển đổi họ tên tiếng Việt có dấu thành @username chuẩn không dấu
+const slugifyVietnamese = (str: string): string => {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+};
+
 export const LoginScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -40,11 +54,15 @@ export const LoginScreen: React.FC = () => {
     phone,
     otp,
     generatedOtp,
+    realSmsSent,
     timer,
     isTimerActive,
     step,
     isLoading,
     errorMessage,
+    rememberMe,
+    setRememberMe,
+    quickLoginAs,
     setPhone,
     setOtp,
     sendOtp,
@@ -55,6 +73,15 @@ export const LoginScreen: React.FC = () => {
     decrementTimer,
   } = useAuthStore();
 
+  const handleQuickLogin = async (phoneKey: string) => {
+    const user = SEED_USERS[phoneKey];
+    if (user) {
+      playShutterSound();
+      await quickLoginAs(user);
+      router.replace('/(tabs)/moments');
+    }
+  };
+
   // State cho 6 ô nhập mã OTP
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const otpInputRefs = useRef<any[]>([]);
@@ -62,7 +89,32 @@ export const LoginScreen: React.FC = () => {
   // State cho bước thiết lập hồ sơ (Profile Setup)
   const [profileName, setProfileName] = useState('');
   const [profileUsername, setProfileUsername] = useState('');
+  const [isUsernameCustomized, setIsUsernameCustomized] = useState(false);
+  const [isSubmittingProfile, setIsSubmittingProfile] = useState(false);
   const [selectedAvatarColor, setSelectedAvatarColor] = useState(AVATAR_COLORS[0].color);
+
+  // Tự động sinh @username từ Họ và tên người dùng
+  const handleNameChange = (nameText: string) => {
+    setProfileName(nameText);
+    if (!isUsernameCustomized) {
+      const slug = slugifyVietnamese(nameText);
+      setProfileUsername(slug);
+    }
+  };
+
+  // Tự động định dạng số điện thoại đẹp: 0988 123 456
+  const handlePhoneChange = (val: string) => {
+    const raw = val.replace(/\D/g, '');
+    let formatted = raw;
+    if (raw.length <= 4) {
+      formatted = raw;
+    } else if (raw.length <= 7) {
+      formatted = `${raw.slice(0, 4)} ${raw.slice(4)}`;
+    } else {
+      formatted = `${raw.slice(0, 4)} ${raw.slice(4, 7)} ${raw.slice(7, 10)}`;
+    }
+    setPhone(formatted);
+  };
 
   // Hiệu ứng nhịp đập cho banner thông báo mã OTP
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -130,10 +182,19 @@ export const LoginScreen: React.FC = () => {
     }, 250);
   };
 
-  // Nhập từng ô OTP
+  // Nhập từng ô OTP hoặc tự động phân bổ khi dán chuỗi 6 số từ clipboard
   const handleOtpDigitChange = (value: string, index: number) => {
+    const cleanAll = value.replace(/\D/g, '');
+    if (cleanAll.length >= 6) {
+      const digits = cleanAll.slice(0, 6).split('');
+      setOtpDigits(digits);
+      setOtp(cleanAll.slice(0, 6));
+      handleVerifyCode(cleanAll.slice(0, 6));
+      return;
+    }
+
     // Chỉ lấy chữ số
-    const cleanDigit = value.replace(/\D/g, '').slice(-1);
+    const cleanDigit = cleanAll.slice(-1);
     const newDigits = [...otpDigits];
     newDigits[index] = cleanDigit;
     setOtpDigits(newDigits);
@@ -160,12 +221,12 @@ export const LoginScreen: React.FC = () => {
   };
 
   // Xác thực mã OTP
-  const handleVerifyCode = (codeToVerify?: string) => {
+  const handleVerifyCode = async (codeToVerify?: string) => {
     const code = codeToVerify || otpDigits.join('');
     if (code.length < 6) return;
 
     playShutterSound();
-    const result = verifyOtp(code);
+    const result = await verifyOtp(code);
     if (result.success) {
       if (!result.isNewUser) {
         // Đã là tài khoản cũ -> Vào thẳng Moments Feed
@@ -176,13 +237,21 @@ export const LoginScreen: React.FC = () => {
   };
 
   // Hoàn tất bước tạo hồ sơ người dùng mới
-  const handleFinishProfileSetup = () => {
-    if (!profileName.trim()) return;
+  const handleFinishProfileSetup = async () => {
+    if (!profileName.trim() || isSubmittingProfile) return;
+    setIsSubmittingProfile(true);
     playShutterSound();
 
-    const username = profileUsername.trim() || `user_${phone.slice(-4)}`;
-    completeProfile(profileName, username, selectedAvatarColor);
-    router.replace('/(tabs)/moments');
+    const cleanUsername = (profileUsername.trim() || slugifyVietnamese(profileName) || `user_${phone.replace(/\D/g, '').slice(-4)}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '');
+
+    try {
+      completeProfile(profileName, cleanUsername, selectedAvatarColor);
+      router.replace('/(tabs)/moments');
+    } catch {
+      setIsSubmittingProfile(false);
+    }
   };
 
   // Thử ngay chế độ khách không cần tài khoản
@@ -224,6 +293,14 @@ export const LoginScreen: React.FC = () => {
                 <View style={styles.taglinePill}>
                   <Text style={styles.taglineText}>Màn hình widget & Photobooth bạn bè</Text>
                 </View>
+
+                {/* Supabase Cloud Badge */}
+                <View style={styles.cloudBadgeRow}>
+                  <View style={[styles.cloudDot, isSupabaseConfigured() ? styles.cloudDotActive : styles.cloudDotLocal]} />
+                  <Text style={styles.cloudBadgeText}>
+                    {isSupabaseConfigured() ? '☁️ Supabase Cloud: Sẵn sàng' : '💾 Lưu trữ thiết bị (Sẵn sàng Supabase)'}
+                  </Text>
+                </View>
               </View>
 
               {/* Title & Description */}
@@ -246,10 +323,19 @@ export const LoginScreen: React.FC = () => {
                   placeholderTextColor="#6B7280"
                   keyboardType="phone-pad"
                   value={phone}
-                  onChangeText={(val) => setPhone(val)}
+                  onChangeText={handlePhoneChange}
                   maxLength={13}
                   autoFocus
                 />
+                {phone.length > 0 && (
+                  <Pressable
+                    onPress={() => setPhone('')}
+                    style={styles.clearPhoneBtn}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.clearPhoneText}>✕</Text>
+                  </Pressable>
+                )}
               </View>
 
               {/* Error Message */}
@@ -259,69 +345,68 @@ export const LoginScreen: React.FC = () => {
                 </View>
               )}
 
+              {/* Remember Me Checkbox */}
+              <Pressable
+                onPress={() => setRememberMe(!rememberMe)}
+                style={styles.rememberRow}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
+                  {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.rememberText}>Ghi nhớ đăng nhập trên thiết bị này</Text>
+              </Pressable>
+
               {/* CTA Send OTP Button */}
               <Pressable
                 onPress={() => handleSendOtp()}
-                disabled={isLoading || !phone.trim()}
+                disabled={isLoading || !phone.trim() || phone.replace(/\D/g, '').length < 10}
                 style={({ pressed }) => [
                   styles.primaryCtaBtn,
-                  (!phone.trim() || isLoading) && styles.ctaBtnDisabled,
+                  (!phone.trim() || isLoading || phone.replace(/\D/g, '').length < 10) && styles.ctaBtnDisabled,
                   { transform: [{ scale: pressed ? 0.98 : 1 }] },
                 ]}
               >
                 {isLoading ? (
                   <ActivityIndicator color={colors.ink} />
                 ) : (
-                  <Text style={styles.primaryCtaText}>Gửi mã OTP ➔</Text>
+                  <Text style={styles.primaryCtaText}>Gửi mã ➔</Text>
                 )}
               </Pressable>
 
-              {/* Quick Pick Test Accounts (Mẫu kiểm thử nhanh 1 chạm) */}
+              {/* Quick Pick Test Accounts (Đăng nhập nhanh 1 chạm & ghi nhớ) */}
               <View style={styles.testSection}>
-                <Text style={styles.testSectionTitle}>⚡ Tài khoản mẫu thử nghiệm (chạm để điền):</Text>
+                <Text style={styles.testSectionTitle}>⚡ Đăng nhập nhanh 1 chạm (tự động ghi nhớ):</Text>
                 <View style={styles.testChipsRow}>
                   <Pressable
-                    onPress={() => {
-                      setPhone('0988 123 456');
-                      handleSendOtp('0988 123 456');
-                    }}
+                    onPress={() => handleQuickLogin('0989999999')}
+                    style={[styles.testChip, { backgroundColor: '#C8F135' }]}
+                  >
+                    <Text style={styles.testChipLetter}>T</Text>
+                    <Text style={[styles.testChipText, { color: '#000', fontWeight: '700' }]}>Bạn (Tôi)</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => handleQuickLogin('0988123456')}
                     style={styles.testChip}
                   >
                     <Text style={styles.testChipLetter}>A</Text>
-                    <Text style={styles.testChipText}>An (0988...)</Text>
+                    <Text style={styles.testChipText}>An</Text>
                   </Pressable>
 
                   <Pressable
-                    onPress={() => {
-                      setPhone('0912 345 678');
-                      handleSendOtp('0912 345 678');
-                    }}
+                    onPress={() => handleQuickLogin('0912345678')}
                     style={styles.testChip}
                   >
                     <Text style={styles.testChipLetter}>B</Text>
-                    <Text style={styles.testChipText}>Bình (0912...)</Text>
+                    <Text style={styles.testChipText}>Bình</Text>
                   </Pressable>
 
                   <Pressable
-                    onPress={() => {
-                      setPhone('0903 112 233');
-                      handleSendOtp('0903 112 233');
-                    }}
+                    onPress={() => handleQuickLogin('0903112233')}
                     style={styles.testChip}
                   >
                     <Text style={styles.testChipLetter}>C</Text>
-                    <Text style={styles.testChipText}>Chi (0903...)</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => {
-                      setPhone('0966 888 999');
-                      handleSendOtp('0966 888 999');
-                    }}
-                    style={[styles.testChip, { backgroundColor: '#FEF08A' }]}
-                  >
-                    <Text style={styles.testChipLetter}>🌱</Text>
-                    <Text style={styles.testChipText}>Số mới (Đăng ký)</Text>
+                    <Text style={styles.testChipText}>Chi</Text>
                   </Pressable>
                 </View>
               </View>
@@ -336,7 +421,7 @@ export const LoginScreen: React.FC = () => {
                   ]}
                 >
                   <Text style={styles.guestLinkText}>
-                    📸 Chụp Photobooth ngay không cần đăng nhập
+                    📸 Chụp ngay (Khách)
                   </Text>
                 </Pressable>
 
@@ -362,7 +447,7 @@ export const LoginScreen: React.FC = () => {
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.backBtnText}>← Đổi số điện thoại</Text>
+                <Text style={styles.backBtnText}>← Đổi số</Text>
               </Pressable>
 
               {/* Header */}
@@ -374,32 +459,47 @@ export const LoginScreen: React.FC = () => {
                 </Text>
               </View>
 
-              {/* Demo Simulated SMS Toast / Banner */}
-              <Animated.View
-                style={[
-                  styles.smsSimulationCard,
-                  { transform: [{ scale: pulseAnim }] },
-                ]}
-              >
-                <Pressable
-                  onPress={() => handleAutoFillOtp(generatedOtp)}
-                  style={styles.smsSimulationInner}
-                >
+              {/* SMS Banner: Real SMS or Fallback OTP */}
+              {realSmsSent ? (
+                <View style={styles.smsRealCard}>
                   <View style={styles.smsHeaderRow}>
-                    <Text style={styles.smsIcon}>💬</Text>
-                    <Text style={styles.smsSender}>SMS · LeafyBooth OTP</Text>
-                    <View style={styles.smsNowBadge}>
-                      <Text style={styles.smsNowText}>Vừa xong</Text>
+                    <Text style={styles.smsIcon}>📲</Text>
+                    <Text style={styles.smsSender}>Đã gửi tin nhắn SMS</Text>
+                    <View style={styles.smsRealBadge}>
+                      <Text style={styles.smsRealBadgeText}>SMS Thật ⚡</Text>
                     </View>
                   </View>
-                  <Text style={styles.smsBody}>
-                    Mã xác thực của bạn là: <Text style={styles.smsCodeBold}>{generatedOtp}</Text>
+                  <Text style={styles.smsRealBody}>
+                    Mã xác nhận gồm 6 chữ số đã được gửi qua mạng di động đến số <Text style={styles.boldHighlight}>{formatPhoneNumber(phone)}</Text>. Vui lòng kiểm tra hộp thư SMS trên điện thoại.
                   </Text>
-                  <Text style={styles.smsAutoFillHint}>
-                    ⚡ Chạm vào đây để tự động điền mã ({generatedOtp})
-                  </Text>
-                </Pressable>
-              </Animated.View>
+                </View>
+              ) : (
+                <Animated.View
+                  style={[
+                    styles.smsSimulationCard,
+                    { transform: [{ scale: pulseAnim }] },
+                  ]}
+                >
+                  <Pressable
+                    onPress={() => handleAutoFillOtp(generatedOtp)}
+                    style={styles.smsSimulationInner}
+                  >
+                    <View style={styles.smsHeaderRow}>
+                      <Text style={styles.smsIcon}>💬</Text>
+                      <Text style={styles.smsSender}>SMS · Mã xác nhận</Text>
+                      <View style={styles.smsNowBadge}>
+                        <Text style={styles.smsNowText}>Vừa xong</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.smsBody}>
+                      Mã xác thực của bạn là: <Text style={styles.smsCodeBold}>{generatedOtp}</Text>
+                    </Text>
+                    <Text style={styles.smsAutoFillHint}>
+                      ⚡ Chạm vào đây để tự động điền mã ({generatedOtp})
+                    </Text>
+                  </Pressable>
+                </Animated.View>
+              )}
 
               {/* 6 OTP Input Boxes */}
               <View style={styles.otpBoxesRow}>
@@ -471,6 +571,15 @@ export const LoginScreen: React.FC = () => {
                   </Pressable>
                 )}
               </View>
+
+              {/* Notice for real SMS provider */}
+              {!realSmsSent && (
+                <View style={styles.smsNoticeBox}>
+                  <Text style={styles.smsNoticeText}>
+                    💡 Lưu ý: Để mã code gửi trực tiếp về sim điện thoại của bạn, hãy bật SMS Provider (như Twilio) trong Supabase Dashboard ➔ Auth ➔ Providers ➔ Phone.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -533,7 +642,7 @@ export const LoginScreen: React.FC = () => {
                   placeholder="Ví dụ: Bảo Trâm, Hoàng Long..."
                   placeholderTextColor="#6B7280"
                   value={profileName}
-                  onChangeText={setProfileName}
+                  onChangeText={handleNameChange}
                   maxLength={24}
                   autoFocus
                 />
@@ -547,7 +656,10 @@ export const LoginScreen: React.FC = () => {
                   placeholder="Ví dụ: tram_booth, hoang_long..."
                   placeholderTextColor="#6B7280"
                   value={profileUsername}
-                  onChangeText={(val) => setProfileUsername(val.toLowerCase())}
+                  onChangeText={(val) => {
+                    setIsUsernameCustomized(true);
+                    setProfileUsername(val.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+                  }}
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={20}
@@ -557,14 +669,18 @@ export const LoginScreen: React.FC = () => {
               {/* Complete CTA Button */}
               <Pressable
                 onPress={handleFinishProfileSetup}
-                disabled={!profileName.trim()}
+                disabled={!profileName.trim() || isSubmittingProfile}
                 style={({ pressed }) => [
                   styles.primaryCtaBtn,
-                  !profileName.trim() && styles.ctaBtnDisabled,
+                  (!profileName.trim() || isSubmittingProfile) && styles.ctaBtnDisabled,
                   { transform: [{ scale: pressed ? 0.98 : 1 }] },
                 ]}
               >
-                <Text style={styles.primaryCtaText}>Vào LeafyBooth ngay 🌿</Text>
+                {isSubmittingProfile ? (
+                  <ActivityIndicator color={colors.ink} />
+                ) : (
+                  <Text style={styles.primaryCtaText}>Bắt đầu 🌱</Text>
+                )}
               </Pressable>
             </View>
           )}
@@ -682,6 +798,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.white,
     height: '100%',
+  },
+  clearPhoneBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  clearPhoneText: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontWeight: '800',
   },
   errorBanner: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
@@ -1004,5 +1134,108 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
     ...theme.shadows.darkSoft,
+  },
+  cloudBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E2530',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 6,
+  },
+  cloudDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  cloudDotActive: {
+    backgroundColor: '#C8F135',
+  },
+  cloudDotLocal: {
+    backgroundColor: '#9CA3AF',
+  },
+  cloudBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#D1D5DB',
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    marginBottom: 4,
+    gap: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#4B5563',
+    backgroundColor: '#1E2530',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: colors.lime,
+    borderColor: colors.lime,
+  },
+  checkmark: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.ink,
+  },
+  rememberText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  smsRealCard: {
+    backgroundColor: '#1E2530',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(200, 241, 53, 0.4)',
+    padding: 16,
+    marginBottom: 20,
+    ...theme.shadows.darkSoft,
+  },
+  smsRealBadge: {
+    backgroundColor: 'rgba(200, 241, 53, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.lime,
+  },
+  smsRealBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.lime,
+  },
+  smsRealBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#D1D5DB',
+    fontWeight: '500',
+    marginTop: 6,
+  },
+  smsNoticeBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  smsNoticeText: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#9CA3AF',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });

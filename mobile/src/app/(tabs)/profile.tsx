@@ -20,6 +20,7 @@ import { useFriendsStore } from '../../features/friends/hooks/useFriendsStore';
 import { useMomentsStore, TEST_ACCOUNTS, UserAccount } from '../../features/moments/hooks/useMomentsStore';
 import { STUDIO_PRESETS } from '../../features/studio/hooks/useStudioStore';
 import { useAuthStore, formatPhoneNumber } from '../../features/auth/hooks/useAuthStore';
+import { isSupabaseConfigured } from '../../core/supabase/supabaseClient';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -39,8 +40,8 @@ export default function ProfileScreen() {
         {
           text: 'Đăng xuất',
           style: 'destructive',
-          onPress: () => {
-            logout();
+          onPress: async () => {
+            await logout();
             router.replace('/login' as any);
           },
         },
@@ -111,6 +112,13 @@ export default function ProfileScreen() {
           <View style={styles.phoneBadge}>
             <Text style={styles.phoneBadgeText}>
               📱 {authCurrentUser?.phone ? formatPhoneNumber(authCurrentUser.phone) : '0989 999 999'}
+            </Text>
+          </View>
+
+          {/* Cloud Sync Status Badge */}
+          <View style={styles.cloudSyncPill}>
+            <Text style={styles.cloudSyncText}>
+              {isSupabaseConfigured() ? '☁️ Supabase Cloud · Đã sao lưu' : '💾 Lưu cục bộ · Ghi nhớ phiên'}
             </Text>
           </View>
 
@@ -706,6 +714,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: colors.accentYellow,
+  },
+  cloudSyncPill: {
+    backgroundColor: '#1E2530',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: 6,
+  },
+  cloudSyncText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9CA3AF',
   },
   statsRow: {
     flexDirection: 'row',
