@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '../utils/safeStorage';
 import { createClient } from '@supabase/supabase-js';
 
 // Đọc cấu hình từ biến môi trường của Expo (.env)
@@ -28,7 +28,7 @@ export const isSupabaseConfigured = (): boolean => {
  */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: AsyncStorage,
+    storage: safeStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

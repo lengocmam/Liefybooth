@@ -18,13 +18,19 @@ import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
 export default function BoothScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { selectBackdrop, resetBooth } = useBoothStore();
+  const { selectBackdrop, resetBooth, capturedPhotos } = useBoothStore();
   const { savedCustomFrames } = useStudioStore();
 
   const handleStartShooting = (backdrop: BackdropItem) => {
-    resetBooth();
     selectBackdrop(backdrop);
-    router.push('/booth/camera' as any);
+    if (capturedPhotos && capturedPhotos.length > 0) {
+      // Đã có 4 ảnh vừa chụp -> Áp dụng ngay nền mới và xem lại dải ảnh ở result
+      router.push('/booth/result' as any);
+    } else {
+      resetBooth();
+      selectBackdrop(backdrop);
+      router.push('/booth/camera' as any);
+    }
   };
 
   const featuredBackdrop = DEFAULT_BACKDROPS[0]; // Halloween (Gần dịp)
@@ -70,6 +76,35 @@ export default function BoothScreen() {
             </Pressable>
           </View>
         </View>
+
+        {/* Banner tiếp tục dải ảnh nếu đã chụp */}
+        {capturedPhotos && capturedPhotos.length > 0 && (
+          <View style={styles.resumeStripBanner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.resumeStripTitle}>📸 Đang có 4 ảnh vừa chụp!</Text>
+              <Text style={styles.resumeStripSubtitle}>
+                Chạm bất kỳ nền nào bên dưới để đổi khung cho ảnh, hoặc bấm xem dải ảnh.
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              <Pressable
+                onPress={() => router.push('/booth/result' as any)}
+                style={styles.resumeStripBtn}
+              >
+                <Text style={styles.resumeStripBtnText}>Dải ảnh ➔</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  resetBooth();
+                  router.push('/booth/camera' as any);
+                }}
+                style={styles.retakeAllBtn}
+              >
+                <Text style={styles.retakeAllBtnText}>↺ Mới</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Featured Card (Halloween) */}
         <Pressable
@@ -138,7 +173,6 @@ export default function BoothScreen() {
                 <Pressable
                   key={cf.id}
                   onPress={() => {
-                    resetBooth();
                     // Nạp sẵn khung vào StudioStore để luôn đồng bộ
                     useStudioStore.getState().loadSavedFrame(cf.id);
                     selectBackdrop({
@@ -165,7 +199,11 @@ export default function BoothScreen() {
                     if (cf.customText || cf.name) {
                       useBoothStore.getState().setStripTitle(cf.customText || cf.name);
                     }
-                    router.push('/booth/camera' as any);
+                    if (capturedPhotos && capturedPhotos.length > 0) {
+                      router.push('/booth/result' as any);
+                    } else {
+                      router.push('/booth/camera' as any);
+                    }
                   }}
                   style={({ pressed }) => [
                     styles.customFrameCard,
@@ -452,5 +490,52 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
     color: colors.textPrimary,
+  },
+  resumeStripBanner: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 14,
+    borderWidth: 1.5,
+    borderColor: '#7EE8B8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    ...theme.shadows.darkSoft,
+  },
+  resumeStripTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#7EE8B8',
+    marginBottom: 2,
+  },
+  resumeStripSubtitle: {
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 15,
+  },
+  resumeStripBtn: {
+    backgroundColor: '#7EE8B8',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  resumeStripBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  retakeAllBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  retakeAllBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E2E8F0',
   },
 });

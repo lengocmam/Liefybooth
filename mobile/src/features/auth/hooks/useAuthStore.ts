@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeStorage } from '../../../core/utils/safeStorage';
 import { useMomentsStore } from '../../moments/hooks/useMomentsStore';
 import { supabaseService } from '../../../core/supabase/supabaseService';
 import { isSupabaseConfigured, supabase } from '../../../core/supabase/supabaseClient';
@@ -150,7 +150,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setRememberMe: (remember) => {
     set({ rememberMe: remember });
-    AsyncStorage.setItem(STORAGE_KEY_REMEMBER, remember ? 'true' : 'false').catch(() => {});
+    safeStorage.setItem(STORAGE_KEY_REMEMBER, remember ? 'true' : 'false').catch(() => {});
   },
 
   /**
@@ -158,12 +158,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   initAuthSession: async () => {
     try {
-      const savedRemember = await AsyncStorage.getItem(STORAGE_KEY_REMEMBER);
+      const savedRemember = await safeStorage.getItem(STORAGE_KEY_REMEMBER);
       const isRememberEnabled = savedRemember !== 'false';
       set({ rememberMe: isRememberEnabled });
 
       if (isRememberEnabled) {
-        const savedUserStr = await AsyncStorage.getItem(STORAGE_KEY_USER);
+        const savedUserStr = await safeStorage.getItem(STORAGE_KEY_USER);
         if (savedUserStr) {
           const user: AuthUser = JSON.parse(savedUserStr);
           set({
@@ -183,7 +183,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             supabaseService.fetchUserProfile(user.id).then((cloudProfile) => {
               if (cloudProfile) {
                 set({ currentUser: cloudProfile });
-                AsyncStorage.setItem(STORAGE_KEY_USER, JSON.stringify(cloudProfile)).catch(() => {});
+                safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(cloudProfile)).catch(() => {});
               }
             }).catch(() => {});
           }
@@ -215,7 +215,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {}
 
     if (get().rememberMe) {
-      await AsyncStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user)).catch(() => {});
+      await safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user)).catch(() => {});
     }
 
     if (isSupabaseConfigured()) {
@@ -360,7 +360,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Tự động ghi nhớ phiên đăng nhập (Persistent Session)
       if (rememberMe) {
-        AsyncStorage.setItem(STORAGE_KEY_USER, JSON.stringify(existingUser)).catch(() => {});
+        safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(existingUser)).catch(() => {});
       }
 
       // Lưu/Cập nhật profile lên Supabase Cloud
@@ -430,7 +430,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Ghi nhớ phiên đăng nhập
     if (rememberMe) {
-      AsyncStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser)).catch(() => {});
+      safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser)).catch(() => {});
     }
 
     // Lưu vào Supabase Cloud
@@ -447,7 +447,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
-      await AsyncStorage.removeItem(STORAGE_KEY_USER);
+      await safeStorage.removeItem(STORAGE_KEY_USER);
       if (isSupabaseConfigured()) {
         await supabase.auth.signOut().catch(() => {});
       }

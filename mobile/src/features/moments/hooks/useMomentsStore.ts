@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { leafyStorage } from '../../../core/utils/leafyStorage';
 
 export interface FriendItem {
   id: string;
@@ -307,7 +308,7 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
       };
     }),
 
-  moments: INITIAL_MOMENTS,
+  moments: leafyStorage.getObject<MomentItem[]>('leafy_moments_list', INITIAL_MOMENTS),
   activeMomentIndex: 0,
   setActiveMomentIndex: (index) => set({ activeMomentIndex: index }),
 
@@ -319,10 +320,14 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
     }),
 
   deleteMoment: (momentId) =>
-    set((state) => ({
-      moments: state.moments.filter((m) => m.id !== momentId),
-      activeMomentIndex: 0,
-    })),
+    set((state) => {
+      const nextMoments = state.moments.filter((m) => m.id !== momentId);
+      leafyStorage.setObject('leafy_moments_list', nextMoments);
+      return {
+        moments: nextMoments,
+        activeMomentIndex: 0,
+      };
+    }),
 
   pinToWidget: (momentId) =>
     set((state) => {
@@ -345,44 +350,45 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
   addReaction: (momentId, emoji) =>
     set((state) => {
       const currentUserId = state.currentUser?.id || 'me';
-      return {
-        moments: state.moments.map((m) => {
-          if (m.id !== momentId) return m;
+      const nextMoments = state.moments.map((m) => {
+        if (m.id !== momentId) return m;
 
-          const currentReactions = { ...m.reactions };
-          const userReactions = { ...(m.userReactions || {}) };
-          const prevReaction =
-            userReactions[currentUserId] || (currentUserId === 'me' ? m.myReaction : undefined);
+        const currentReactions = { ...m.reactions };
+        const userReactions = { ...(m.userReactions || {}) };
+        const prevReaction =
+          userReactions[currentUserId] || (currentUserId === 'me' ? m.myReaction : undefined);
 
-          // Nếu đã thả emoji này rồi thì thu hồi
-          if (prevReaction === emoji) {
-            currentReactions[emoji] = Math.max(0, (currentReactions[emoji] || 1) - 1);
-            delete userReactions[currentUserId];
-            return {
-              ...m,
-              reactions: currentReactions,
-              userReactions,
-              myReaction: currentUserId === 'me' ? undefined : m.myReaction,
-            };
-          }
-
-          // Bỏ reaction cũ nếu có
-          if (prevReaction && currentReactions[prevReaction]) {
-            currentReactions[prevReaction] = Math.max(0, currentReactions[prevReaction] - 1);
-          }
-
-          // Thêm reaction mới
-          currentReactions[emoji] = (currentReactions[emoji] || 0) + 1;
-          userReactions[currentUserId] = emoji;
-
+        // Nếu đã thả emoji này rồi thì thu hồi
+        if (prevReaction === emoji) {
+          currentReactions[emoji] = Math.max(0, (currentReactions[emoji] || 1) - 1);
+          delete userReactions[currentUserId];
           return {
             ...m,
             reactions: currentReactions,
             userReactions,
-            myReaction: currentUserId === 'me' ? emoji : m.myReaction,
+            myReaction: currentUserId === 'me' ? undefined : m.myReaction,
           };
-        }),
-      };
+        }
+
+        // Bỏ reaction cũ nếu có
+        if (prevReaction && currentReactions[prevReaction]) {
+          currentReactions[prevReaction] = Math.max(0, currentReactions[prevReaction] - 1);
+        }
+
+        // Thêm reaction mới
+        currentReactions[emoji] = (currentReactions[emoji] || 0) + 1;
+        userReactions[currentUserId] = emoji;
+
+        return {
+          ...m,
+          reactions: currentReactions,
+          userReactions,
+          myReaction: currentUserId === 'me' ? emoji : m.myReaction,
+        };
+      });
+
+      leafyStorage.setObject('leafy_moments_list', nextMoments);
+      return { moments: nextMoments };
     }),
 
   sendMoment: (photoUrl, caption, extra) =>
@@ -418,8 +424,11 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
         isMirrored: extra?.isMirrored,
       };
 
+      const nextMoments = [newMoment, ...state.moments];
+      leafyStorage.setObject('leafy_moments_list', nextMoments);
+
       return {
-        moments: [newMoment, ...state.moments],
+        moments: nextMoments,
         activeMomentIndex: 0,
       };
     }),

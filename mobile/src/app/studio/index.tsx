@@ -1924,6 +1924,28 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                       {
                         text: 'Quay lại ‹',
                         onPress: () => {
+                          const boothPhotos = useBoothStore.getState().capturedPhotos;
+                          if (boothPhotos.length > 0) {
+                            useBoothStore.getState().setActiveCustomFrame({
+                              id: appliedTemplateId || `custom_${Date.now()}`,
+                              name: frameName || 'Khung của tôi',
+                              color: effectiveBgColor,
+                              edgeStyle: frameEdgeStyle,
+                              stickers: stickers.map((s) => ({ ...s })),
+                              textItems: textItems.map((t) => ({ ...t })),
+                              customText: customText,
+                              frameLayout: frameLayout,
+                              pattern: pattern,
+                              sealStamp: sealStamp,
+                              washiTapeStyle: washiTapeStyle,
+                              gradientTheme: gradientTheme,
+                            });
+                            useBoothStore.getState().setFrameColor(effectiveBgColor);
+                            useBoothStore.getState().setLayout(frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                            if (customText || frameName) {
+                              useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
+                            }
+                          }
                           if (router.canGoBack()) {
                             router.back();
                           } else {
@@ -2002,6 +2024,45 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
 
             {/* Right: Actions Row (Lưu Mẫu + Chụp ngay + Up Leafy Widget) */}
             <View style={styles.studioHeaderRightRow}>
+              {/* Nút Dùng cho dải ảnh vừa chụp nếu có ảnh sẵn từ Photobooth */}
+              {useBoothStore.getState().capturedPhotos.length > 0 && (
+                <Pressable
+                  onPress={() => {
+                    saveCurrentFrame();
+                    useBoothStore.getState().setActiveCustomFrame({
+                      id: appliedTemplateId || `custom_${Date.now()}`,
+                      name: frameName || 'Khung của tôi',
+                      color: effectiveBgColor,
+                      edgeStyle: frameEdgeStyle,
+                      stickers: stickers.map((s) => ({ ...s })),
+                      textItems: textItems.map((t) => ({ ...t })),
+                      customText: customText,
+                      frameLayout: frameLayout,
+                      pattern: pattern,
+                      sealStamp: sealStamp,
+                      washiTapeStyle: washiTapeStyle,
+                      gradientTheme: gradientTheme,
+                    });
+                    useBoothStore.getState().setFrameColor(effectiveBgColor);
+                    useBoothStore.getState().setLayout(frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                    if (customText || frameName) {
+                      useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
+                    }
+                    if (router.canGoBack()) {
+                      router.back();
+                    } else {
+                      router.replace('/booth/result' as any);
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.studioBoothBtn,
+                    { backgroundColor: '#7EE8B8', borderColor: '#0F172A', transform: [{ scale: pressed ? 0.95 : 1 }] },
+                  ]}
+                >
+                  <Text style={[styles.studioBoothBtnText, { color: '#0F172A', fontWeight: '900' }]}>✓ Dùng</Text>
+                </Pressable>
+              )}
+
               <Pressable
                 onPress={handleSaveAsTemplate}
                 style={({ pressed }) => [
@@ -2453,6 +2514,28 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                   onPress={() => {
                                     applyPreset(preset);
                                     setAppliedTemplateId(preset.id);
+                                    const boothPhotos = useBoothStore.getState().capturedPhotos;
+                                    if (boothPhotos.length > 0) {
+                                      useBoothStore.getState().setActiveCustomFrame({
+                                        id: preset.id,
+                                        name: preset.name,
+                                        color: preset.backgroundColor,
+                                        edgeStyle: preset.frameEdgeStyle,
+                                        stickers: preset.stickers ? preset.stickers.map((s) => ({ ...s })) : [],
+                                        textItems: preset.textItems ? preset.textItems.map((t) => ({ ...t })) : [],
+                                        customText: preset.customText || '',
+                                        frameLayout: preset.frameLayout,
+                                        pattern: preset.pattern,
+                                        sealStamp: preset.sealStamp,
+                                        washiTapeStyle: preset.washiTapeStyle,
+                                        gradientTheme: preset.gradientTheme,
+                                      });
+                                      useBoothStore.getState().setFrameColor(preset.backgroundColor);
+                                      useBoothStore.getState().setLayout(preset.frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                                      if (preset.customText || preset.name) {
+                                        useBoothStore.getState().setStripTitle(preset.customText || preset.name);
+                                      }
+                                    }
                                     playShutterSound();
                                     closeActiveSheet();
                                   }}
@@ -2577,6 +2660,28 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                     onPress={() => {
                                       loadSavedFrame(frame.id);
                                       setAppliedTemplateId(frame.id);
+                                      const boothPhotos = useBoothStore.getState().capturedPhotos;
+                                      if (boothPhotos.length > 0) {
+                                        useBoothStore.getState().setActiveCustomFrame({
+                                          id: frame.id,
+                                          name: frame.name,
+                                          color: frame.backgroundColor,
+                                          edgeStyle: frame.frameEdgeStyle,
+                                          stickers: frame.stickers ? frame.stickers.map((s) => ({ ...s })) : [],
+                                          textItems: frame.textItems ? frame.textItems.map((t) => ({ ...t })) : [],
+                                          customText: frame.customText || '',
+                                          frameLayout: frame.frameLayout,
+                                          pattern: frame.pattern,
+                                          sealStamp: frame.sealStamp,
+                                          washiTapeStyle: frame.washiTapeStyle,
+                                          gradientTheme: frame.gradientTheme,
+                                        });
+                                        useBoothStore.getState().setFrameColor(frame.backgroundColor);
+                                        useBoothStore.getState().setLayout(frame.frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                                        if (frame.customText || frame.name) {
+                                          useBoothStore.getState().setStripTitle(frame.customText || frame.name);
+                                        }
+                                      }
                                       playShutterSound();
                                       closeActiveSheet();
                                     }}
@@ -2681,8 +2786,20 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                               name: frame.name,
                                               color: frame.backgroundColor,
                                               edgeStyle: frame.frameEdgeStyle,
+                                              stickers: frame.stickers ? frame.stickers.map((s) => ({ ...s })) : [],
+                                              textItems: frame.textItems ? frame.textItems.map((t) => ({ ...t })) : [],
+                                              customText: frame.customText || '',
+                                              frameLayout: frame.frameLayout,
+                                              pattern: frame.pattern,
+                                              sealStamp: frame.sealStamp,
+                                              washiTapeStyle: frame.washiTapeStyle,
+                                              gradientTheme: frame.gradientTheme,
                                             });
                                             useBoothStore.getState().setFrameColor(frame.backgroundColor);
+                                            useBoothStore.getState().setLayout(frame.frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                                            if (frame.customText || frame.name) {
+                                              useBoothStore.getState().setStripTitle(frame.customText || frame.name);
+                                            }
                                             closeActiveSheet();
                                             router.push('/booth/camera' as any);
                                           }}

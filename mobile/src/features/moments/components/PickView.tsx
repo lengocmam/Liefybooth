@@ -538,7 +538,16 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
       : [momentItem.photoUrl]).slice(0, 4);
     const isGrid = momentItem.layout === 'grid' || momentItem.layout === 'grid_4';
     const filter = momentItem.filter || 'original';
-    const frameColor = momentItem.frameColor || '#FF8FC7';
+    const effectiveFrameColor =
+      momentItem.gradientTheme === 'sunset' ? '#FFA07A' :
+      momentItem.gradientTheme === 'ocean' ? '#6EE7B7' :
+      momentItem.gradientTheme === 'cyber' ? '#818CF8' :
+      momentItem.gradientTheme === 'kraft' ? '#F4E8C1' :
+      momentItem.gradientTheme === 'cherry' ? '#FDA4AF' :
+      momentItem.gradientTheme === 'lavender' ? '#D8B4FE' :
+      momentItem.gradientTheme === 'matcha' ? '#86EFAC' :
+      momentItem.gradientTheme === 'midnight' ? '#1E1B4B' :
+      (momentItem.frameColor || '#FF8FC7');
     const edgeStyle = momentItem.edgeStyle || 'classic';
 
     const getFilterImgStyle = () => {
@@ -571,7 +580,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
         <View
           style={[
             styles.photoboothCardStripGrid,
-            { backgroundColor: frameColor },
+            { backgroundColor: effectiveFrameColor },
             edgeStyle === 'film_perforated' && styles.filmPerforatedBorder,
             isDetailModal && { marginVertical: 10 },
           ]}
@@ -580,7 +589,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             {photos.map((imgUri, pIdx) => (
               <View key={pIdx} style={styles.photoboothGridSlot}>
                 <Image
-                  source={{ uri: imgUri }}
+                  source={{ uri: imgUri || 'https://picsum.photos/seed/leafy_slot/400/400' }}
                   style={[styles.photoboothMiniImg, getFilterImgStyle()]}
                   resizeMode="cover"
                 />
@@ -603,8 +612,10 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           {momentItem.stickers && momentItem.stickers.length > 0 && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               {momentItem.stickers.map((st, sIdx) => {
-                const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
-                const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
+                const safeX = typeof st.x === 'number' && !isNaN(st.x) ? st.x : 50;
+                const safeY = typeof st.y === 'number' && !isNaN(st.y) ? st.y : 50;
+                const leftPos = safeX > 1 ? `${Math.min(Math.max((safeX / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(safeX, 4), 86)}%`;
+                const topPos = safeY > 1 ? `${Math.min(Math.max((safeY / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(safeY, 4), 92)}%`;
                 return (
                   <Text
                     key={sIdx}
@@ -627,8 +638,10 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           {momentItem.textItems && momentItem.textItems.length > 0 && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               {momentItem.textItems.map((ti, tIdx) => {
-                const tLeft = ti.x > 1 ? `${Math.min(Math.max((ti.x / 200) * 100, 6), 84)}%` : `${Math.min(Math.max(ti.x, 6), 84)}%`;
-                const tTop = ti.y > 1 ? `${Math.min(Math.max((ti.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(ti.y, 4), 92)}%`;
+                const safeTX = typeof ti.x === 'number' && !isNaN(ti.x) ? ti.x : 50;
+                const safeTY = typeof ti.y === 'number' && !isNaN(ti.y) ? ti.y : 50;
+                const tLeft = safeTX > 1 ? `${Math.min(Math.max((safeTX / 200) * 100, 6), 84)}%` : `${Math.min(Math.max(safeTX, 6), 84)}%`;
+                const tTop = safeTY > 1 ? `${Math.min(Math.max((safeTY / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(safeTY, 4), 92)}%`;
                 return (
                   <View
                     key={tIdx}
@@ -679,7 +692,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
         <View
           style={[
             styles.photoboothCardStripVertical,
-            { backgroundColor: frameColor },
+            { backgroundColor: effectiveFrameColor },
             edgeStyle === 'film_perforated' && styles.filmPerforatedBorder,
             isDetailModal && { width: '100%', maxWidth: 240, marginVertical: 8 },
           ]}
@@ -705,7 +718,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             {photos.map((imgUri, pIdx) => (
               <View key={pIdx} style={styles.photoboothVerticalSlot}>
                 <Image
-                  source={{ uri: imgUri }}
+                  source={{ uri: imgUri || 'https://picsum.photos/seed/leafy_slot/400/400' }}
                   style={[styles.photoboothMiniImg, getFilterImgStyle()]}
                   resizeMode="cover"
                 />
@@ -728,8 +741,10 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           {momentItem.stickers && momentItem.stickers.length > 0 && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               {momentItem.stickers.map((st, sIdx) => {
-                const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
-                const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
+                const safeX = typeof st.x === 'number' && !isNaN(st.x) ? st.x : 50;
+                const safeY = typeof st.y === 'number' && !isNaN(st.y) ? st.y : 50;
+                const leftPos = safeX > 1 ? `${Math.min(Math.max((safeX / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(safeX, 4), 86)}%`;
+                const topPos = safeY > 1 ? `${Math.min(Math.max((safeY / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(safeY, 4), 92)}%`;
                 return (
                   <Text
                     key={sIdx}
@@ -752,8 +767,10 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           {momentItem.textItems && momentItem.textItems.length > 0 && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               {momentItem.textItems.map((ti, tIdx) => {
-                const tLeft = ti.x > 1 ? `${Math.min(Math.max((ti.x / 200) * 100, 6), 84)}%` : `${Math.min(Math.max(ti.x, 6), 84)}%`;
-                const tTop = ti.y > 1 ? `${Math.min(Math.max((ti.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(ti.y, 4), 92)}%`;
+                const safeTX = typeof ti.x === 'number' && !isNaN(ti.x) ? ti.x : 50;
+                const safeTY = typeof ti.y === 'number' && !isNaN(ti.y) ? ti.y : 50;
+                const tLeft = safeTX > 1 ? `${Math.min(Math.max((safeTX / 200) * 100, 6), 84)}%` : `${Math.min(Math.max(safeTX, 6), 84)}%`;
+                const tTop = safeTY > 1 ? `${Math.min(Math.max((safeTY / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(safeTY, 4), 92)}%`;
                 return (
                   <View
                     key={tIdx}

@@ -96,6 +96,7 @@ export const useBoothStore = create<BoothState>((set) => ({
     set({
       selectedBackdrop: backdrop,
       frameColor: backdrop.color,
+      activeCustomFrame: null, // Xóa bỏ hoàn toàn khung custom cũ khi chọn nền mới
       stripTitle: '', // Trống để người dùng tự do thiết kế chữ!
     }),
 
@@ -145,19 +146,42 @@ export const useBoothStore = create<BoothState>((set) => ({
   layout: 'vertical',
   filter: 'original',
   stripTitle: '', // Trống để người dùng tự do thiết kế chữ!
-  setFrameColor: (color) => set({ frameColor: color }),
-  setLayout: (layout) => set({ layout }),
+  setFrameColor: (color) =>
+    set((state) => ({
+      frameColor: color,
+      // Luôn đồng bộ màu sang activeCustomFrame nếu đang dùng và xóa bỏ gradientTheme nếu người dùng chọn màu phẳng
+      activeCustomFrame: state.activeCustomFrame
+        ? { ...state.activeCustomFrame, color, gradientTheme: undefined }
+        : null,
+    })),
+  setLayout: (layout) =>
+    set((state) => ({
+      layout,
+      activeCustomFrame: state.activeCustomFrame
+        ? { ...state.activeCustomFrame, frameLayout: layout === 'grid' ? 'grid_4' : 'strip_4' }
+        : null,
+    })),
   setFilter: (filter) => set({ filter }),
-  setStripTitle: (title) => set({ stripTitle: title }),
+  setStripTitle: (title) =>
+    set((state) => ({
+      stripTitle: title,
+      activeCustomFrame: state.activeCustomFrame
+        ? { ...state.activeCustomFrame, customText: title }
+        : null,
+    })),
 
   activeCustomFrame: null,
   setActiveCustomFrame: (frame) =>
-    set((state) => ({
-      activeCustomFrame: frame,
-      frameColor: frame?.color || state.frameColor,
-      layout: frame?.frameLayout === 'grid_4' ? 'grid' : (frame?.frameLayout ? 'vertical' : state.layout),
-      stripTitle: frame?.customText || frame?.name || '',
-    })),
+    set((state) => {
+      const effectiveColor = frame?.color || state.frameColor;
+      return {
+        activeCustomFrame: frame,
+        frameColor: effectiveColor,
+        layout: frame?.frameLayout === 'grid_4' ? 'grid' : (frame?.frameLayout ? 'vertical' : state.layout),
+        stripTitle: frame?.customText || frame?.name || state.stripTitle,
+        stampType: (frame?.sealStamp as any) || state.stampType,
+      };
+    }),
 
   recordedVideoUri: null,
   setRecordedVideoUri: (uri) => set({ recordedVideoUri: uri }),
@@ -169,9 +193,12 @@ export const useBoothStore = create<BoothState>((set) => ({
       retakeIndex: null,
       layout: 'vertical',
       filter: 'original',
+      selectedBackdrop: DEFAULT_BACKDROPS[0],
+      frameColor: DEFAULT_BACKDROPS[0].color,
       activeCustomFrame: null,
       stripTitle: '',
       twinStripMode: false,
       barcodeNumber: `#LB-${Math.floor(1000 + Math.random() * 9000)}`,
+      stampType: 'leafy_certified',
     }),
 }));

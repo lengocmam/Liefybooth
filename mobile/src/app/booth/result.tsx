@@ -19,6 +19,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { colors } from '../../core/theme/colors';
 import { theme } from '../../core/theme/theme';
 import { exportStripToImage } from '../../core/utils/stripExportService';
+import { DEFAULT_BACKDROPS } from '../../core/constants';
 import { useBoothStore, StripFilter } from '../../features/booth/hooks/useBoothStore';
 import { useMomentsStore } from '../../features/moments/hooks/useMomentsStore';
 import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
@@ -59,12 +60,16 @@ export default function BoothResultScreen() {
     capturedPhotos,
     frameColor,
     setFrameColor,
+    selectedBackdrop,
+    selectBackdrop,
     layout,
+    setLayout,
     filter,
     setFilter,
     stripTitle,
     setStripTitle,
     activeCustomFrame,
+    setActiveCustomFrame,
     resetBooth,
     setRetakeIndex,
     twinStripMode,
@@ -73,6 +78,7 @@ export default function BoothResultScreen() {
     stampType,
     recordedVideoUri,
   } = useBoothStore();
+  const { savedCustomFrames } = useStudioStore();
 
   const [viewMode, setViewMode] = useState<'strip' | 'video'>(recordedVideoUri ? 'video' : 'strip');
   const [qualityTab, setQualityTab] = useState<'strip' | 'video'>(recordedVideoUri ? 'video' : 'strip');
@@ -207,6 +213,34 @@ export default function BoothResultScreen() {
     router.navigate('/(tabs)/moments' as any);
   };
 
+  const handleExitPress = () => {
+    Alert.alert(
+      'Dải ảnh của bạn 🌿',
+      'Bạn muốn đổi sang khung chụp khác hay thoát về trang chủ?',
+      [
+        { text: 'Ở lại tiếp tục', style: 'cancel' },
+        {
+          text: 'Đổi khung khác 🖼️',
+          onPress: () => {
+            // Giữ nguyên 4 ảnh vừa chụp và chuyển về Booth để người dùng chọn khung
+            router.navigate('/(tabs)/booth' as any);
+          },
+        },
+        {
+          text: 'Về trang chủ 🏠',
+          style: 'destructive',
+          onPress: () => {
+            resetBooth();
+            if (router.canDismiss()) {
+              router.dismissAll();
+            }
+            router.navigate('/(tabs)/moments' as any);
+          },
+        },
+      ]
+    );
+  };
+
   const handleSendToLeafy = () => {
     setIsSendingToLeafy(true);
     playShutterSound();
@@ -240,6 +274,17 @@ export default function BoothResultScreen() {
       return;
     }
 
+    const effectiveBgColor =
+      activeCustomFrame?.gradientTheme === 'sunset' ? '#FFA07A' :
+      activeCustomFrame?.gradientTheme === 'ocean' ? '#6EE7B7' :
+      activeCustomFrame?.gradientTheme === 'cyber' ? '#818CF8' :
+      activeCustomFrame?.gradientTheme === 'kraft' ? '#F4E8C1' :
+      activeCustomFrame?.gradientTheme === 'cherry' ? '#FDA4AF' :
+      activeCustomFrame?.gradientTheme === 'lavender' ? '#D8B4FE' :
+      activeCustomFrame?.gradientTheme === 'matcha' ? '#86EFAC' :
+      activeCustomFrame?.gradientTheme === 'midnight' ? '#1E1B4B' :
+      (activeCustomFrame?.color || frameColor || colors.pink);
+
     const effectiveEdgeStyle = activeCustomFrame?.edgeStyle || 'classic';
     const effectiveStickers = activeCustomFrame?.stickers || [];
     const effectiveTextItems = activeCustomFrame?.textItems || [];
@@ -250,7 +295,7 @@ export default function BoothResultScreen() {
 
     sendMoment(displayPhotos[0], stripTitle || activeCustomFrame?.name || 'Photobooth 4 ô tụi mình vừa chụp ✨', {
       stripPhotos: displayPhotos,
-      frameColor: frameColor || activeCustomFrame?.color || colors.pink,
+      frameColor: effectiveBgColor,
       frameName: stripTitle || activeCustomFrame?.name || 'Photobooth Strip',
       layout: layout || (activeCustomFrame?.frameLayout === 'grid_4' ? 'grid' : 'vertical'),
       filter: filter || 'original',
@@ -301,12 +346,23 @@ export default function BoothResultScreen() {
     }
   };
 
+  const effectiveBgColor =
+    activeCustomFrame?.gradientTheme === 'sunset' ? '#FFA07A' :
+    activeCustomFrame?.gradientTheme === 'ocean' ? '#6EE7B7' :
+    activeCustomFrame?.gradientTheme === 'cyber' ? '#818CF8' :
+    activeCustomFrame?.gradientTheme === 'kraft' ? '#F4E8C1' :
+    activeCustomFrame?.gradientTheme === 'cherry' ? '#FDA4AF' :
+    activeCustomFrame?.gradientTheme === 'lavender' ? '#D8B4FE' :
+    activeCustomFrame?.gradientTheme === 'matcha' ? '#86EFAC' :
+    activeCustomFrame?.gradientTheme === 'midnight' ? '#1E1B4B' :
+    (activeCustomFrame?.color || frameColor || colors.pink);
+
   const renderSingleStrip = (stripNum: number = 1) => (
     <View
       key={stripNum}
       style={[
         styles.photoboothStrip,
-        { backgroundColor: frameColor || colors.pink },
+        { backgroundColor: effectiveBgColor },
         layout === 'grid' && styles.gridStrip,
         twinStripMode && styles.twinSingleStrip,
       ]}
@@ -407,6 +463,41 @@ export default function BoothResultScreen() {
           })}
         </View>
       )}
+
+      {/* Floating text items của khung DIY nếu có */}
+      {activeCustomFrame?.textItems && activeCustomFrame.textItems.length > 0 && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          {activeCustomFrame.textItems.map((ti, tIdx) => {
+            const tLeft = ti.x > 1 ? `${Math.min(Math.max((ti.x / 200) * 100, 6), 84)}%` : `${Math.min(Math.max(ti.x, 6), 84)}%`;
+            const tTop = ti.y > 1 ? `${Math.min(Math.max((ti.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(ti.y, 4), 92)}%`;
+            return (
+              <View
+                key={tIdx}
+                style={{
+                  position: 'absolute',
+                  left: tLeft as any,
+                  top: tTop as any,
+                  backgroundColor: ti.bgColor || 'rgba(0,0,0,0.65)',
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 6,
+                  transform: [{ rotate: `${ti.rotation || 0}deg` }],
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: ti.fontSize ? Math.min(ti.fontSize * 0.75, 16) : 11,
+                    fontWeight: '900',
+                    color: ti.color || '#FFFFFF',
+                  }}
+                >
+                  {ti.text}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 
@@ -415,7 +506,7 @@ export default function BoothResultScreen() {
       {/* 1. TOP HEADER TINH GỌN */}
       <View style={styles.headerRow}>
         <Pressable
-          onPress={handleExitToHome}
+          onPress={handleExitPress}
           style={({ pressed }) => [
             styles.circleBtn,
             { transform: [{ scale: pressed ? 0.94 : 1 }] },
@@ -592,6 +683,106 @@ export default function BoothResultScreen() {
                 renderSingleStrip(1)
               )}
             </Animated.View>
+
+            {/* Thanh chọn Khung & Nền Photobooth trực tiếp */}
+            <View style={styles.framesBarContainer}>
+              <View style={styles.framesBarHeader}>
+                <Text style={styles.framesBarTitle}>🪄 Đổi khung nền</Text>
+                <Text style={styles.framesBarCurrentName} numberOfLines={1}>
+                  {activeCustomFrame ? `DIY · ${activeCustomFrame.name}` : (selectedBackdrop?.name || 'Mặc định')}
+                </Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.framesScrollContent}
+              >
+                {/* 10 Khung nền K-Booth có sẵn */}
+                {DEFAULT_BACKDROPS.map((bd) => {
+                  const isSelected = !activeCustomFrame && (selectedBackdrop?.id === bd.id || frameColor === bd.color);
+                  return (
+                    <Pressable
+                      key={bd.id}
+                      onPress={() => {
+                        playShutterSound();
+                        selectBackdrop(bd);
+                      }}
+                      style={[
+                        styles.frameThumbCard,
+                        isSelected && styles.frameThumbCardActive,
+                      ]}
+                    >
+                      <View style={[styles.frameThumbStrip, { backgroundColor: bd.color }]}>
+                        {[0, 1, 2, 3].map((k) => (
+                          <View key={k} style={styles.frameThumbHole} />
+                        ))}
+                      </View>
+                      <Text
+                        style={[
+                          styles.frameThumbLabel,
+                          isSelected && styles.frameThumbLabelActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {bd.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+
+                {/* Các khung DIY người dùng đã tạo */}
+                {savedCustomFrames && savedCustomFrames.map((cf) => {
+                  const isSelected = activeCustomFrame?.id === cf.id;
+                  return (
+                    <Pressable
+                      key={cf.id}
+                      onPress={() => {
+                        playShutterSound();
+                        useStudioStore.getState().loadSavedFrame(cf.id);
+                        setActiveCustomFrame({
+                          id: cf.id,
+                          name: cf.name,
+                          color: cf.backgroundColor,
+                          edgeStyle: cf.frameEdgeStyle,
+                          stickers: cf.stickers ? cf.stickers.map((s) => ({ ...s })) : [],
+                          textItems: cf.textItems ? cf.textItems.map((t) => ({ ...t })) : [],
+                          customText: cf.customText || '',
+                          frameLayout: cf.frameLayout,
+                          pattern: cf.pattern,
+                          sealStamp: cf.sealStamp,
+                          washiTapeStyle: cf.washiTapeStyle,
+                          gradientTheme: cf.gradientTheme,
+                        });
+                        setFrameColor(cf.backgroundColor);
+                        setLayout(cf.frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                        if (cf.customText || cf.name) {
+                          setStripTitle(cf.customText || cf.name);
+                        }
+                      }}
+                      style={[
+                        styles.frameThumbCard,
+                        isSelected && styles.frameThumbCardActive,
+                      ]}
+                    >
+                      <View style={[styles.frameThumbStrip, { backgroundColor: cf.backgroundColor }]}>
+                        {[0, 1, 2, 3].map((k) => (
+                          <View key={k} style={styles.frameThumbHole} />
+                        ))}
+                      </View>
+                      <Text
+                        style={[
+                          styles.frameThumbLabel,
+                          isSelected && styles.frameThumbLabelActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        ✨ {cf.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
             {/* Thanh chọn Bộ Lọc Màu K-Booth gọn gàng */}
             <View style={styles.filtersBar}>
@@ -1831,5 +2022,72 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: 'rgba(255, 255, 255, 0.75)',
     lineHeight: 14,
+  },
+  framesBarContainer: {
+    marginTop: 10,
+    marginBottom: 4,
+    paddingHorizontal: 16,
+  },
+  framesBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  framesBarTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  framesBarCurrentName: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#7EE8B8',
+    maxWidth: 160,
+  },
+  framesScrollContent: {
+    paddingRight: 16,
+    gap: 10,
+  },
+  frameThumbCard: {
+    width: 60,
+    alignItems: 'center',
+    padding: 4,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  frameThumbCardActive: {
+    borderColor: '#FFD93D',
+    backgroundColor: 'rgba(255, 217, 61, 0.12)',
+  },
+  frameThumbStrip: {
+    width: 44,
+    height: 64,
+    borderRadius: 6,
+    padding: 3,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: '#0F172A',
+    justifyContent: 'space-between',
+  },
+  frameThumbHole: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderRadius: 2,
+  },
+  frameThumbLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginTop: 4,
+    textAlign: 'center',
+    maxWidth: 58,
+  },
+  frameThumbLabelActive: {
+    color: '#FFD93D',
+    fontWeight: '900',
   },
 });
