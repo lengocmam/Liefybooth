@@ -93,11 +93,21 @@ interface BoothState {
 export const useBoothStore = create<BoothState>((set) => ({
   selectedBackdrop: DEFAULT_BACKDROPS[0], // Mặc định Halloween
   selectBackdrop: (backdrop) =>
-    set({
-      selectedBackdrop: backdrop,
-      frameColor: backdrop.color,
-      activeCustomFrame: null, // Xóa bỏ hoàn toàn khung custom cũ khi chọn nền mới
-      stripTitle: '', // Trống để người dùng tự do thiết kế chữ!
+    set((state) => {
+      // Tối ưu hiệu năng: Nếu đã là backdrop này và không có khung custom thì bỏ qua re-render
+      if (
+        state.selectedBackdrop?.id === backdrop.id &&
+        state.frameColor === backdrop.color &&
+        !state.activeCustomFrame
+      ) {
+        return state;
+      }
+      return {
+        selectedBackdrop: backdrop,
+        frameColor: backdrop.color,
+        activeCustomFrame: null, // Xóa khung custom để quay về nền mặc định sạch
+        stripTitle: state.stripTitle, // Bảo toàn tiêu đề người dùng đã nhập
+      };
     }),
 
   capturedPhotos: [],
@@ -149,9 +159,9 @@ export const useBoothStore = create<BoothState>((set) => ({
   setFrameColor: (color) =>
     set((state) => ({
       frameColor: color,
-      // Luôn đồng bộ màu sang activeCustomFrame nếu đang dùng và xóa bỏ gradientTheme nếu người dùng chọn màu phẳng
+      // Luôn đồng bộ màu sang activeCustomFrame nếu đang dùng
       activeCustomFrame: state.activeCustomFrame
-        ? { ...state.activeCustomFrame, color, gradientTheme: undefined }
+        ? { ...state.activeCustomFrame, color }
         : null,
     })),
   setLayout: (layout) =>

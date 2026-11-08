@@ -233,6 +233,7 @@ interface StudioState {
   savedCustomFrames: SavedCustomFrame[];
   saveCurrentFrame: () => SavedCustomFrame;
   loadSavedFrame: (frameId: string) => boolean;
+  loadActiveCustomFrame: (frame: any) => boolean;
   deleteSavedFrame: (frameId: string) => void;
   saveDraft: () => void;
   loadDraft: () => boolean;
@@ -2221,6 +2222,27 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       textItems: frame.textItems ? JSON.parse(JSON.stringify(frame.textItems)) : [],
       customText: frame.customText || '',
       photoFilter: frame.photoFilter || 'none',
+      selectedStickerId: null,
+      selectedTextId: null,
+    });
+    return true;
+  },
+
+  loadActiveCustomFrame: (frame: any) => {
+    if (!frame) return false;
+    set({
+      frameName: frame.name || 'Khung của tôi',
+      backgroundColor: frame.color || colors.pink,
+      borderColor: frame.color || colors.pink,
+      pattern: frame.pattern || 'none',
+      frameLayout: frame.frameLayout || 'vertical_4',
+      frameEdgeStyle: frame.edgeStyle || frame.frameEdgeStyle || 'straight',
+      sealStamp: frame.sealStamp || 'none',
+      washiTapeStyle: frame.washiTapeStyle || 'none',
+      gradientTheme: frame.gradientTheme || 'none',
+      stickers: frame.stickers ? JSON.parse(JSON.stringify(frame.stickers)) : [],
+      textItems: frame.textItems ? JSON.parse(JSON.stringify(frame.textItems)) : [],
+      customText: frame.customText || '',
       selectedStickerId: null,
       selectedTextId: null,
     });

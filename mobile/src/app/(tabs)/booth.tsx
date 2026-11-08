@@ -23,12 +23,24 @@ export default function BoothScreen() {
 
   const handleStartShooting = (backdrop: BackdropItem) => {
     selectBackdrop(backdrop);
+    useBoothStore.getState().setFrameColor(backdrop.color);
+    useBoothStore.getState().setActiveCustomFrame({
+      id: backdrop.id,
+      name: backdrop.name,
+      color: backdrop.color,
+      edgeStyle: 'straight',
+      stickers: [],
+      textItems: [],
+      customText: '',
+      frameLayout: 'strip_4',
+    });
     if (capturedPhotos && capturedPhotos.length > 0) {
-      // Đã có 4 ảnh vừa chụp -> Áp dụng ngay nền mới và xem lại dải ảnh ở result
-      router.push('/booth/result' as any);
+      // Đã có 4 ảnh vừa chụp -> Chuyển thẳng về result để xem ngay khung mới!
+      router.replace('/booth/result' as any);
     } else {
       resetBooth();
       selectBackdrop(backdrop);
+      useBoothStore.getState().setFrameColor(backdrop.color);
       router.push('/booth/camera' as any);
     }
   };
@@ -61,7 +73,7 @@ export default function BoothScreen() {
               ]}
             >
               <Text style={styles.shortcutEmoji}>🎨</Text>
-              <Text style={styles.shortcutText}>Tự tạo frame</Text>
+              <Text style={styles.shortcutText}>Studio</Text>
             </Pressable>
 
             <Pressable
@@ -72,7 +84,7 @@ export default function BoothScreen() {
               ]}
             >
               <Text style={styles.shortcutEmoji}>📱</Text>
-              <Text style={styles.shortcutText}>Widget Leafy</Text>
+              <Text style={styles.shortcutText}>Widget</Text>
             </Pressable>
           </View>
         </View>
@@ -88,10 +100,12 @@ export default function BoothScreen() {
             </View>
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
               <Pressable
-                onPress={() => router.push('/booth/result' as any)}
+                onPress={() => {
+                  router.replace('/booth/result' as any);
+                }}
                 style={styles.resumeStripBtn}
               >
-                <Text style={styles.resumeStripBtnText}>Dải ảnh ➔</Text>
+                <Text style={styles.resumeStripBtnText}>🖼️</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -100,7 +114,7 @@ export default function BoothScreen() {
                 }}
                 style={styles.retakeAllBtn}
               >
-                <Text style={styles.retakeAllBtnText}>↺ Mới</Text>
+                <Text style={styles.retakeAllBtnText}>↺</Text>
               </Pressable>
             </View>
           </View>
@@ -200,7 +214,7 @@ export default function BoothScreen() {
                       useBoothStore.getState().setStripTitle(cf.customText || cf.name);
                     }
                     if (capturedPhotos && capturedPhotos.length > 0) {
-                      router.push('/booth/result' as any);
+                      router.replace('/booth/result' as any);
                     } else {
                       router.push('/booth/camera' as any);
                     }
@@ -521,7 +535,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   resumeStripBtnText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '900',
     color: '#0F172A',
   },
@@ -534,7 +548,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   retakeAllBtnText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '700',
     color: '#E2E8F0',
   },

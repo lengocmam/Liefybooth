@@ -887,6 +887,14 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     if (hasDraft()) {
       setHasDraftState(true);
     }
+    // Tự động nạp 4 ảnh vừa chụp từ Photobooth sang Studio nếu có ảnh và các ô Studio đang trống
+    const boothPhotos = useBoothStore.getState().capturedPhotos;
+    if (boothPhotos && boothPhotos.length > 0) {
+      const currentSlots = useStudioStore.getState().slotPhotos;
+      if (currentSlots.every((p) => !p)) {
+        useStudioStore.getState().setSlotPhotos(boothPhotos);
+      }
+    }
   }, []);
 
   // Tự động lưu nháp khi có thay đổi nội dung trang trí
@@ -1219,18 +1227,56 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
   const handleSaveAsTemplate = () => {
     playShutterSound();
     const saved = saveCurrentFrame();
+    
+    // Tự động đồng bộ khung vừa chỉnh sang Booth
+    useBoothStore.getState().setActiveCustomFrame({
+      id: saved.id,
+      name: saved.name,
+      color: effectiveBgColor,
+      edgeStyle: frameEdgeStyle,
+      stickers: stickers.map((s) => ({ ...s })),
+      textItems: textItems.map((t) => ({ ...t })),
+      customText: customText,
+      frameLayout: frameLayout,
+      pattern: pattern,
+      sealStamp: sealStamp,
+      washiTapeStyle: washiTapeStyle,
+      gradientTheme: gradientTheme,
+    });
+    useBoothStore.getState().setFrameColor(effectiveBgColor);
+    useBoothStore.getState().setLayout(frameLayout === 'grid_4' ? 'grid' : 'vertical');
+    if (customText || frameName) {
+      useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
+    }
+
+    const hasPhotos = slotPhotos.some((p) => Boolean(p)) || useBoothStore.getState().capturedPhotos.length > 0;
+
     Alert.alert(
-      'Đã lưu mẫu khung! 💾✨',
-      `Khung "${saved.name}" đã được lưu thành công vào [Khung của tôi]. Bạn có thể áp dụng lại bất cứ lúc nào hoặc dùng để chụp trong Booth!`,
+      'Đã lưu khung! 💾✨',
+      `Khung "${saved.name}" đã được lưu vào [Khung của tôi].`,
       [
+        ...(hasPhotos
+          ? [
+              {
+                text: 'Áp dụng',
+                onPress: () => {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.replace('/booth/result' as any);
+                  }
+                },
+              },
+            ]
+          : []),
         {
-          text: 'Xem Khung Của Tôi 📂',
+          text: 'Xem khung',
           onPress: () => {
             setTemplateTab('my_frames');
             setActiveSheet('template');
           },
         },
-        { text: 'Tiếp tục sửa', style: 'cancel' },
+        { text: 'Ở lại', style: 'cancel' },
       ]
     );
   };
@@ -1898,7 +1944,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     [
                       { text: 'Hủy', style: 'cancel' },
                       {
-                        text: 'Tạo mới 🎨',
+                        text: 'Tạo mới',
                         onPress: () => {
                           createNewBlankFrame();
                           setAppliedTemplateId(null);
@@ -1911,9 +1957,9 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     'Rời khỏi Studio? 🌿',
                     'Các chỉnh sửa chưa lưu sẽ bị hủy.',
                     [
-                      { text: 'Ở lại tiếp tục', style: 'cancel' },
+                      { text: 'Ở lại', style: 'cancel' },
                       {
-                        text: 'Về màn hình chính 🏠',
+                        text: 'Về chính',
                         onPress: () => {
                           if (router.canDismiss()) {
                             router.dismissAll();
@@ -1922,7 +1968,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                         },
                       },
                       {
-                        text: 'Quay lại ‹',
+                        text: 'Quay lại',
                         onPress: () => {
                           const boothPhotos = useBoothStore.getState().capturedPhotos;
                           if (boothPhotos.length > 0) {
@@ -1994,7 +2040,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                 { transform: [{ scale: pressed ? 0.95 : 1 }] },
               ]}
             >
-              <Text style={styles.studioHeaderTemplateText}>🪄 Mẫu</Text>
+              <Text style={styles.studioHeaderTemplateText}>🪄</Text>
             </Pressable>
 
             <Pressable
@@ -2019,13 +2065,13 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                 { transform: [{ scale: pressed ? 0.95 : 1 }] },
               ]}
             >
-              <Text style={styles.studioHeaderNewBtnText}>➕ Mới</Text>
+              <Text style={styles.studioHeaderNewBtnText}>➕</Text>
             </Pressable>
 
             {/* Right: Actions Row (Lưu Mẫu + Chụp ngay + Up Leafy Widget) */}
             <View style={styles.studioHeaderRightRow}>
               {/* Nút Dùng cho dải ảnh vừa chụp nếu có ảnh sẵn từ Photobooth */}
-              {useBoothStore.getState().capturedPhotos.length > 0 && (
+              {(slotPhotos.some((p) => Boolean(p)) || useBoothStore.getState().capturedPhotos.length > 0) && (
                 <Pressable
                   onPress={() => {
                     saveCurrentFrame();
@@ -2059,7 +2105,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     { backgroundColor: '#7EE8B8', borderColor: '#0F172A', transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={[styles.studioBoothBtnText, { color: '#0F172A', fontWeight: '900' }]}>✓ Dùng</Text>
+                  <Text style={[styles.studioBoothBtnText, { color: '#0F172A', fontWeight: '900', fontSize: 16 }]}>✓</Text>
                 </Pressable>
               )}
 
@@ -2070,7 +2116,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.studioSaveTemplateBtnText}>💾 Lưu</Text>
+                <Text style={styles.studioSaveTemplateBtnText}>💾</Text>
               </Pressable>
 
               <Pressable
@@ -2104,7 +2150,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.studioBoothBtnText}>📸 Chụp</Text>
+                <Text style={styles.studioBoothBtnText}>📸</Text>
               </Pressable>
 
               <Pressable
@@ -2114,7 +2160,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   { backgroundColor: '#FFD93D', transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.studioCtaBtnText}>🚀 Treo Lên Leafy 🌿</Text>
+                <Text style={styles.studioCtaBtnText}>🚀</Text>
               </Pressable>
             </View>
           </View>
@@ -2186,7 +2232,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     { transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={[styles.canvasActionPillText, { color: '#065F46', fontWeight: '900' }]}>➕ Tạo Khung Mới</Text>
+                  <Text style={[styles.canvasActionPillText, { color: '#065F46', fontWeight: '900' }]}>➕</Text>
                 </Pressable>
 
                 <Pressable
@@ -2197,7 +2243,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     { transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={styles.canvasActionPillText}>🪄 Mẫu Khung</Text>
+                  <Text style={styles.canvasActionPillText}>🪄</Text>
                 </Pressable>
 
                 <Pressable
@@ -2207,7 +2253,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     { backgroundColor: '#EFF6FF', borderColor: '#3B82F6', transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={[styles.canvasActionPillText, { color: '#1D4ED8' }]}>💾 Lưu Mẫu</Text>
+                  <Text style={[styles.canvasActionPillText, { color: '#1D4ED8' }]}>💾</Text>
                 </Pressable>
 
                 <Pressable
@@ -2217,7 +2263,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     { backgroundColor: '#FFD93D', borderColor: colors.ink, transform: [{ scale: pressed ? 0.95 : 1 }] },
                   ]}
                 >
-                  <Text style={[styles.canvasActionPillText, { color: colors.ink, fontWeight: '900' }]}>🚀 Treo Lên Leafy 🌿</Text>
+                  <Text style={[styles.canvasActionPillText, { color: colors.ink, fontWeight: '900' }]}>🚀</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -2282,13 +2328,13 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                 contentContainerStyle={styles.studioDockScroll}
               >
                 {[
-                  { id: 'create_new', label: 'Tạo mới', icon: '➕' },
-                  { id: 'template', label: 'Mẫu khung', icon: '🪄' },
+                  { id: 'create_new', label: 'Mới', icon: '➕' },
+                  { id: 'template', label: 'Mẫu', icon: '🪄' },
                   { id: 'layout', label: 'Bố cục', icon: '📐' },
-                  { id: 'color', label: 'Phối màu', icon: '🎨' },
+                  { id: 'color', label: 'Màu', icon: '🎨' },
                   { id: 'sticker', label: 'Sticker', icon: '✨' },
-                  { id: 'text', label: 'Thêm chữ', icon: '✍️' },
-                  { id: 'border_style', label: 'Viền lạ', icon: '🎞️' },
+                  { id: 'text', label: 'Chữ', icon: '✍️' },
+                  { id: 'border_style', label: 'Viền', icon: '🎞️' },
                   { id: 'signature', label: 'Dấu ấn', icon: '🏷️' },
                   { id: 'filter', label: 'Bộ lọc', icon: '🌈' },
                 ].map((item) => {
@@ -2325,15 +2371,6 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                       ]}
                     >
                       <Text style={styles.dockItemIcon}>{item.icon}</Text>
-                      <Text
-                        style={[
-                          styles.dockItemLabel,
-                          item.id === 'create_new' && styles.dockItemLabelNew,
-                          isActive && styles.dockItemLabelActive,
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
                     </Pressable>
                   );
                 })}
@@ -2514,27 +2551,24 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                   onPress={() => {
                                     applyPreset(preset);
                                     setAppliedTemplateId(preset.id);
-                                    const boothPhotos = useBoothStore.getState().capturedPhotos;
-                                    if (boothPhotos.length > 0) {
-                                      useBoothStore.getState().setActiveCustomFrame({
-                                        id: preset.id,
-                                        name: preset.name,
-                                        color: preset.backgroundColor,
-                                        edgeStyle: preset.frameEdgeStyle,
-                                        stickers: preset.stickers ? preset.stickers.map((s) => ({ ...s })) : [],
-                                        textItems: preset.textItems ? preset.textItems.map((t) => ({ ...t })) : [],
-                                        customText: preset.customText || '',
-                                        frameLayout: preset.frameLayout,
-                                        pattern: preset.pattern,
-                                        sealStamp: preset.sealStamp,
-                                        washiTapeStyle: preset.washiTapeStyle,
-                                        gradientTheme: preset.gradientTheme,
-                                      });
-                                      useBoothStore.getState().setFrameColor(preset.backgroundColor);
-                                      useBoothStore.getState().setLayout(preset.frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                                      if (preset.customText || preset.name) {
-                                        useBoothStore.getState().setStripTitle(preset.customText || preset.name);
-                                      }
+                                    useBoothStore.getState().setActiveCustomFrame({
+                                      id: preset.id,
+                                      name: preset.name,
+                                      color: preset.backgroundColor,
+                                      edgeStyle: preset.frameEdgeStyle,
+                                      stickers: preset.stickers ? preset.stickers.map((s) => ({ ...s })) : [],
+                                      textItems: preset.textItems ? preset.textItems.map((t) => ({ ...t })) : [],
+                                      customText: preset.customText || '',
+                                      frameLayout: preset.frameLayout,
+                                      pattern: preset.pattern,
+                                      sealStamp: preset.sealStamp,
+                                      washiTapeStyle: preset.washiTapeStyle,
+                                      gradientTheme: preset.gradientTheme,
+                                    });
+                                    useBoothStore.getState().setFrameColor(preset.backgroundColor);
+                                    useBoothStore.getState().setLayout(preset.frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                                    if (preset.customText || preset.name) {
+                                      useBoothStore.getState().setStripTitle(preset.customText || preset.name);
                                     }
                                     playShutterSound();
                                     closeActiveSheet();
@@ -2660,27 +2694,24 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                     onPress={() => {
                                       loadSavedFrame(frame.id);
                                       setAppliedTemplateId(frame.id);
-                                      const boothPhotos = useBoothStore.getState().capturedPhotos;
-                                      if (boothPhotos.length > 0) {
-                                        useBoothStore.getState().setActiveCustomFrame({
-                                          id: frame.id,
-                                          name: frame.name,
-                                          color: frame.backgroundColor,
-                                          edgeStyle: frame.frameEdgeStyle,
-                                          stickers: frame.stickers ? frame.stickers.map((s) => ({ ...s })) : [],
-                                          textItems: frame.textItems ? frame.textItems.map((t) => ({ ...t })) : [],
-                                          customText: frame.customText || '',
-                                          frameLayout: frame.frameLayout,
-                                          pattern: frame.pattern,
-                                          sealStamp: frame.sealStamp,
-                                          washiTapeStyle: frame.washiTapeStyle,
-                                          gradientTheme: frame.gradientTheme,
-                                        });
-                                        useBoothStore.getState().setFrameColor(frame.backgroundColor);
-                                        useBoothStore.getState().setLayout(frame.frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                                        if (frame.customText || frame.name) {
-                                          useBoothStore.getState().setStripTitle(frame.customText || frame.name);
-                                        }
+                                      useBoothStore.getState().setActiveCustomFrame({
+                                        id: frame.id,
+                                        name: frame.name,
+                                        color: frame.backgroundColor,
+                                        edgeStyle: frame.frameEdgeStyle,
+                                        stickers: frame.stickers ? frame.stickers.map((s) => ({ ...s })) : [],
+                                        textItems: frame.textItems ? frame.textItems.map((t) => ({ ...t })) : [],
+                                        customText: frame.customText || '',
+                                        frameLayout: frame.frameLayout,
+                                        pattern: frame.pattern,
+                                        sealStamp: frame.sealStamp,
+                                        washiTapeStyle: frame.washiTapeStyle,
+                                        gradientTheme: frame.gradientTheme,
+                                      });
+                                      useBoothStore.getState().setFrameColor(frame.backgroundColor);
+                                      useBoothStore.getState().setLayout(frame.frameLayout === 'grid_4' ? 'grid' : 'vertical');
+                                      if (frame.customText || frame.name) {
+                                        useBoothStore.getState().setStripTitle(frame.customText || frame.name);
                                       }
                                       playShutterSound();
                                       closeActiveSheet();
@@ -6563,16 +6594,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   studioCtaBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.lime,
     borderWidth: 2,
     borderColor: colors.ink,
     ...theme.shadows.hardSmall,
   },
   studioCtaBtnText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -6584,9 +6617,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   canvasActionPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
     borderColor: colors.ink,
     ...theme.shadows.hardSmall,
@@ -6604,7 +6639,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCE7F3',
   },
   canvasActionPillText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -6626,25 +6661,25 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dockItemBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 18,
   },
   dockItemBtnActive: {
     backgroundColor: colors.lime,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.ink,
+    ...theme.shadows.hardSmall,
   },
   dockItemBtnNew: {
     backgroundColor: '#D1FAE5',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#059669',
   },
   dockItemIcon: {
-    fontSize: 20,
-    marginBottom: 2,
+    fontSize: 22,
   },
   dockItemLabel: {
     fontSize: 10,
@@ -7060,36 +7095,34 @@ const styles = StyleSheet.create({
   },
   // --- TEMPLATE GALLERY STYLES ---
   studioHeaderTemplateBtn: {
-    flexDirection: 'row',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
     backgroundColor: '#FEF08A',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 18,
     borderWidth: 2,
     borderColor: colors.ink,
     ...theme.shadows.hardSmall,
   },
   studioHeaderTemplateText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '900',
     color: colors.ink,
   },
   studioHeaderNewBtn: {
-    flexDirection: 'row',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
     backgroundColor: '#A7F3D0',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 18,
     borderWidth: 2,
     borderColor: colors.ink,
     ...theme.shadows.hardSmall,
   },
   studioHeaderNewBtnText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -7099,16 +7132,18 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   studioBoothBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.white,
     borderWidth: 2,
     borderColor: colors.ink,
     ...theme.shadows.hardSmall,
   },
   studioBoothBtnText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '900',
     color: colors.ink,
   },
@@ -7348,16 +7383,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   studioSaveTemplateBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#3B82F6',
+    ...theme.shadows.hardSmall,
   },
   studioSaveTemplateBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
     color: '#1D4ED8',
   },
   templateMainSegmentRow: {

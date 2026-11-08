@@ -68,10 +68,18 @@ export const LoginScreen: React.FC = () => {
     sendOtp,
     resendOtp,
     verifyOtp,
+    loginWithEmail,
+    registerWithEmail,
     completeProfile,
     resetStep,
     decrementTimer,
   } = useAuthStore();
+
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [emailName, setEmailName] = useState('');
+  const [isEmailRegister, setIsEmailRegister] = useState(false);
 
   const handleQuickLogin = async (phoneKey: string) => {
     const user = SEED_USERS[phoneKey];
@@ -114,6 +122,27 @@ export const LoginScreen: React.FC = () => {
       formatted = `${raw.slice(0, 4)} ${raw.slice(4, 7)} ${raw.slice(7, 10)}`;
     }
     setPhone(formatted);
+  };
+
+  const handleEmailSubmit = async () => {
+    playShutterSound();
+    if (isEmailRegister) {
+      const res = await registerWithEmail(
+        emailInput,
+        passwordInput,
+        emailName || emailInput.split('@')[0],
+        emailInput.split('@')[0],
+        selectedAvatarColor
+      );
+      if (res.success) {
+        router.replace('/(tabs)/moments');
+      }
+    } else {
+      const res = await loginWithEmail(emailInput, passwordInput);
+      if (res.success) {
+        router.replace('/(tabs)/moments');
+      }
+    }
   };
 
   // Hiệu ứng nhịp đập cho banner thông báo mã OTP
@@ -303,113 +332,244 @@ export const LoginScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* Title & Description */}
-              <View style={styles.introSection}>
-                <Text style={styles.mainHeading}>Đăng nhập bằng{'\n'}số điện thoại</Text>
-                <Text style={styles.subHeading}>
-                  LeafyBooth sẽ gửi mã OTP gồm 6 chữ số để xác thực tài khoản của bạn.
-                </Text>
+              {/* Method Switcher: Phone vs Email */}
+              <View style={styles.authMethodTabs}>
+                <Pressable
+                  onPress={() => setAuthMethod('phone')}
+                  style={[styles.authMethodTab, authMethod === 'phone' && styles.authMethodTabActive]}
+                >
+                  <Text style={[styles.authMethodTabText, authMethod === 'phone' && styles.authMethodTabTextActive]}>
+                    📱
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setAuthMethod('email')}
+                  style={[styles.authMethodTab, authMethod === 'email' && styles.authMethodTabActive]}
+                >
+                  <Text style={[styles.authMethodTabText, authMethod === 'email' && styles.authMethodTabTextActive]}>
+                    ✉️
+                  </Text>
+                </Pressable>
               </View>
 
-              {/* Phone Input Box */}
-              <View style={styles.inputWrapper}>
-                <View style={styles.countryCodeBadge}>
-                  <Text style={styles.flagIcon}>🇻🇳</Text>
-                  <Text style={styles.countryCodeText}>+84</Text>
-                </View>
-                <TextInput
-                  style={styles.phoneInput}
-                  placeholder="0988 123 456"
-                  placeholderTextColor="#6B7280"
-                  keyboardType="phone-pad"
-                  value={phone}
-                  onChangeText={handlePhoneChange}
-                  maxLength={13}
-                  autoFocus
-                />
-                {phone.length > 0 && (
+              {authMethod === 'phone' ? (
+                <>
+                  {/* Title & Description */}
+                  <View style={styles.introSection}>
+                    <Text style={styles.mainHeading}>Đăng nhập bằng{'\n'}số điện thoại</Text>
+                    <Text style={styles.subHeading}>
+                      LeafyBooth sẽ gửi mã OTP gồm 6 chữ số để xác thực tài khoản và đồng bộ với Supabase.
+                    </Text>
+                  </View>
+
+                  {/* Phone Input Box */}
+                  <View style={styles.inputWrapper}>
+                    <View style={styles.countryCodeBadge}>
+                      <Text style={styles.flagIcon}>🇻🇳</Text>
+                      <Text style={styles.countryCodeText}>+84</Text>
+                    </View>
+                    <TextInput
+                      style={styles.phoneInput}
+                      placeholder="0988 123 456"
+                      placeholderTextColor="#6B7280"
+                      keyboardType="phone-pad"
+                      value={phone}
+                      onChangeText={handlePhoneChange}
+                      maxLength={13}
+                      autoFocus
+                    />
+                    {phone.length > 0 && (
+                      <Pressable
+                        onPress={() => setPhone('')}
+                        style={styles.clearPhoneBtn}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.clearPhoneText}>✕</Text>
+                      </Pressable>
+                    )}
+                  </View>
+
+                  {/* Error Message */}
+                  {errorMessage && (
+                    <View style={styles.errorBanner}>
+                      <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+                    </View>
+                  )}
+
+                  {/* Remember Me Checkbox */}
                   <Pressable
-                    onPress={() => setPhone('')}
-                    style={styles.clearPhoneBtn}
-                    hitSlop={8}
+                    onPress={() => setRememberMe(!rememberMe)}
+                    style={styles.rememberRow}
                   >
-                    <Text style={styles.clearPhoneText}>✕</Text>
+                    <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
+                      {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.rememberText}>Ghi nhớ đăng nhập trên thiết bị này</Text>
                   </Pressable>
-                )}
-              </View>
 
-              {/* Error Message */}
-              {errorMessage && (
-                <View style={styles.errorBanner}>
-                  <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
-                </View>
+                  {/* CTA Send OTP Button */}
+                  <Pressable
+                    onPress={() => handleSendOtp()}
+                    disabled={isLoading || !phone.trim() || phone.replace(/\D/g, '').length < 10}
+                    style={({ pressed }) => [
+                      styles.primaryCtaBtn,
+                      (!phone.trim() || isLoading || phone.replace(/\D/g, '').length < 10) && styles.ctaBtnDisabled,
+                      { transform: [{ scale: pressed ? 0.98 : 1 }] },
+                    ]}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={colors.ink} />
+                    ) : (
+                      <Text style={styles.primaryCtaText}>Gửi mã</Text>
+                    )}
+                  </Pressable>
+
+                  {/* Quick Pick Test Accounts (Đăng nhập nhanh 1 chạm & ghi nhớ) */}
+                  <View style={styles.testSection}>
+                    <Text style={styles.testSectionTitle}>⚡ Đăng nhập nhanh 1 chạm (tự động ghi nhớ):</Text>
+                    <View style={styles.testChipsRow}>
+                      <Pressable
+                        onPress={() => handleQuickLogin('0989999999')}
+                        style={[styles.testChip, { backgroundColor: '#C8F135' }]}
+                      >
+                        <Text style={styles.testChipLetter}>T</Text>
+                        <Text style={[styles.testChipText, { color: '#000', fontWeight: '700' }]}>Bạn (Tôi)</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => handleQuickLogin('0988123456')}
+                        style={styles.testChip}
+                      >
+                        <Text style={styles.testChipLetter}>A</Text>
+                        <Text style={styles.testChipText}>An</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => handleQuickLogin('0912345678')}
+                        style={styles.testChip}
+                      >
+                        <Text style={styles.testChipLetter}>B</Text>
+                        <Text style={styles.testChipText}>Bình</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => handleQuickLogin('0903112233')}
+                        style={styles.testChip}
+                      >
+                        <Text style={styles.testChipLetter}>C</Text>
+                        <Text style={styles.testChipText}>Chi</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <>
+                  {/* Email & Password Authentication */}
+                  <View style={styles.introSection}>
+                    <Text style={styles.mainHeading}>
+                      {isEmailRegister ? 'Đăng ký tài khoản\nEmail mới' : 'Đăng nhập bằng\nEmail'}
+                    </Text>
+                    <Text style={styles.subHeading}>
+                      {isEmailRegister
+                        ? 'Tài khoản được tạo trực tiếp trên Supabase Auth hoàn toàn miễn phí.'
+                        : 'Nhập email và mật khẩu của bạn để đồng bộ dải ảnh Leafy.'}
+                    </Text>
+                  </View>
+
+                  {isEmailRegister && (
+                    <View style={styles.emailInputWrapper}>
+                      <TextInput
+                        style={styles.emailInputField}
+                        placeholder="Họ và tên của bạn"
+                        placeholderTextColor="#6B7280"
+                        value={emailName}
+                        onChangeText={setEmailName}
+                      />
+                    </View>
+                  )}
+
+                  <View style={styles.emailInputWrapper}>
+                    <TextInput
+                      style={styles.emailInputField}
+                      placeholder="Địa chỉ Email (ví dụ: ban@gmail.com)"
+                      placeholderTextColor="#6B7280"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={emailInput}
+                      onChangeText={setEmailInput}
+                    />
+                  </View>
+
+                  <View style={styles.emailInputWrapper}>
+                    <TextInput
+                      style={styles.emailInputField}
+                      placeholder="Mật khẩu (tối thiểu 6 ký tự)"
+                      placeholderTextColor="#6B7280"
+                      secureTextEntry
+                      value={passwordInput}
+                      onChangeText={setPasswordInput}
+                    />
+                  </View>
+
+                  {/* Error Message */}
+                  {errorMessage && (
+                    <View style={styles.errorBanner}>
+                      <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+                    </View>
+                  )}
+
+                  {/* Remember Me Checkbox */}
+                  <Pressable
+                    onPress={() => setRememberMe(!rememberMe)}
+                    style={styles.rememberRow}
+                  >
+                    <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
+                      {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.rememberText}>Ghi nhớ đăng nhập trên thiết bị này</Text>
+                  </Pressable>
+
+                  {/* CTA Email Submit */}
+                  <Pressable
+                    onPress={handleEmailSubmit}
+                    disabled={isLoading || !emailInput.trim() || !passwordInput.trim()}
+                    style={({ pressed }) => [
+                      styles.primaryCtaBtn,
+                      (!emailInput.trim() || !passwordInput.trim() || isLoading) && styles.ctaBtnDisabled,
+                      { transform: [{ scale: pressed ? 0.98 : 1 }] },
+                    ]}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={colors.ink} />
+                    ) : (
+                      <Text style={styles.primaryCtaText}>
+                        {isEmailRegister ? 'Đăng ký' : 'Đăng nhập'}
+                      </Text>
+                    )}
+                  </Pressable>
+
+                  {/* Switch between Sign In and Sign Up */}
+                  <Pressable
+                    onPress={() => {
+                      setIsEmailRegister(!isEmailRegister);
+                      useAuthStore.setState({ errorMessage: null });
+                    }}
+                    style={styles.toggleEmailRegisterBtn}
+                  >
+                    <Text style={styles.toggleEmailRegisterText}>
+                      {isEmailRegister
+                        ? 'Đã có tài khoản? Đăng nhập'
+                        : 'Chưa có tài khoản? Đăng ký'}
+                    </Text>
+                  </Pressable>
+
+                  <View style={styles.emailNoticeBox}>
+                    <Text style={styles.emailNoticeText}>
+                      🔒 Dịch vụ Email Auth chạy trực tiếp trên Supabase Auth (miễn phí, không cần Twilio hay SMS).
+                    </Text>
+                  </View>
+                </>
               )}
-
-              {/* Remember Me Checkbox */}
-              <Pressable
-                onPress={() => setRememberMe(!rememberMe)}
-                style={styles.rememberRow}
-              >
-                <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                  {rememberMe && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.rememberText}>Ghi nhớ đăng nhập trên thiết bị này</Text>
-              </Pressable>
-
-              {/* CTA Send OTP Button */}
-              <Pressable
-                onPress={() => handleSendOtp()}
-                disabled={isLoading || !phone.trim() || phone.replace(/\D/g, '').length < 10}
-                style={({ pressed }) => [
-                  styles.primaryCtaBtn,
-                  (!phone.trim() || isLoading || phone.replace(/\D/g, '').length < 10) && styles.ctaBtnDisabled,
-                  { transform: [{ scale: pressed ? 0.98 : 1 }] },
-                ]}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={colors.ink} />
-                ) : (
-                  <Text style={styles.primaryCtaText}>Gửi mã ➔</Text>
-                )}
-              </Pressable>
-
-              {/* Quick Pick Test Accounts (Đăng nhập nhanh 1 chạm & ghi nhớ) */}
-              <View style={styles.testSection}>
-                <Text style={styles.testSectionTitle}>⚡ Đăng nhập nhanh 1 chạm (tự động ghi nhớ):</Text>
-                <View style={styles.testChipsRow}>
-                  <Pressable
-                    onPress={() => handleQuickLogin('0989999999')}
-                    style={[styles.testChip, { backgroundColor: '#C8F135' }]}
-                  >
-                    <Text style={styles.testChipLetter}>T</Text>
-                    <Text style={[styles.testChipText, { color: '#000', fontWeight: '700' }]}>Bạn (Tôi)</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => handleQuickLogin('0988123456')}
-                    style={styles.testChip}
-                  >
-                    <Text style={styles.testChipLetter}>A</Text>
-                    <Text style={styles.testChipText}>An</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => handleQuickLogin('0912345678')}
-                    style={styles.testChip}
-                  >
-                    <Text style={styles.testChipLetter}>B</Text>
-                    <Text style={styles.testChipText}>Bình</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => handleQuickLogin('0903112233')}
-                    style={styles.testChip}
-                  >
-                    <Text style={styles.testChipLetter}>C</Text>
-                    <Text style={styles.testChipText}>Chi</Text>
-                  </Pressable>
-                </View>
-              </View>
 
               {/* Guest Photobooth Option */}
               <View style={styles.footerSection}>
@@ -421,7 +581,7 @@ export const LoginScreen: React.FC = () => {
                   ]}
                 >
                   <Text style={styles.guestLinkText}>
-                    📸 Chụp ngay (Khách)
+                    Dùng thử (Khách)
                   </Text>
                 </Pressable>
 
@@ -447,7 +607,7 @@ export const LoginScreen: React.FC = () => {
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
               >
-                <Text style={styles.backBtnText}>← Đổi số</Text>
+                <Text style={styles.backBtnText}>‹ Đổi số</Text>
               </Pressable>
 
               {/* Header */}
@@ -549,7 +709,7 @@ export const LoginScreen: React.FC = () => {
                   { transform: [{ scale: pressed ? 0.98 : 1 }] },
                 ]}
               >
-                <Text style={styles.primaryCtaText}>Xác thực & Tiếp tục ➔</Text>
+                <Text style={styles.primaryCtaText}>Xác thực</Text>
               </Pressable>
 
               {/* Resend Timer Row */}
@@ -567,7 +727,7 @@ export const LoginScreen: React.FC = () => {
                     }}
                     style={styles.resendBtn}
                   >
-                    <Text style={styles.resendBtnText}>↻ Gửi lại mã OTP ngay</Text>
+                    <Text style={styles.resendBtnText}>↻ Gửi lại mã</Text>
                   </Pressable>
                 )}
               </View>
@@ -1235,6 +1395,75 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     color: '#9CA3AF',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  authMethodTabs: {
+    flexDirection: 'row',
+    backgroundColor: colors.darkSurfaceElevated,
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.darkBorder,
+  },
+  authMethodTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  authMethodTabActive: {
+    backgroundColor: colors.lime,
+  },
+  authMethodTabText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#9CA3AF',
+  },
+  authMethodTabTextActive: {
+    color: colors.ink,
+    fontWeight: '900',
+  },
+  emailInputWrapper: {
+    backgroundColor: colors.darkSurface,
+    borderRadius: theme.borders.radius.card,
+    borderWidth: 1.5,
+    borderColor: colors.darkBorder,
+    paddingHorizontal: 16,
+    height: 54,
+    marginBottom: 12,
+    justifyContent: 'center',
+    ...theme.shadows.darkSoft,
+  },
+  emailInputField: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+    height: '100%',
+  },
+  toggleEmailRegisterBtn: {
+    alignItems: 'center',
+    marginTop: 14,
+    paddingVertical: 8,
+  },
+  toggleEmailRegisterText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.lime,
+  },
+  emailNoticeBox: {
+    backgroundColor: 'rgba(200, 241, 53, 0.08)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(200, 241, 53, 0.2)',
+  },
+  emailNoticeText: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#D1D5DB',
     fontWeight: '500',
     textAlign: 'center',
   },

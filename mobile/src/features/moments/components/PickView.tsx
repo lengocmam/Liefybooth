@@ -582,9 +582,61 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             styles.photoboothCardStripGrid,
             { backgroundColor: effectiveFrameColor },
             edgeStyle === 'film_perforated' && styles.filmPerforatedBorder,
+            edgeStyle === 'neon_glow' && { borderColor: '#A7F3D0', borderWidth: 3 },
+            edgeStyle === 'wavy' && { borderRadius: 28, borderWidth: 3, borderColor: '#F472B6' },
+            edgeStyle === 'dotted_cinema' && { borderStyle: 'dashed', borderWidth: 2.5, borderColor: '#FEF08A' },
             isDetailModal && { marginVertical: 10 },
           ]}
         >
+          {/* Băng dính Washi Tape nếu có */}
+          {momentItem.washiTapeStyle && momentItem.washiTapeStyle !== 'none' && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -8,
+                alignSelf: 'center',
+                width: 60,
+                height: 16,
+                backgroundColor:
+                  momentItem.washiTapeStyle === 'glitter' ? '#FDE047' :
+                  momentItem.washiTapeStyle === 'kraft' ? '#D97706' :
+                  momentItem.washiTapeStyle === 'pastel' ? '#F472B6' :
+                  momentItem.washiTapeStyle === 'checkered' ? '#1E293B' : '#E2E8F0',
+                borderRadius: 4,
+                opacity: 0.85,
+                transform: [{ rotate: '-3deg' }],
+                zIndex: 20,
+              }}
+            />
+          )}
+
+          {/* Họa tiết nền nếu có */}
+          {momentItem.pattern && momentItem.pattern !== 'none' && (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {momentItem.pattern === 'dots' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.15, flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 6 }}>
+                  {[...Array(16)].map((_, i) => (
+                    <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#000000' }} />
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'hearts' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.2, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', padding: 6 }}>
+                  {['💖', '💕', '💗', '💖'].map((h, i) => (
+                    <Text key={i} style={{ fontSize: 13 }}>{h}</Text>
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'stars' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', padding: 6 }}>
+                  {['✨', '⭐', '✨', '⭐'].map((s, i) => (
+                    <Text key={i} style={{ fontSize: 13 }}>{s}</Text>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           <View style={styles.photoboothGridPhotos}>
             {photos.map((imgUri, pIdx) => (
               <View key={pIdx} style={styles.photoboothGridSlot}>
@@ -694,9 +746,61 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             styles.photoboothCardStripVertical,
             { backgroundColor: effectiveFrameColor },
             edgeStyle === 'film_perforated' && styles.filmPerforatedBorder,
+            edgeStyle === 'neon_glow' && { borderColor: '#A7F3D0', borderWidth: 3 },
+            edgeStyle === 'wavy' && { borderRadius: 28, borderWidth: 3, borderColor: '#F472B6' },
+            edgeStyle === 'dotted_cinema' && { borderStyle: 'dashed', borderWidth: 2.5, borderColor: '#FEF08A' },
             isDetailModal && { width: '100%', maxWidth: 240, marginVertical: 8 },
           ]}
         >
+          {/* Băng dính Washi Tape nếu có */}
+          {momentItem.washiTapeStyle && momentItem.washiTapeStyle !== 'none' && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -8,
+                alignSelf: 'center',
+                width: 60,
+                height: 16,
+                backgroundColor:
+                  momentItem.washiTapeStyle === 'glitter' ? '#FDE047' :
+                  momentItem.washiTapeStyle === 'kraft' ? '#D97706' :
+                  momentItem.washiTapeStyle === 'pastel' ? '#F472B6' :
+                  momentItem.washiTapeStyle === 'checkered' ? '#1E293B' : '#E2E8F0',
+                borderRadius: 4,
+                opacity: 0.85,
+                transform: [{ rotate: '-3deg' }],
+                zIndex: 20,
+              }}
+            />
+          )}
+
+          {/* Họa tiết nền nếu có */}
+          {momentItem.pattern && momentItem.pattern !== 'none' && (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {momentItem.pattern === 'dots' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.15, flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 6 }}>
+                  {[...Array(24)].map((_, i) => (
+                    <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#000000' }} />
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'hearts' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.2, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', padding: 6 }}>
+                  {['💖', '💕', '💗', '💖'].map((h, i) => (
+                    <Text key={i} style={{ fontSize: 13 }}>{h}</Text>
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'stars' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', padding: 6 }}>
+                  {['✨', '⭐', '✨', '⭐'].map((s, i) => (
+                    <Text key={i} style={{ fontSize: 13 }}>{s}</Text>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Lỗ cuộn phim nếu chọn film_perforated */}
           {edgeStyle === 'film_perforated' && (
             <>

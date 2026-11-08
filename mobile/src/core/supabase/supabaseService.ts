@@ -60,6 +60,157 @@ export const supabaseService = {
   },
 
   /**
+   * Đồng bộ hoặc tạo User trên Supabase Authentication (bảng auth.users)
+   * Giúp tài khoản hiện diện lập tức trên tab Users của Supabase Dashboard mà không cần cấu hình Twilio
+   */
+  async syncAuthUserToSupabase(
+    user: AuthUser,
+    customEmail?: string,
+    customPassword?: string
+  ): Promise<{ success: boolean; session?: any; error?: string }> {
+    if (!isSupabaseConfigured()) {
+      return { success: true };
+    }
+
+    try {
+      const userEmail = customEmail || `${user.phone}@leafybooth.local`;
+      const userPassword = customPassword || `Leafy@${user.phone}!2026`;
+
+      // 1. Thử đăng nhập nếu user đã tồn tại trong auth.users
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: userPassword,
+      });
+
+      if (!signInError && signInData?.user) {
+        const authUserId = signInData.user.id;
+        await this.upsertUserProfile({
+          ...user,
+          id: authUserId,
+        });
+        return { success: true, session: signInData.session };
+      }
+
+      // 2. Nếu chưa có, tiến hành Đăng ký (SignUp) vào auth.users
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: userEmail,
+        password: userPassword,
+        options: {
+          data: {
+            phone: user.phone,
+            name: user.name,
+            username: user.username,
+            avatar_letter: user.avatarLetter,
+            avatar_color: user.avatarColor,
+          },
+        },
+      });
+
+      if (signUpError) {
+        console.warn('[Supabase Auth] SignUp warning:', signUpError.message);
+        await this.upsertUserProfile(user);
+        return { success: false, error: signUpError.message };
+      }
+
+      const newAuthId = signUpData.user?.id || user.id;
+      await this.upsertUserProfile({
+        ...user,
+        id: newAuthId,
+      });
+
+      return { success: true, session: signUpData.session };
+    } catch (err: any) {
+      console.warn('[Supabase Auth] Error:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * Đăng ký tài khoản bằng Email & Mật khẩu chuẩn Supabase (100% Miễn phí, không cần Twilio)
+   */
+  async signUpWithEmail(
+    email: string,
+    password: string,
+    metadata: { name: string; username: string; phone?: string; avatarColor?: string }
+  ): Promise<{ success: boolean; user?: any; error?: string }> {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Chưa cấu hình Supabase URL & Key' };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: metadata.name,
+            username: metadata.username,
+            phone: metadata.phone || '',
+            avatar_letter: (metadata.name[0] || 'L').toUpperCase(),
+            avatar_color: metadata.avatarColor || '#C8F135',
+          },
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        await this.upsertUserProfile({
+          id: data.user.id,
+          phone: metadata.phone || '',
+          name: metadata.name,
+          username: metadata.username,
+          avatarLetter: (metadata.name[0] || 'L').toUpperCase(),
+          avatarColor: metadata.avatarColor || '#C8F135',
+          roleDescription: 'Thành viên LeafyBooth 🌱',
+        });
+      }
+
+      return { success: true, user: data.user };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * Đăng nhập tài khoản bằng Email & Mật khẩu chuẩn Supabase
+   */
+  async signInWithEmail(email: string, password: string): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Chưa cấu hình Supabase URL & Key' };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error || !data.user) {
+        return { success: false, error: error?.message || 'Đăng nhập không thành công' };
+      }
+
+      const meta = data.user.user_metadata || {};
+      const authUser: AuthUser = {
+        id: data.user.id,
+        phone: meta.phone || data.user.email?.split('@')[0] || '',
+        name: meta.name || data.user.email?.split('@')[0] || 'Người dùng',
+        username: meta.username || data.user.email?.split('@')[0] || 'user',
+        avatarLetter: meta.avatar_letter || meta.name?.[0]?.toUpperCase() || 'L',
+        avatarColor: meta.avatar_color || '#C8F135',
+        roleDescription: 'Thành viên LeafyBooth 🌱',
+      };
+
+      const profile = await this.fetchUserProfile(data.user.id);
+      return { success: true, user: profile || authUser };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
    * Gửi mã xác thực OTP về số điện thoại thực tế qua Supabase Phone Auth (Twilio / MessageBird)
    */
   async sendPhoneOtp(phone: string): Promise<{ success: boolean; realSmsSent: boolean; message?: string; error?: string }> {

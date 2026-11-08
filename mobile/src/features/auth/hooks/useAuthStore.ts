@@ -106,6 +106,8 @@ interface AuthState {
   sendOtp: (phoneInput?: string) => Promise<{ success: boolean; otp: string; isKnownUser: boolean; realSmsSent: boolean }>;
   resendOtp: () => Promise<string>;
   verifyOtp: (codeInput?: string) => Promise<{ success: boolean; isNewUser: boolean; error?: string }>;
+  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  registerWithEmail: (email: string, password: string, name: string, username: string, avatarColor?: string) => Promise<{ success: boolean; error?: string }>;
   completeProfile: (name: string, username: string, avatarColor?: string) => AuthUser;
   logout: () => Promise<void>;
   resetStep: () => void;
@@ -219,7 +221,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (isSupabaseConfigured()) {
-      await supabaseService.upsertUserProfile(user);
+      await supabaseService.syncAuthUserToSupabase(user);
       set({ cloudSyncStatus: 'synced' });
     }
   },
@@ -363,9 +365,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(existingUser)).catch(() => {});
       }
 
-      // Lưu/Cập nhật profile lên Supabase Cloud
+      // Lưu/Cập nhật profile và Auth User lên Supabase Cloud
       if (isSupabaseConfigured()) {
-        supabaseService.upsertUserProfile(existingUser).then(() => {
+        supabaseService.syncAuthUserToSupabase(existingUser).then(() => {
           set({ cloudSyncStatus: 'synced' });
         }).catch(() => {
           set({ cloudSyncStatus: 'error' });
@@ -433,9 +435,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser)).catch(() => {});
     }
 
-    // Lưu vào Supabase Cloud
+    // Đăng ký thẳng vào auth.users của Supabase
     if (isSupabaseConfigured()) {
-      supabaseService.upsertUserProfile(newUser).then(() => {
+      supabaseService.syncAuthUserToSupabase(newUser).then(() => {
         set({ cloudSyncStatus: 'synced' });
       }).catch(() => {
         set({ cloudSyncStatus: 'error' });
@@ -443,6 +445,92 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     return newUser;
+  },
+
+  loginWithEmail: async (email, password) => {
+    if (!email.trim() || !password.trim()) {
+      const errorMsg = 'Vui lòng nhập đầy đủ Email và Mật khẩu';
+      set({ errorMessage: errorMsg });
+      return { success: false, error: errorMsg };
+    }
+
+    set({ isLoading: true, errorMessage: null });
+    const res = await supabaseService.signInWithEmail(email.trim(), password);
+    set({ isLoading: false });
+
+    if (!res.success || !res.user) {
+      const errorMsg = res.error || 'Email hoặc mật khẩu chưa đúng';
+      set({ errorMessage: errorMsg });
+      return { success: false, error: errorMsg };
+    }
+
+    const user = res.user;
+    set({
+      currentUser: user,
+      step: 'authenticated',
+      errorMessage: null,
+      cloudSyncStatus: 'synced',
+    });
+
+    try {
+      useMomentsStore.getState().switchAccount(user.id);
+    } catch {}
+
+    if (get().rememberMe) {
+      safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user)).catch(() => {});
+    }
+
+    return { success: true };
+  },
+
+  registerWithEmail: async (email, password, name, username, avatarColor = '#C8F135') => {
+    if (!email.trim() || !password.trim() || !name.trim()) {
+      const errorMsg = 'Vui lòng nhập Email, Mật khẩu và Họ tên';
+      set({ errorMessage: errorMsg });
+      return { success: false, error: errorMsg };
+    }
+
+    set({ isLoading: true, errorMessage: null });
+    const res = await supabaseService.signUpWithEmail(email.trim(), password, {
+      name: name.trim(),
+      username: username.trim() || email.split('@')[0],
+      avatarColor,
+    });
+    set({ isLoading: false });
+
+    if (!res.success) {
+      const errorMsg = res.error || 'Không thể tạo tài khoản Email';
+      set({ errorMessage: errorMsg });
+      return { success: false, error: errorMsg };
+    }
+
+    const newUser: AuthUser = {
+      id: res.user?.id || `u_${Date.now()}`,
+      phone: email,
+      name: name.trim(),
+      username: username.trim() || email.split('@')[0],
+      avatarLetter: (name.trim()[0] || 'L').toUpperCase(),
+      avatarColor,
+      roleDescription: 'Thành viên mới LeafyBooth 🌱',
+      createdAt: new Date().toISOString(),
+    };
+
+    set({
+      currentUser: newUser,
+      step: 'authenticated',
+      errorMessage: null,
+      cloudSyncStatus: 'synced',
+    });
+
+    try {
+      useMomentsStore.getState().switchAccount(newUser.id);
+    } catch {}
+
+    if (get().rememberMe) {
+      safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser)).catch(() => {});
+    }
+
+    return { success: true };
   },
 
   logout: async () => {
