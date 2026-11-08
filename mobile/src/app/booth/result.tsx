@@ -158,13 +158,13 @@ export default function BoothResultScreen() {
           {
             id: `booth_${Date.now()}`,
             authorName: 'Bạn',
-            authorColor: frameColor,
+            authorColor: effectiveBgColor,
             authorLetter: 'B',
-            stripColor: frameColor,
+            stripColor: effectiveBgColor,
             photos: displayPhotos,
             createdAt: 'Vừa xong',
           },
-          stripTitle || 'Photobooth',
+          'LEAFY BOOTH',
           '2026.11.02',
           1,
           twinStripMode
@@ -255,12 +255,25 @@ export default function BoothResultScreen() {
     const currentLayout = boothState.layout;
     const currentFilter = boothState.filter;
     const currentTitle = boothState.stripTitle;
+    const currentPhotos = boothState.capturedPhotos;
+    const actualPhotos = currentPhotos.length > 0 ? currentPhotos : displayPhotos;
+
+    const effectiveBgColor =
+      currentActiveFrame?.gradientTheme === 'sunset' ? '#FFA07A' :
+      currentActiveFrame?.gradientTheme === 'ocean' ? '#6EE7B7' :
+      currentActiveFrame?.gradientTheme === 'cyber' ? '#818CF8' :
+      currentActiveFrame?.gradientTheme === 'kraft' ? '#F4E8C1' :
+      currentActiveFrame?.gradientTheme === 'cherry' ? '#FDA4AF' :
+      currentActiveFrame?.gradientTheme === 'lavender' ? '#D8B4FE' :
+      currentActiveFrame?.gradientTheme === 'matcha' ? '#86EFAC' :
+      currentActiveFrame?.gradientTheme === 'midnight' ? '#1E1B4B' :
+      (currentActiveFrame?.color || currentFrameColor || currentBackdrop?.color || colors.pink);
 
     if (viewMode === 'video' && recordedVideoUri) {
-      sendMoment(displayPhotos[0], currentTitle || 'K-Booth Live Clip 15s 🎥', {
-        stripPhotos: displayPhotos,
-        frameColor: currentFrameColor || currentBackdrop?.color || colors.pink,
-        frameName: currentTitle || 'K-Booth Live Moment',
+      sendMoment(actualPhotos[0], 'LEAFY BOOTH', {
+        stripPhotos: actualPhotos,
+        frameColor: effectiveBgColor,
+        frameName: 'LEAFY BOOTH',
         layout: 'vertical',
         filter: 'original',
       });
@@ -285,17 +298,6 @@ export default function BoothResultScreen() {
       return;
     }
 
-    const effectiveBgColor =
-      currentActiveFrame?.gradientTheme === 'sunset' ? '#FFA07A' :
-      currentActiveFrame?.gradientTheme === 'ocean' ? '#6EE7B7' :
-      currentActiveFrame?.gradientTheme === 'cyber' ? '#818CF8' :
-      currentActiveFrame?.gradientTheme === 'kraft' ? '#F4E8C1' :
-      currentActiveFrame?.gradientTheme === 'cherry' ? '#FDA4AF' :
-      currentActiveFrame?.gradientTheme === 'lavender' ? '#D8B4FE' :
-      currentActiveFrame?.gradientTheme === 'matcha' ? '#86EFAC' :
-      currentActiveFrame?.gradientTheme === 'midnight' ? '#1E1B4B' :
-      (currentActiveFrame?.color || currentFrameColor || currentBackdrop?.color || colors.pink);
-
     const effectiveEdgeStyle = currentActiveFrame?.edgeStyle || 'classic';
     const effectiveStickers = currentActiveFrame?.stickers || [];
     const effectiveTextItems = currentActiveFrame?.textItems || [];
@@ -305,8 +307,8 @@ export default function BoothResultScreen() {
     const effectiveGradientTheme = currentActiveFrame?.gradientTheme;
     const effectiveName = currentTitle || 'LEAFY BOOTH';
 
-    sendMoment(displayPhotos[0], effectiveName, {
-      stripPhotos: displayPhotos,
+    sendMoment(actualPhotos[0], effectiveName, {
+      stripPhotos: actualPhotos,
       frameColor: effectiveBgColor,
       frameName: 'LEAFY BOOTH',
       layout: currentLayout || (currentActiveFrame?.frameLayout === 'grid_4' ? 'grid' : 'vertical'),
@@ -394,6 +396,10 @@ export default function BoothResultScreen() {
       textItems: [],
       customText: '',
       frameLayout: 'strip_4',
+      pattern: undefined,
+      sealStamp: 'none',
+      washiTapeStyle: 'none',
+      gradientTheme: 'none',
     });
   }, [selectBackdrop, setFrameColor, setStripTitle, setActiveCustomFrame]);
 
@@ -833,7 +839,7 @@ export default function BoothResultScreen() {
                 {/* TAB 1: 10 Khung nền mặc định K-Booth */}
                 {frameCategoryTab === 'default' &&
                   DEFAULT_BACKDROPS.map((bd) => {
-                    const isSelected = !activeCustomFrame && (selectedBackdrop?.id === bd.id || frameColor === bd.color);
+                    const isSelected = activeCustomFrame?.id === bd.id || (!activeCustomFrame?.gradientTheme && (frameColor === bd.color || selectedBackdrop?.id === bd.id));
                     return (
                       <Pressable
                         key={bd.id}

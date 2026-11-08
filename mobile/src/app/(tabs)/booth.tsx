@@ -18,7 +18,7 @@ import { useStudioStore } from '../../features/studio/hooks/useStudioStore';
 export default function BoothScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { selectBackdrop, resetBooth, capturedPhotos } = useBoothStore();
+  const { selectBackdrop, resetBooth, capturedPhotos, selectedBackdrop, frameColor, activeCustomFrame } = useBoothStore();
   const { savedCustomFrames } = useStudioStore();
 
   const handleStartShooting = (backdrop: BackdropItem) => {
@@ -34,6 +34,10 @@ export default function BoothScreen() {
       textItems: [],
       customText: '',
       frameLayout: 'strip_4',
+      pattern: undefined,
+      sealStamp: 'none',
+      washiTapeStyle: 'none',
+      gradientTheme: 'none',
     });
     if (capturedPhotos && capturedPhotos.length > 0) {
       // Đã có 4 ảnh vừa chụp -> Chuyển thẳng về result để xem ngay khung mới!
@@ -245,26 +249,44 @@ export default function BoothScreen() {
 
         {/* 10 Backdrops Grid */}
         <View style={styles.grid}>
-          {DEFAULT_BACKDROPS.map(item => (
-            <Pressable
-              key={item.id}
-              onPress={() => handleStartShooting(item)}
-              style={({ pressed }) => [
-                styles.backdropItem,
-                { transform: [{ scale: pressed ? 0.96 : 1 }] },
-              ]}
-            >
-              {/* Mini Strip Card */}
-              <View style={[styles.stripThumbnail, { backgroundColor: item.color }]}>
-                {[0, 1, 2, 3].map(i => (
-                  <View key={i} style={styles.thumbnailSlot} />
-                ))}
-              </View>
-              <Text style={styles.backdropName} numberOfLines={1}>
-                {item.name}
-              </Text>
-            </Pressable>
-          ))}
+          {DEFAULT_BACKDROPS.map((item) => {
+            const isCurrentlySelected =
+              Boolean(capturedPhotos && capturedPhotos.length > 0) &&
+              (activeCustomFrame?.id === item.id || (!activeCustomFrame?.gradientTheme && (frameColor === item.color || selectedBackdrop?.id === item.id)));
+
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => handleStartShooting(item)}
+                style={({ pressed }) => [
+                  styles.backdropItem,
+                  { transform: [{ scale: pressed ? 0.96 : 1 }] },
+                ]}
+              >
+                {/* Mini Strip Card */}
+                <View
+                  style={[
+                    styles.stripThumbnail,
+                    { backgroundColor: item.color },
+                    isCurrentlySelected && styles.stripThumbnailSelected,
+                  ]}
+                >
+                  {[0, 1, 2, 3].map((i) => (
+                    <View key={i} style={styles.thumbnailSlot} />
+                  ))}
+                </View>
+                <Text
+                  style={[
+                    styles.backdropName,
+                    isCurrentlySelected && { color: colors.yellow, fontWeight: '900' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {isCurrentlySelected ? `✓ ${item.name}` : item.name}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
     </View>
@@ -463,6 +485,11 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 6,
     ...theme.shadows.darkSoft,
+  },
+  stripThumbnailSelected: {
+    borderColor: colors.yellow,
+    borderWidth: 3,
+    ...theme.shadows.hard,
   },
   thumbnailSlot: {
     flex: 1,
