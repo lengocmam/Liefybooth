@@ -106,7 +106,7 @@ export const useBoothStore = create<BoothState>((set) => ({
         selectedBackdrop: backdrop,
         frameColor: backdrop.color,
         activeCustomFrame: null, // Xóa khung custom để quay về nền mặc định sạch
-        stripTitle: state.stripTitle, // Bảo toàn tiêu đề người dùng đã nhập
+        stripTitle: '', // Mặc định khung chỉ giữ màu sạch sẽ và thương hiệu app
       };
     }),
 
@@ -188,7 +188,7 @@ export const useBoothStore = create<BoothState>((set) => ({
         activeCustomFrame: frame,
         frameColor: effectiveColor,
         layout: frame?.frameLayout === 'grid_4' ? 'grid' : (frame?.frameLayout ? 'vertical' : state.layout),
-        stripTitle: frame?.customText || frame?.name || state.stripTitle,
+        stripTitle: frame?.customText || '',
         stampType: (frame?.sealStamp as any) || state.stampType,
       };
     }),

@@ -575,6 +575,18 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
       }
     };
 
+    const isFrameColorDark = (colorStr?: string) => {
+      if (!colorStr) return false;
+      const hex = colorStr.replace('#', '');
+      if (hex.length === 6) {
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+      }
+      return false;
+    };
+
     if (isGrid) {
       return (
         <View
@@ -650,15 +662,17 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             ))}
           </View>
 
-          {momentItem.customText ? (
-            <Text style={styles.photoboothCustomText} numberOfLines={2}>
-              {momentItem.customText}
+          {/* Đáy dải ảnh: Duy nhất chữ thương hiệu của app LEAFY BOOTH tinh tế */}
+          <View style={styles.photoboothStripCleanFooter}>
+            <Text
+              style={[
+                styles.photoboothAppWatermark,
+                isFrameColorDark(effectiveFrameColor) && { color: '#FFFFFF' },
+              ]}
+            >
+              🌿 LEAFY BOOTH
             </Text>
-          ) : momentItem.frameName ? (
-            <Text style={styles.photoboothFrameTitle} numberOfLines={1}>
-              {momentItem.frameName}
-            </Text>
-          ) : null}
+          </View>
 
           {/* Floating stickers nếu có */}
           {momentItem.stickers && momentItem.stickers.length > 0 && (
@@ -723,17 +737,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             </View>
           )}
 
-          {/* Con dấu niêm phong nếu có */}
-          {momentItem.sealStamp && momentItem.sealStamp !== 'none' && (
-            <View style={styles.feedSealStampBadge} pointerEvents="none">
-              <Text style={styles.feedSealStampText}>
-                {momentItem.sealStamp === 'leafy_certified' ? '🌿 LEAFY' :
-                 momentItem.sealStamp === 'special_edition' ? '⭐ VIP' :
-                 momentItem.sealStamp === 'besties' ? '👯 BFF' :
-                 momentItem.sealStamp === 'love_wax' ? '💌 LOVE' : '✨ SEAL'}
-              </Text>
-            </View>
-          )}
+
         </View>
       );
     }
@@ -831,15 +835,17 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             ))}
           </View>
 
-          {momentItem.customText ? (
-            <Text style={styles.photoboothCustomText} numberOfLines={2}>
-              {momentItem.customText}
+          {/* Đáy dải ảnh: Duy nhất chữ thương hiệu của app LEAFY BOOTH tinh tế */}
+          <View style={styles.photoboothStripCleanFooter}>
+            <Text
+              style={[
+                styles.photoboothAppWatermark,
+                isFrameColorDark(effectiveFrameColor) && { color: '#FFFFFF' },
+              ]}
+            >
+              🌿 LEAFY BOOTH
             </Text>
-          ) : momentItem.frameName ? (
-            <Text style={styles.photoboothFrameTitle} numberOfLines={1}>
-              {momentItem.frameName}
-            </Text>
-          ) : null}
+          </View>
 
           {/* Floating stickers nếu có */}
           {momentItem.stickers && momentItem.stickers.length > 0 && (
@@ -904,17 +910,7 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
             </View>
           )}
 
-          {/* Con dấu niêm phong nếu có */}
-          {momentItem.sealStamp && momentItem.sealStamp !== 'none' && (
-            <View style={styles.feedSealStampBadge} pointerEvents="none">
-              <Text style={styles.feedSealStampText}>
-                {momentItem.sealStamp === 'leafy_certified' ? '🌿 LEAFY' :
-                 momentItem.sealStamp === 'special_edition' ? '⭐ VIP' :
-                 momentItem.sealStamp === 'besties' ? '👯 BFF' :
-                 momentItem.sealStamp === 'love_wax' ? '💌 LOVE' : '✨ SEAL'}
-              </Text>
-            </View>
-          )}
+
         </View>
       </View>
     );
@@ -3083,6 +3079,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#F3F4F6',
     position: 'relative',
+  },
+  photoboothStripCleanFooter: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  photoboothAppWatermark: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 2,
+    color: colors.ink,
+    opacity: 0.85,
+    textTransform: 'uppercase',
   },
   photoboothCustomText: {
     fontSize: 10,

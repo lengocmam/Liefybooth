@@ -123,7 +123,7 @@ export async function exportStripToImage(
         ctx.fillStyle = '#111111';
         ctx.font = `900 ${16 * scale}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText('🌿 LEAFYBOOTH PHOTOBOOTH', offsetX + singleWidth / 2, 42 * scale);
+        ctx.fillText('🌿 LEAFY BOOTH', offsetX + singleWidth / 2, 42 * scale);
 
         ctx.font = `800 ${13 * scale}px sans-serif`;
         ctx.fillStyle = '#262626';
@@ -551,11 +551,11 @@ export async function exportStudioFrameToImage(options: {
         }
       }
 
-      // 3. Tiêu đề thương hiệu LEAFYBOOTH & Tọa độ
+      // 3. Tiêu đề thương hiệu LEAFY BOOTH & Tọa độ
       ctx.textAlign = 'center';
       ctx.fillStyle = options.textColor || '#111111';
       ctx.font = '900 16px sans-serif';
-      ctx.fillText('LEAFYBOOTH', canvas.width / 2, 42);
+      ctx.fillText('LEAFY BOOTH', canvas.width / 2, 42);
 
       if (options.locationTag) {
         ctx.font = '700 11px sans-serif';

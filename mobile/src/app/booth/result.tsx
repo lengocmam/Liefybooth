@@ -303,18 +303,18 @@ export default function BoothResultScreen() {
     const effectiveSealStamp = currentActiveFrame?.sealStamp || stampType;
     const effectiveWashiTapeStyle = currentActiveFrame?.washiTapeStyle;
     const effectiveGradientTheme = currentActiveFrame?.gradientTheme;
-    const effectiveName = currentTitle || currentActiveFrame?.name || currentBackdrop?.name || 'Photobooth Strip';
+    const effectiveName = currentTitle || 'LEAFY BOOTH';
 
     sendMoment(displayPhotos[0], effectiveName, {
       stripPhotos: displayPhotos,
       frameColor: effectiveBgColor,
-      frameName: effectiveName,
+      frameName: 'LEAFY BOOTH',
       layout: currentLayout || (currentActiveFrame?.frameLayout === 'grid_4' ? 'grid' : 'vertical'),
       filter: currentFilter || 'original',
       edgeStyle: effectiveEdgeStyle,
       stickers: effectiveStickers,
       textItems: effectiveTextItems,
-      customText: currentTitle || currentActiveFrame?.customText,
+      customText: currentTitle || '',
       pattern: effectivePattern,
       sealStamp: effectiveSealStamp,
       washiTapeStyle: effectiveWashiTapeStyle,
@@ -384,6 +384,7 @@ export default function BoothResultScreen() {
     playShutterSound();
     selectBackdrop(bd);
     setFrameColor(bd.color);
+    setStripTitle('');
     setActiveCustomFrame({
       id: bd.id,
       name: bd.name,
@@ -394,9 +395,9 @@ export default function BoothResultScreen() {
       customText: '',
       frameLayout: 'strip_4',
     });
-  }, [selectBackdrop, setFrameColor, setActiveCustomFrame]);
+  }, [selectBackdrop, setFrameColor, setStripTitle, setActiveCustomFrame]);
 
-  // Bộ chọn mẫu Studio Presets trực tiếp
+  // Bộ chọn mẫu Studio Presets trực tiếp (khung sạch màu sắc, không dính chữ)
   const handleSelectPreset = useCallback((preset: StudioPresetItem) => {
     playShutterSound();
     useStudioStore.getState().applyPreset(preset);
@@ -406,8 +407,8 @@ export default function BoothResultScreen() {
       color: preset.backgroundColor,
       edgeStyle: preset.frameEdgeStyle,
       stickers: preset.stickers ? preset.stickers.map((s) => ({ ...s })) : [],
-      textItems: preset.textItems ? preset.textItems.map((t) => ({ ...t })) : [],
-      customText: preset.customText || '',
+      textItems: [],
+      customText: '',
       frameLayout: preset.frameLayout,
       pattern: preset.pattern,
       sealStamp: preset.sealStamp,
@@ -416,9 +417,7 @@ export default function BoothResultScreen() {
     });
     setFrameColor(preset.backgroundColor);
     setLayout(preset.frameLayout === 'grid_4' ? 'grid' : 'vertical');
-    if (preset.customText || preset.name) {
-      setStripTitle(preset.customText || preset.name);
-    }
+    setStripTitle('');
   }, [setActiveCustomFrame, setFrameColor, setLayout, setStripTitle]);
 
   // Bộ chọn khung DIY đã lưu
@@ -441,194 +440,144 @@ export default function BoothResultScreen() {
     });
     setFrameColor(cf.backgroundColor);
     setLayout(cf.frameLayout === 'grid_4' ? 'grid' : 'vertical');
-    if (cf.customText || cf.name) {
-      setStripTitle(cf.customText || cf.name);
-    }
+    setStripTitle(cf.customText || '');
   }, [setActiveCustomFrame, setFrameColor, setLayout, setStripTitle]);
 
-  const renderSingleStrip = (stripNum: number = 1) => (
-    <View
-      key={stripNum}
-      style={[
-        styles.photoboothStrip,
-        { backgroundColor: effectiveBgColor },
-        layout === 'grid' && styles.gridStrip,
-        twinStripMode && styles.twinSingleStrip,
-        effectiveEdgeStyle === 'neon_glow' && styles.stripNeonGlow,
-      ]}
-    >
-      {/* Hiệu ứng viền cuộn phim nhựa 35mm nếu chọn film_perforated */}
-      {effectiveEdgeStyle === 'film_perforated' && (
-        <>
-          <View style={[styles.filmPerforationsColumn, { left: 2 }]} pointerEvents="none">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((k) => (
-              <View key={k} style={styles.filmHole} />
-            ))}
-          </View>
-          <View style={[styles.filmPerforationsColumn, { right: 2 }]} pointerEvents="none">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((k) => (
-              <View key={k} style={styles.filmHole} />
-            ))}
-          </View>
-        </>
-      )}
+  // Hàm xác định độ sáng của màu nền khung ảnh để hiển thị chữ tương phản hoàn hảo
+  const isBgColorDark = (colorStr?: string) => {
+    if (!colorStr) return false;
+    const hex = colorStr.replace('#', '');
+    if (hex.length === 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+    }
+    return false;
+  };
 
-      {/* Hiệu ứng băng dính Washi nếu chọn washi_corners */}
-      {effectiveEdgeStyle === 'washi_corners' && (
-        <>
-          <View style={[styles.washiCorner, { top: -2, left: -2, transform: [{ rotate: '-35deg' }] }]} pointerEvents="none" />
-          <View style={[styles.washiCorner, { bottom: -2, right: -2, transform: [{ rotate: '-35deg' }] }]} pointerEvents="none" />
-        </>
-      )}
+  const renderSingleStrip = (stripNum: number = 1) => {
+    const isDark = isBgColorDark(effectiveBgColor);
 
-      {/* Hiệu ứng vé xem phim nếu chọn ticket_stub */}
-      {effectiveEdgeStyle === 'ticket_stub' && (
-        <View style={styles.ticketBannerStrip} pointerEvents="none">
-          <Text style={styles.ticketBannerText}>★ ADMIT ONE · CINEMA ★</Text>
-        </View>
-      )}
+    return (
+      <View
+        key={stripNum}
+        style={[
+          styles.photoboothStrip,
+          { backgroundColor: effectiveBgColor },
+          layout === 'grid' && styles.gridStrip,
+          twinStripMode && styles.twinSingleStrip,
+          effectiveEdgeStyle === 'neon_glow' && styles.stripNeonGlow,
+        ]}
+      >
+        {/* Hiệu ứng viền cuộn phim nhựa 35mm nếu chọn film_perforated */}
+        {effectiveEdgeStyle === 'film_perforated' && (
+          <>
+            <View style={[styles.filmPerforationsColumn, { left: 2 }]} pointerEvents="none">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((k) => (
+                <View key={k} style={styles.filmHole} />
+              ))}
+            </View>
+            <View style={[styles.filmPerforationsColumn, { right: 2 }]} pointerEvents="none">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((k) => (
+                <View key={k} style={styles.filmHole} />
+              ))}
+            </View>
+          </>
+        )}
 
-      {/* Hiệu ứng VHS máy quay 1998 nếu chọn vhs_camcorder */}
-      {effectiveEdgeStyle === 'vhs_camcorder' && (
-        <View style={styles.vhsBadgeStrip} pointerEvents="none">
-          <View style={styles.vhsDot} />
-          <Text style={styles.vhsText}>REC · 1998</Text>
-        </View>
-      )}
+        {/* Hiệu ứng băng dính Washi nếu chọn washi_corners */}
+        {effectiveEdgeStyle === 'washi_corners' && (
+          <>
+            <View style={[styles.washiCorner, { top: -2, left: -2, transform: [{ rotate: '-35deg' }] }]} pointerEvents="none" />
+            <View style={[styles.washiCorner, { bottom: -2, right: -2, transform: [{ rotate: '-35deg' }] }]} pointerEvents="none" />
+          </>
+        )}
 
-      {/* Header thương hiệu */}
-      <View style={styles.stripBrandHeader}>
-        <Text style={styles.stripBrandText}>LEAFYBOOTH · SEOUL 4-CUT</Text>
-      </View>
+        {/* 4 ô ảnh */}
+        <View style={layout === 'grid' ? styles.gridPhotoContainer : styles.verticalPhotoContainer}>
+          {displayPhotos.map((uri, idx) => {
+            const isSlotSelected = selectedSlotForRetake === idx;
 
-      {/* 4 ô ảnh */}
-      <View style={layout === 'grid' ? styles.gridPhotoContainer : styles.verticalPhotoContainer}>
-        {displayPhotos.map((uri, idx) => {
-          const isSlotSelected = selectedSlotForRetake === idx;
-
-          return (
-            <Pressable
-              key={idx}
-              onPress={() => setSelectedSlotForRetake(isSlotSelected ? null : idx)}
-              style={[
-                styles.photoFrame,
-                layout === 'grid' && styles.gridPhotoFrame,
-                twinStripMode && styles.twinPhotoFrame,
-                isSlotSelected && styles.photoFrameSelected,
-              ]}
-            >
-              <Image
-                source={{ uri }}
-                style={[styles.photoImage, filterStyle]}
-                resizeMode="cover"
-              />
-              <View pointerEvents="none" style={styles.beautyGlowOverlay} />
-              {filter === 'haru_blue' && <View style={styles.haruFilterOverlay} />}
-              {filter === 'sakura' && <View style={styles.sakuraFilterOverlay} />}
-              {filter === 'warm' && <View style={styles.warmFilterOverlay} />}
-              {filter === 'cool' && <View style={styles.coolFilterOverlay} />}
-
-              {/* Nút Chụp lại nổi khi ô được chạm vào */}
-              {isSlotSelected && (
-                <View style={styles.retakeFloatingOverlay}>
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleRetakeSlot(idx);
-                    }}
-                    style={styles.retakeFloatingPill}
-                  >
-                    <Text style={styles.retakeFloatingText}>↺ Đổi</Text>
-                  </Pressable>
-                </View>
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* Dòng chữ ở đáy dải ảnh */}
-      {stripTitle && stripTitle.trim().length > 0 ? (
-        <Text style={styles.stripTitleText}>{stripTitle}</Text>
-      ) : null}
-
-      {/* Con dấu sáp & Barcode K-Booth */}
-      <View style={styles.stripFooterSignature}>
-        <View style={styles.waxSealStampPill}>
-          <Text style={styles.waxSealEmoji}>💮</Text>
-          <Text style={styles.waxSealText}>LEAFY CERTIFIED</Text>
-        </View>
-
-        <View style={styles.barcodeSection}>
-          <View style={styles.barcodeBarsRow}>
-            {[2, 1, 3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 1, 3, 2, 1, 3, 1].map((w, bIdx) => (
-              <View key={bIdx} style={[styles.barcodeBar, { width: w }]} />
-            ))}
-          </View>
-          <Text style={styles.barcodeText}>{barcodeNumber} · 2026.11.01</Text>
-        </View>
-      </View>
-
-      {/* Floating stickers của khung DIY nếu có */}
-      {activeCustomFrame?.stickers && activeCustomFrame.stickers.length > 0 && (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          {activeCustomFrame.stickers.map((st, sIdx) => {
-            const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
-            const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
             return (
-              <Text
-                key={sIdx}
-                style={{
-                  position: 'absolute',
-                  left: leftPos as any,
-                  top: topPos as any,
-                  fontSize: st.size ? Math.min(st.size * 0.7, 26) : 22,
-                  transform: [{ rotate: `${st.rotation || 0}deg` }],
-                }}
+              <Pressable
+                key={idx}
+                onPress={() => setSelectedSlotForRetake(isSlotSelected ? null : idx)}
+                style={[
+                  styles.photoFrame,
+                  layout === 'grid' && styles.gridPhotoFrame,
+                  twinStripMode && styles.twinPhotoFrame,
+                  isSlotSelected && styles.photoFrameSelected,
+                ]}
               >
-                {st.emoji}
-              </Text>
+                <Image
+                  source={{ uri }}
+                  style={[styles.photoImage, filterStyle]}
+                  resizeMode="cover"
+                />
+                <View pointerEvents="none" style={styles.beautyGlowOverlay} />
+                {filter === 'haru_blue' && <View style={styles.haruFilterOverlay} />}
+                {filter === 'sakura' && <View style={styles.sakuraFilterOverlay} />}
+                {filter === 'warm' && <View style={styles.warmFilterOverlay} />}
+                {filter === 'cool' && <View style={styles.coolFilterOverlay} />}
+
+                {/* Nút Chụp lại nổi khi ô được chạm vào */}
+                {isSlotSelected && (
+                  <View style={styles.retakeFloatingOverlay}>
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleRetakeSlot(idx);
+                      }}
+                      style={styles.retakeFloatingPill}
+                    >
+                      <Text style={styles.retakeFloatingText}>↺ Đổi</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </Pressable>
             );
           })}
         </View>
-      )}
 
-      {/* Floating text items của khung DIY nếu có */}
-      {activeCustomFrame?.textItems && activeCustomFrame.textItems.length > 0 && (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          {activeCustomFrame.textItems.map((ti, tIdx) => {
-            const tLeft = ti.x > 1 ? `${Math.min(Math.max((ti.x / 200) * 100, 6), 84)}%` : `${Math.min(Math.max(ti.x, 6), 84)}%`;
-            const tTop = ti.y > 1 ? `${Math.min(Math.max((ti.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(ti.y, 4), 92)}%`;
-            return (
-              <View
-                key={tIdx}
-                style={{
-                  position: 'absolute',
-                  left: tLeft as any,
-                  top: tTop as any,
-                  backgroundColor: ti.bgColor || 'rgba(0,0,0,0.65)',
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 6,
-                  transform: [{ rotate: `${ti.rotation || 0}deg` }],
-                }}
-              >
+        {/* Đáy dải ảnh: Duy nhất chữ thương hiệu của app LEAFY BOOTH tinh tế & sang trọng */}
+        <View style={styles.stripCleanFooter}>
+          <Text
+            style={[
+              styles.stripCleanBrandText,
+              isDark && { color: '#FFFFFF' },
+            ]}
+          >
+            🌿 LEAFY BOOTH
+          </Text>
+        </View>
+
+        {/* Floating stickers của khung DIY nếu có */}
+        {activeCustomFrame?.stickers && activeCustomFrame.stickers.length > 0 && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {activeCustomFrame.stickers.map((st, sIdx) => {
+              const leftPos = st.x > 1 ? `${Math.min(Math.max((st.x / 200) * 100, 4), 86)}%` : `${Math.min(Math.max(st.x, 4), 86)}%`;
+              const topPos = st.y > 1 ? `${Math.min(Math.max((st.y / 580) * 100, 4), 92)}%` : `${Math.min(Math.max(st.y, 4), 92)}%`;
+              return (
                 <Text
+                  key={sIdx}
                   style={{
-                    fontSize: ti.fontSize ? Math.min(ti.fontSize * 0.75, 16) : 11,
-                    fontWeight: '900',
-                    color: ti.color || '#FFFFFF',
+                    position: 'absolute',
+                    left: leftPos as any,
+                    top: topPos as any,
+                    fontSize: st.size ? Math.min(st.size * 0.7, 26) : 22,
+                    transform: [{ rotate: `${st.rotation || 0}deg` }],
                   }}
                 >
-                  {ti.text}
+                  {st.emoji}
                 </Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
-    </View>
-  );
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 10), paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -1686,6 +1635,22 @@ const styles = StyleSheet.create({
   coolFilterOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(2, 132, 199, 0.12)',
+  },
+
+  stripCleanFooter: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  stripCleanBrandText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 2.2,
+    color: colors.ink,
+    opacity: 0.85,
+    textTransform: 'uppercase',
   },
 
   stripTitleText: {

@@ -1469,7 +1469,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
 
       {/* Header branding on strip */}
       <View style={styles.stripTopHeader}>
-        <Text style={styles.stripBrand}>LEAFYBOOTH</Text>
+        <Text style={styles.stripBrand}>LEAFY BOOTH</Text>
         {locationTag ? (
           <Text style={[styles.stripLocationSubtitle, { color: textColor }]}>
             {locationTag}

@@ -24,6 +24,7 @@ export default function BoothScreen() {
   const handleStartShooting = (backdrop: BackdropItem) => {
     selectBackdrop(backdrop);
     useBoothStore.getState().setFrameColor(backdrop.color);
+    useBoothStore.getState().setStripTitle('');
     useBoothStore.getState().setActiveCustomFrame({
       id: backdrop.id,
       name: backdrop.name,
@@ -210,9 +211,7 @@ export default function BoothScreen() {
                       gradientTheme: cf.gradientTheme,
                     });
                     useBoothStore.getState().setLayout(cf.frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                    if (cf.customText || cf.name) {
-                      useBoothStore.getState().setStripTitle(cf.customText || cf.name);
-                    }
+                    useBoothStore.getState().setStripTitle(cf.customText || '');
                     if (capturedPhotos && capturedPhotos.length > 0) {
                       router.replace('/booth/result' as any);
                     } else {
