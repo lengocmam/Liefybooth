@@ -72,10 +72,12 @@ interface BoothState {
   frameColor: string;
   layout: StripLayout;
   filter: StripFilter;
+  pattern: string;
   stripTitle: string;
   setFrameColor: (color: string) => void;
   setLayout: (layout: StripLayout) => void;
   setFilter: (filter: StripFilter) => void;
+  setPattern: (pattern: string) => void;
   setStripTitle: (title: string) => void;
 
   // Khung tùy biến đang kích hoạt từ Studio
@@ -105,6 +107,7 @@ export const useBoothStore = create<BoothState>((set) => ({
       return {
         selectedBackdrop: backdrop,
         frameColor: backdrop.color,
+        pattern: 'solid',
         activeCustomFrame: null, // Xóa khung custom để quay về nền mặc định sạch
         stripTitle: '', // Mặc định khung chỉ giữ màu sạch sẽ và thương hiệu app
       };
@@ -155,6 +158,7 @@ export const useBoothStore = create<BoothState>((set) => ({
   frameColor: DEFAULT_BACKDROPS[0].color,
   layout: 'vertical',
   filter: 'original',
+  pattern: 'solid',
   stripTitle: '', // Trống để người dùng tự do thiết kế chữ!
   setFrameColor: (color) =>
     set((state) => ({
@@ -172,6 +176,28 @@ export const useBoothStore = create<BoothState>((set) => ({
         : null,
     })),
   setFilter: (filter) => set({ filter }),
+  setPattern: (pattern) =>
+    set((state) => ({
+      pattern,
+      activeCustomFrame: state.activeCustomFrame
+        ? {
+            ...state.activeCustomFrame,
+            pattern: pattern === 'solid' || pattern === 'none' ? undefined : pattern,
+          }
+        : pattern === 'solid' || pattern === 'none'
+        ? null
+        : {
+            id: state.selectedBackdrop?.id || 'custom',
+            name: state.selectedBackdrop?.name || 'Khung tùy chọn',
+            color: state.frameColor,
+            pattern,
+            edgeStyle: 'straight',
+            stickers: [],
+            textItems: [],
+            customText: state.stripTitle || '',
+            frameLayout: state.layout === 'grid' ? 'grid_4' : 'strip_4',
+          },
+    })),
   setStripTitle: (title) =>
     set((state) => ({
       stripTitle: title,
@@ -187,6 +213,7 @@ export const useBoothStore = create<BoothState>((set) => ({
       return {
         activeCustomFrame: frame,
         frameColor: effectiveColor,
+        pattern: frame?.pattern || 'solid',
         layout: frame?.frameLayout === 'grid_4' ? 'grid' : (frame?.frameLayout ? 'vertical' : state.layout),
         stripTitle: frame?.customText || '',
         stampType: (frame?.sealStamp as any) || state.stampType,
@@ -205,6 +232,7 @@ export const useBoothStore = create<BoothState>((set) => ({
       filter: 'original',
       selectedBackdrop: DEFAULT_BACKDROPS[0],
       frameColor: DEFAULT_BACKDROPS[0].color,
+      pattern: 'solid',
       activeCustomFrame: null,
       stripTitle: '',
       twinStripMode: false,

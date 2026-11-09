@@ -409,7 +409,7 @@ export async function exportStudioFrameToImage(options: {
   frameName: string;
   backgroundColor: string;
   borderColor: string;
-  pattern: 'solid' | 'dots' | 'stripes' | 'stars';
+  pattern?: string;
   customText: string;
   textPosition: 'top' | 'middle' | 'bottom';
   textColor: string;
@@ -548,6 +548,36 @@ export async function exportStudioFrameToImage(options: {
           ctx.lineTo(i + canvas.height, canvas.height);
           ctx.closePath();
           ctx.fill();
+        }
+      } else if (options.pattern === 'hearts') {
+        ctx.font = '16px sans-serif';
+        const hearts = ['💖', '💕', '💗'];
+        let hIdx = 0;
+        for (let y = 50; y < canvas.height - 50; y += 80) {
+          ctx.fillText(hearts[hIdx % hearts.length], 20, y);
+          ctx.fillText(hearts[(hIdx + 1) % hearts.length], canvas.width - 35, y + 40);
+          hIdx++;
+        }
+      } else if (options.pattern === 'stars' || options.pattern === 'sparkles') {
+        ctx.font = '16px sans-serif';
+        const stars = ['✨', '⭐', '✦'];
+        let sIdx = 0;
+        for (let y = 50; y < canvas.height - 50; y += 80) {
+          ctx.fillText(stars[sIdx % stars.length], 20, y);
+          ctx.fillText(stars[(sIdx + 1) % stars.length], canvas.width - 35, y + 40);
+          sIdx++;
+        }
+      } else if (options.pattern === 'cherries') {
+        ctx.font = '16px sans-serif';
+        for (let y = 50; y < canvas.height - 50; y += 80) {
+          ctx.fillText('🌸', 20, y);
+          ctx.fillText('🌸', canvas.width - 35, y + 40);
+        }
+      } else if (options.pattern === 'clover') {
+        ctx.font = '16px sans-serif';
+        for (let y = 50; y < canvas.height - 50; y += 80) {
+          ctx.fillText('🍀', 20, y);
+          ctx.fillText('🍀', canvas.width - 35, y + 40);
         }
       }
 

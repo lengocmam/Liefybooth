@@ -1245,9 +1245,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
     });
     useBoothStore.getState().setFrameColor(effectiveBgColor);
     useBoothStore.getState().setLayout(frameLayout === 'grid_4' ? 'grid' : 'vertical');
-    if (customText || frameName) {
-      useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
-    }
+    useBoothStore.getState().setStripTitle(customText || '');
 
     const hasPhotos = slotPhotos.some((p) => Boolean(p)) || useBoothStore.getState().capturedPhotos.length > 0;
 
@@ -1988,9 +1986,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                             });
                             useBoothStore.getState().setFrameColor(effectiveBgColor);
                             useBoothStore.getState().setLayout(frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                            if (customText || frameName) {
-                              useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
-                            }
+                            useBoothStore.getState().setStripTitle(customText || '');
                           }
                           if (router.canGoBack()) {
                             router.back();
@@ -2091,9 +2087,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                     });
                     useBoothStore.getState().setFrameColor(effectiveBgColor);
                     useBoothStore.getState().setLayout(frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                    if (customText || frameName) {
-                      useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
-                    }
+                    useBoothStore.getState().setStripTitle(customText || '');
                     if (router.canGoBack()) {
                       router.back();
                     } else {
@@ -2139,9 +2133,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                   });
                   useBoothStore.getState().setFrameColor(effectiveBgColor);
                   useBoothStore.getState().setLayout(frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                  if (customText || frameName) {
-                    useBoothStore.getState().setStripTitle(customText || frameName || 'Photobooth');
-                  }
+                  useBoothStore.getState().setStripTitle(customText || '');
                   // Mở thẳng camera để chụp ảnh với khung này!
                   router.push('/booth/camera' as any);
                 }}
@@ -2567,9 +2559,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                     });
                                     useBoothStore.getState().setFrameColor(preset.backgroundColor);
                                     useBoothStore.getState().setLayout(preset.frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                                    if (preset.customText || preset.name) {
-                                      useBoothStore.getState().setStripTitle(preset.customText || preset.name);
-                                    }
+                                    useBoothStore.getState().setStripTitle(preset.customText || '');
                                     playShutterSound();
                                     closeActiveSheet();
                                   }}
@@ -2710,9 +2700,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                       });
                                       useBoothStore.getState().setFrameColor(frame.backgroundColor);
                                       useBoothStore.getState().setLayout(frame.frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                                      if (frame.customText || frame.name) {
-                                        useBoothStore.getState().setStripTitle(frame.customText || frame.name);
-                                      }
+                                      useBoothStore.getState().setStripTitle(frame.customText || '');
                                       playShutterSound();
                                       closeActiveSheet();
                                     }}
@@ -2828,9 +2816,7 @@ export default function FrameStudioScreen({ isTab = false }: { isTab?: boolean }
                                             });
                                             useBoothStore.getState().setFrameColor(frame.backgroundColor);
                                             useBoothStore.getState().setLayout(frame.frameLayout === 'grid_4' ? 'grid' : 'vertical');
-                                            if (frame.customText || frame.name) {
-                                              useBoothStore.getState().setStripTitle(frame.customText || frame.name);
-                                            }
+                                            useBoothStore.getState().setStripTitle(frame.customText || '');
                                             closeActiveSheet();
                                             router.push('/booth/camera' as any);
                                           }}

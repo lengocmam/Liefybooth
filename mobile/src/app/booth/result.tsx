@@ -34,6 +34,17 @@ const BOOTH_FILTERS: { id: StripFilter; label: string; icon: string }[] = [
   { id: 'cool', label: 'Cyber', icon: '⚡' },
 ];
 
+export const FRAME_PATTERNS = [
+  { id: 'solid', label: 'Trơn', icon: '🚫' },
+  { id: 'dots', label: 'Chấm bi', icon: '⚪' },
+  { id: 'stripes', label: 'Kẻ sọc', icon: '💈' },
+  { id: 'hearts', label: 'Trái tim', icon: '💖' },
+  { id: 'stars', label: 'Ngôi sao', icon: '⭐' },
+  { id: 'sparkles', label: 'Lấp lánh', icon: '✦' },
+  { id: 'cherries', label: 'Hoa đào', icon: '🌸' },
+  { id: 'clover', label: 'Cỏ 4 lá', icon: '🍀' },
+] as const;
+
 export default function BoothResultScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -66,6 +77,8 @@ export default function BoothResultScreen() {
     setLayout,
     filter,
     setFilter,
+    pattern,
+    setPattern,
     stripTitle,
     setStripTitle,
     activeCustomFrame,
@@ -79,6 +92,38 @@ export default function BoothResultScreen() {
     recordedVideoUri,
   } = useBoothStore();
   const { savedCustomFrames } = useStudioStore();
+
+  const effectivePattern = useMemo(
+    () => activeCustomFrame?.pattern || (pattern && pattern !== 'solid' && pattern !== 'none' ? pattern : undefined),
+    [activeCustomFrame?.pattern, pattern]
+  );
+
+  const handleSelectPattern = useCallback((patId: string) => {
+    playShutterSound();
+    const newPattern = patId === 'solid' || patId === 'none' ? 'solid' : patId;
+    setPattern(newPattern);
+    if (activeCustomFrame) {
+      setActiveCustomFrame({
+        ...activeCustomFrame,
+        pattern: newPattern === 'solid' ? undefined : newPattern,
+      });
+    } else {
+      setActiveCustomFrame({
+        id: selectedBackdrop?.id || 'custom',
+        name: selectedBackdrop?.name || 'Khung tùy chọn',
+        color: frameColor,
+        edgeStyle: 'straight',
+        stickers: [],
+        textItems: [],
+        customText: stripTitle || '',
+        frameLayout: layout === 'grid' ? 'grid_4' : 'strip_4',
+        pattern: newPattern === 'solid' ? undefined : newPattern,
+        sealStamp: 'none',
+        washiTapeStyle: 'none',
+        gradientTheme: 'none',
+      });
+    }
+  }, [activeCustomFrame, frameColor, layout, selectedBackdrop, setActiveCustomFrame, setPattern, stripTitle]);
 
   const [viewMode, setViewMode] = useState<'strip' | 'video'>(recordedVideoUri ? 'video' : 'strip');
   const [qualityTab, setQualityTab] = useState<'strip' | 'video'>(recordedVideoUri ? 'video' : 'strip');
@@ -301,7 +346,12 @@ export default function BoothResultScreen() {
     const effectiveEdgeStyle = currentActiveFrame?.edgeStyle || 'classic';
     const effectiveStickers = currentActiveFrame?.stickers || [];
     const effectiveTextItems = currentActiveFrame?.textItems || [];
-    const effectivePattern = currentActiveFrame?.pattern;
+    const effectivePatternToSend =
+      currentActiveFrame?.pattern && currentActiveFrame.pattern !== 'solid' && currentActiveFrame.pattern !== 'none'
+        ? currentActiveFrame.pattern
+        : boothState.pattern && boothState.pattern !== 'solid' && boothState.pattern !== 'none'
+        ? boothState.pattern
+        : undefined;
     const effectiveSealStamp = currentActiveFrame?.sealStamp || stampType;
     const effectiveWashiTapeStyle = currentActiveFrame?.washiTapeStyle;
     const effectiveGradientTheme = currentActiveFrame?.gradientTheme;
@@ -317,7 +367,7 @@ export default function BoothResultScreen() {
       stickers: effectiveStickers,
       textItems: effectiveTextItems,
       customText: currentTitle || '',
-      pattern: effectivePattern,
+      pattern: effectivePatternToSend,
       sealStamp: effectiveSealStamp,
       washiTapeStyle: effectiveWashiTapeStyle,
       gradientTheme: effectiveGradientTheme,
@@ -386,6 +436,7 @@ export default function BoothResultScreen() {
     playShutterSound();
     selectBackdrop(bd);
     setFrameColor(bd.color);
+    setPattern('solid');
     setStripTitle('');
     setActiveCustomFrame({
       id: bd.id,
@@ -401,9 +452,9 @@ export default function BoothResultScreen() {
       washiTapeStyle: 'none',
       gradientTheme: 'none',
     });
-  }, [selectBackdrop, setFrameColor, setStripTitle, setActiveCustomFrame]);
+  }, [selectBackdrop, setFrameColor, setPattern, setStripTitle, setActiveCustomFrame]);
 
-  // Bộ chọn mẫu Studio Presets trực tiếp (khung sạch màu sắc, không dính chữ)
+  // Bộ chọn mẫu Studio Presets trực tiếp (khung sạch màu sắc, không dính chữ, mặc định màu trơn sạch)
   const handleSelectPreset = useCallback((preset: StudioPresetItem) => {
     playShutterSound();
     useStudioStore.getState().applyPreset(preset);
@@ -416,15 +467,16 @@ export default function BoothResultScreen() {
       textItems: [],
       customText: '',
       frameLayout: preset.frameLayout,
-      pattern: preset.pattern,
+      pattern: undefined, // Bắt đầu với màu trơn sạch, người dùng tự thêm họa tiết theo chất riêng
       sealStamp: preset.sealStamp,
       washiTapeStyle: preset.washiTapeStyle,
       gradientTheme: preset.gradientTheme,
     });
     setFrameColor(preset.backgroundColor);
+    setPattern('solid');
     setLayout(preset.frameLayout === 'grid_4' ? 'grid' : 'vertical');
     setStripTitle('');
-  }, [setActiveCustomFrame, setFrameColor, setLayout, setStripTitle]);
+  }, [setActiveCustomFrame, setFrameColor, setLayout, setPattern, setStripTitle]);
 
   // Bộ chọn khung DIY đã lưu
   const handleSelectCustomFrame = useCallback((cf: any) => {
@@ -498,6 +550,83 @@ export default function BoothResultScreen() {
             <View style={[styles.washiCorner, { top: -2, left: -2, transform: [{ rotate: '-35deg' }] }]} pointerEvents="none" />
             <View style={[styles.washiCorner, { bottom: -2, right: -2, transform: [{ rotate: '-35deg' }] }]} pointerEvents="none" />
           </>
+        )}
+
+        {/* Băng dính Washi Tape nếu có */}
+        {activeCustomFrame?.washiTapeStyle && activeCustomFrame.washiTapeStyle !== 'none' && (
+          <View
+            style={{
+              position: 'absolute',
+              top: -8,
+              alignSelf: 'center',
+              width: 60,
+              height: 16,
+              backgroundColor:
+                activeCustomFrame.washiTapeStyle === 'glitter' ? '#FDE047' :
+                activeCustomFrame.washiTapeStyle === 'kraft' ? '#D97706' :
+                activeCustomFrame.washiTapeStyle === 'pastel' ? '#F472B6' :
+                activeCustomFrame.washiTapeStyle === 'checkered' ? '#1E293B' : '#E2E8F0',
+              borderRadius: 4,
+              opacity: 0.85,
+              transform: [{ rotate: '-3deg' }],
+              zIndex: 20,
+            }}
+          />
+        )}
+
+        {/* Họa tiết nền nếu có */}
+        {effectivePattern && effectivePattern !== 'solid' && effectivePattern !== 'none' && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {effectivePattern === 'dots' && (
+              <View style={{ position: 'absolute', inset: 0, opacity: 0.16, flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 6, justifyContent: 'space-around' }}>
+                {[...Array(layout === 'grid' ? 16 : 24)].map((_, i) => (
+                  <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#000000' }} />
+                ))}
+              </View>
+            )}
+            {effectivePattern === 'stripes' && (
+              <View style={{ position: 'absolute', inset: 0, opacity: 0.1, flexDirection: 'row', justifyContent: 'space-evenly' }}>
+                {[...Array(layout === 'grid' ? 8 : 12)].map((_, i) => (
+                  <View key={i} style={{ width: 5, height: '100%', backgroundColor: '#000000' }} />
+                ))}
+              </View>
+            )}
+            {effectivePattern === 'hearts' && (
+              <View style={{ position: 'absolute', inset: 0, opacity: 0.22, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                {['💖', '💕', '💗', '💖', '💕', '💗'].map((h, i) => (
+                  <Text key={i} style={{ fontSize: 13 }}>{h}</Text>
+                ))}
+              </View>
+            )}
+            {effectivePattern === 'stars' && (
+              <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                {['✨', '⭐', '✨', '⭐', '✨', '⭐'].map((s, i) => (
+                  <Text key={i} style={{ fontSize: 13 }}>{s}</Text>
+                ))}
+              </View>
+            )}
+            {effectivePattern === 'sparkles' && (
+              <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                {['✦', '✧', '✦', '✧'].map((s, i) => (
+                  <Text key={i} style={{ fontSize: 14, color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 2 }}>{s}</Text>
+                ))}
+              </View>
+            )}
+            {effectivePattern === 'cherries' && (
+              <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                {['🌸', '🌺', '🌸', '🌺'].map((c, i) => (
+                  <Text key={i} style={{ fontSize: 13 }}>{c}</Text>
+                ))}
+              </View>
+            )}
+            {effectivePattern === 'clover' && (
+              <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                {['🍀', '🌱', '🍀', '🌱'].map((c, i) => (
+                  <Text key={i} style={{ fontSize: 13 }}>{c}</Text>
+                ))}
+              </View>
+            )}
+          </View>
         )}
 
         {/* 4 ô ảnh */}
@@ -940,6 +1069,48 @@ export default function BoothResultScreen() {
                     </Pressable>
                   )
                 )}
+              </ScrollView>
+            </View>
+
+            {/* Thanh chọn Họa tiết nền Photobooth (Tự do sáng tạo chất riêng) */}
+            <View style={styles.patternsBarContainer}>
+              <View style={styles.patternsBarHeader}>
+                <Text style={styles.patternsBarTitle}>✨ Họa tiết khung</Text>
+                <Text style={styles.patternsBarCurrentName} numberOfLines={1}>
+                  {FRAME_PATTERNS.find((p) => p.id === (effectivePattern || 'solid'))?.label || 'Màu trơn'}
+                </Text>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.patternsScrollContent}
+              >
+                {FRAME_PATTERNS.map((pat) => {
+                  const isSelected =
+                    effectivePattern === pat.id ||
+                    (pat.id === 'solid' && (!effectivePattern || effectivePattern === 'none' || effectivePattern === 'solid'));
+                  return (
+                    <Pressable
+                      key={pat.id}
+                      onPress={() => handleSelectPattern(pat.id)}
+                      style={[
+                        styles.patternChip,
+                        isSelected && styles.patternChipActive,
+                      ]}
+                    >
+                      <Text style={styles.patternChipIcon}>{pat.icon}</Text>
+                      <Text
+                        style={[
+                          styles.patternChipLabel,
+                          isSelected && styles.patternChipLabelActive,
+                        ]}
+                      >
+                        {pat.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
             </View>
 
@@ -2376,5 +2547,60 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#7EE8B8',
+  },
+  patternsBarContainer: {
+    marginTop: 10,
+    marginBottom: 4,
+    paddingHorizontal: 16,
+  },
+  patternsBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  patternsBarTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  patternsBarCurrentName: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFD93D',
+    maxWidth: 160,
+  },
+  patternsScrollContent: {
+    paddingRight: 16,
+    gap: 8,
+  },
+  patternChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#1E212B',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 6,
+  },
+  patternChipActive: {
+    backgroundColor: 'rgba(255, 217, 61, 0.15)',
+    borderColor: '#FFD93D',
+  },
+  patternChipIcon: {
+    fontSize: 13,
+  },
+  patternChipLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  patternChipLabelActive: {
+    color: '#FFD93D',
+    fontWeight: '900',
   },
 });

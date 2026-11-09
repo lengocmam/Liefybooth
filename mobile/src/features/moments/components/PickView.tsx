@@ -623,26 +623,54 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           )}
 
           {/* Họa tiết nền nếu có */}
-          {momentItem.pattern && momentItem.pattern !== 'none' && (
+          {momentItem.pattern && momentItem.pattern !== 'none' && momentItem.pattern !== 'solid' && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               {momentItem.pattern === 'dots' && (
-                <View style={{ position: 'absolute', inset: 0, opacity: 0.15, flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 6 }}>
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.16, flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 6, justifyContent: 'space-around' }}>
                   {[...Array(16)].map((_, i) => (
                     <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#000000' }} />
                   ))}
                 </View>
               )}
+              {momentItem.pattern === 'stripes' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.1, flexDirection: 'row', justifyContent: 'space-evenly' }}>
+                  {[...Array(8)].map((_, i) => (
+                    <View key={i} style={{ width: 5, height: '100%', backgroundColor: '#000000' }} />
+                  ))}
+                </View>
+              )}
               {momentItem.pattern === 'hearts' && (
-                <View style={{ position: 'absolute', inset: 0, opacity: 0.2, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', padding: 6 }}>
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.22, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
                   {['💖', '💕', '💗', '💖'].map((h, i) => (
                     <Text key={i} style={{ fontSize: 13 }}>{h}</Text>
                   ))}
                 </View>
               )}
               {momentItem.pattern === 'stars' && (
-                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', padding: 6 }}>
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
                   {['✨', '⭐', '✨', '⭐'].map((s, i) => (
                     <Text key={i} style={{ fontSize: 13 }}>{s}</Text>
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'sparkles' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                  {['✦', '✧', '✦', '✧'].map((s, i) => (
+                    <Text key={i} style={{ fontSize: 14, color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 2 }}>{s}</Text>
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'cherries' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                  {['🌸', '🌺', '🌸', '🌺'].map((c, i) => (
+                    <Text key={i} style={{ fontSize: 13 }}>{c}</Text>
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'clover' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                  {['🍀', '🌱', '🍀', '🌱'].map((c, i) => (
+                    <Text key={i} style={{ fontSize: 13 }}>{c}</Text>
                   ))}
                 </View>
               )}
@@ -779,26 +807,54 @@ export const PickView: React.FC<PickViewProps> = ({ onCloseFeed, pullDownPanResp
           )}
 
           {/* Họa tiết nền nếu có */}
-          {momentItem.pattern && momentItem.pattern !== 'none' && (
+          {momentItem.pattern && momentItem.pattern !== 'none' && momentItem.pattern !== 'solid' && (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               {momentItem.pattern === 'dots' && (
-                <View style={{ position: 'absolute', inset: 0, opacity: 0.15, flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 6 }}>
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.16, flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 6, justifyContent: 'space-around' }}>
                   {[...Array(24)].map((_, i) => (
                     <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#000000' }} />
                   ))}
                 </View>
               )}
+              {momentItem.pattern === 'stripes' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.1, flexDirection: 'row', justifyContent: 'space-evenly' }}>
+                  {[...Array(12)].map((_, i) => (
+                    <View key={i} style={{ width: 5, height: '100%', backgroundColor: '#000000' }} />
+                  ))}
+                </View>
+              )}
               {momentItem.pattern === 'hearts' && (
-                <View style={{ position: 'absolute', inset: 0, opacity: 0.2, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', padding: 6 }}>
-                  {['💖', '💕', '💗', '💖'].map((h, i) => (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.22, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                  {['💖', '💕', '💗', '💖', '💕', '💗'].map((h, i) => (
                     <Text key={i} style={{ fontSize: 13 }}>{h}</Text>
                   ))}
                 </View>
               )}
               {momentItem.pattern === 'stars' && (
-                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', padding: 6 }}>
-                  {['✨', '⭐', '✨', '⭐'].map((s, i) => (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                  {['✨', '⭐', '✨', '⭐', '✨', '⭐'].map((s, i) => (
                     <Text key={i} style={{ fontSize: 13 }}>{s}</Text>
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'sparkles' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                  {['✦', '✧', '✦', '✧'].map((s, i) => (
+                    <Text key={i} style={{ fontSize: 14, color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 2 }}>{s}</Text>
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'cherries' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                  {['🌸', '🌺', '🌸', '🌺'].map((c, i) => (
+                    <Text key={i} style={{ fontSize: 13 }}>{c}</Text>
+                  ))}
+                </View>
+              )}
+              {momentItem.pattern === 'clover' && (
+                <View style={{ position: 'absolute', inset: 0, opacity: 0.25, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignItems: 'center', padding: 8 }}>
+                  {['🍀', '🌱', '🍀', '🌱'].map((c, i) => (
+                    <Text key={i} style={{ fontSize: 13 }}>{c}</Text>
                   ))}
                 </View>
               )}

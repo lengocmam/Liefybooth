@@ -24,6 +24,7 @@ export default function BoothScreen() {
   const handleStartShooting = (backdrop: BackdropItem) => {
     selectBackdrop(backdrop);
     useBoothStore.getState().setFrameColor(backdrop.color);
+    useBoothStore.getState().setPattern('solid');
     useBoothStore.getState().setStripTitle('');
     useBoothStore.getState().setActiveCustomFrame({
       id: backdrop.id,
@@ -46,6 +47,7 @@ export default function BoothScreen() {
       resetBooth();
       selectBackdrop(backdrop);
       useBoothStore.getState().setFrameColor(backdrop.color);
+      useBoothStore.getState().setPattern('solid');
       router.push('/booth/camera' as any);
     }
   };
@@ -214,6 +216,7 @@ export default function BoothScreen() {
                       washiTapeStyle: cf.washiTapeStyle,
                       gradientTheme: cf.gradientTheme,
                     });
+                    useBoothStore.getState().setFrameColor(cf.backgroundColor);
                     useBoothStore.getState().setLayout(cf.frameLayout === 'grid_4' ? 'grid' : 'vertical');
                     useBoothStore.getState().setStripTitle(cf.customText || '');
                     if (capturedPhotos && capturedPhotos.length > 0) {
